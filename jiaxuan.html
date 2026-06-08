@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>品牌沙盘 · Brand Sandtable</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{jd:{red:'#E33333',dark:'#1a1a2e',navy:'#16213e',blue:'#0f3460',accent:'#e94560',gold:'#f0a500',green:'#00b894',surface:'#f8f9fc',card:'#ffffff',border:'#e8ecf1',text:'#2d3436',muted:'#636e72',tag:'#dfe6e9'}}}}</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f0f2f5;color:#2d3436}
+.sidebar{width:220px;background:linear-gradient(180deg,#1a1a2e 0%,#16213e 100%);min-height:100vh;position:fixed;left:0;top:0;z-index:100;transition:transform .3s}
+.sidebar .logo{padding:20px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar .logo h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:.5px}
+.sidebar .logo span{font-size:11px;color:rgba(255,255,255,.45)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 18px;color:rgba(255,255,255,.6);cursor:pointer;font-size:13.5px;transition:all .2s;border-left:3px solid transparent;margin:1px 0}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.06)}
+.nav-item.active{color:#fff;background:rgba(255,255,255,.1);border-left-color:#f0a500;font-weight:600}
+.nav-item .icon{width:18px;text-align:center;font-size:15px}
+.nav-section{font-size:10px;color:rgba(255,255,255,.25);padding:16px 18px 6px;text-transform:uppercase;letter-spacing:1.5px}
+.main-content{margin-left:220px;min-height:100vh}
+.top-bar{background:#fff;padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8ecf1;position:sticky;top:0;z-index:50}
+.top-bar .search-box{background:#f5f6fa;border:none;padding:8px 16px;border-radius:8px;width:360px;font-size:13px;outline:none}
+.top-bar .user-info{display:flex;align-items:center;gap:16px;font-size:13px}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-red{background:#ffeaea;color:#e33333}
+.badge-yellow{background:#fff8e6;color:#f0a500}
+.badge-green{background:#e6fff5;color:#00b894}
+.badge-gray{background:#f0f2f5;color:#636e72}
+.badge-blue{background:#e8f0fe;color:#3b7ddd}
+.priority-p0{background:#e33333;color:#fff;font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700}
+.priority-p1{background:#f0a500;color:#fff;font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700}
+.priority-p2{background:#636e72;color:#fff;font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);border:1px solid #e8ecf1;transition:box-shadow .2s}
+.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}
+.stat-value{font-size:28px;font-weight:700;line-height:1.1}
+.stat-label{font-size:12px;color:#636e72;margin-top:4px}
+.stat-change{font-size:12px;font-weight:600;margin-top:2px}
+.trend-up{color:#00b894}
+.trend-down{color:#e33333}
+.view{display:none}
+.view.active{display:block}
+.page-content{padding:24px 28px}
+.page-title{font-size:20px;font-weight:700;margin-bottom:20px}
+.page-subtitle{font-size:13px;color:#636e72;margin-bottom:24px}
+.tab-bar{display:flex;gap:0;border-bottom:2px solid #e8ecf1;margin-bottom:20px}
+.tab-item{padding:10px 20px;font-size:13px;cursor:pointer;color:#636e72;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab-item.active{color:#1a1a2e;border-bottom-color:#f0a500;font-weight:600}
+table.data-table{width:100%;border-collapse:collapse;font-size:13px}
+table.data-table th{text-align:left;padding:10px 12px;background:#f8f9fc;color:#636e72;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e8ecf1}
+table.data-table td{padding:12px;border-bottom:1px solid #f0f2f5}
+table.data-table tr:hover td{background:#f8f9fc}
+.progress-bar{height:6px;border-radius:3px;background:#e8ecf1;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width .6s}
+.risk-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.risk-high{background:#e33333}
+.risk-mid{background:#f0a500}
+.risk-low{background:#00b894}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:28px;width:700px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.brand-grade-s{background:#1a1a2e;color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700}
+.brand-grade-a{background:#3b7ddd;color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700}
+.brand-grade-b{background:#636e72;color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700}
+.pulse{animation:pulse 2s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.toast{position:fixed;top:20px;right:20px;background:#1a1a2e;color:#fff;padding:14px 20px;border-radius:10px;font-size:13px;z-index:300;opacity:0;transform:translateY(-20px);transition:all .3s;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.show{opacity:1;transform:translateY(0)}
+.chart-bar{display:flex;align-items:end;gap:8px;height:120px;padding-top:8px}
+.chart-bar .bar{flex:1;border-radius:4px 4px 0 0;min-width:24px;transition:height .5s;position:relative}
+.chart-bar .bar-label{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:10px;color:#636e72;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="logo">
+    <h1>🏯 品牌沙盘</h1>
+    <span>Brand Sandtable · AI决策中枢</span>
+  </div>
+  <div class="nav-section">核心功能</div>
+  <div class="nav-item active" data-view="dashboard">
+    <span class="icon">📊</span> 工作台
+  </div>
+  <div class="nav-item" data-view="brand-profile">
+    <span class="icon">📋</span> 品牌档案
+  </div>
+  <div class="nav-item" data-view="strategy-sim">
+    <span class="icon">🧠</span> 博弈推演
+  </div>
+  <div class="nav-item" data-view="task-center">
+    <span class="icon">✅</span> 待办中心
+    <span class="badge badge-red" style="margin-left:auto">5</span>
+  </div>
+  <div class="nav-section">战略洞察</div>
+  <div class="nav-item" data-view="battlefield">
+    <span class="icon">🗺️</span> 战局视图
+  </div>
+  <div class="nav-item" data-view="management">
+    <span class="icon">🏢</span> 管理驾驶舱
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <input type="text" class="search-box" placeholder="🔍 搜索品牌、SKU、采销、待办...">
+    <div class="user-info">
+      <span style="position:relative;cursor:pointer">🔔 <span class="badge badge-red pulse" style="position:absolute;top:-6px;right:-8px;font-size:10px">3</span></span>
+      <span style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f0a500,#e33333);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px">张</span>
+      <span>张明远 · 厨小品类采销</span>
+    </div>
+  </div>
+
+  <div class="page-content">
+
+    <!-- ========== VIEW 1: 工作台 ========== -->
+    <div class="view active" id="view-dashboard">
+      <div class="page-title">工作台</div>
+      <div class="page-subtitle">2026年6月8日 周一 · 你负责5个品牌 · 今日待办7项 · 本周拜访2场</div>
+
+      <!-- Alert Banner -->
+      <div class="card" style="background:linear-gradient(135deg,#fff5f5,#fff8e6);border-color:#f0a500;margin-bottom:20px">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <span style="font-size:24px">⚠️</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px">重要预警（3条需关注）</div>
+            <div style="font-size:13px;color:#636e72">
+              <div style="margin:4px 0">🔴 <b>苏泊尔</b> 京东市占连续3周下滑（-2.3pp），竞对在天猫上线3款京东缺货新品 → <span style="color:#e33333;cursor:pointer;text-decoration:underline" onclick="switchView('strategy-sim')">立即推演</span></div>
+              <div style="margin:4px 0">🟡 <b>九阳</b> 距上次拜访已超过45天，合同将于30天后到期 → <span style="color:#f0a500;cursor:pointer;text-decoration:underline" onclick="switchView('brand-profile')">查看档案</span></div>
+              <div style="margin:4px 0">🟡 <b>摩飞</b> 品牌方电商总监近期变动，新人尚未建立联系 → <span style="color:#f0a500;cursor:pointer;text-decoration:underline">创建拜访待办</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stat Cards Row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+        <div class="card">
+          <div class="stat-label">我负责品牌的周GMV</div>
+          <div class="stat-value">¥1,847<span style="font-size:16px;font-weight:400">万</span></div>
+          <div class="stat-change trend-up">▲ 8.3% 环比</div>
+        </div>
+        <div class="card">
+          <div class="stat-label">待办闭环率（本月）</div>
+          <div class="stat-value">76<span style="font-size:16px;font-weight:400">%</span></div>
+          <div class="stat-change trend-down">▼ 5% vs 上月 · 目标85%</div>
+        </div>
+        <div class="card">
+          <div class="stat-label">品牌资源争取（Q2）</div>
+          <div class="stat-value">3<span style="font-size:16px;font-weight:400">/7项</span></div>
+          <div class="stat-change" style="color:#f0a500">● 达成率43% · 追赶中</div>
+        </div>
+        <div class="card">
+          <div class="stat-label">本周需拜访</div>
+          <div class="stat-value">2<span style="font-size:16px;font-weight:400">场</span></div>
+          <div class="stat-change" style="color:#636e72">苏泊尔(周三) · 九阳(周五)</div>
+        </div>
+      </div>
+
+      <!-- Two Column Layout -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <!-- Today's Tasks -->
+        <div class="card">
+          <div style="font-weight:700;font-size:14px;margin-bottom:14px;display:flex;justify-content:space-between">
+            <span>📌 今日待办</span>
+            <span style="font-size:12px;color:#636e72;font-weight:400">3/7 已完成</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f8f9fc;border-radius:8px;border-left:3px solid #e33333">
+              <input type="checkbox" style="width:16px;height:16px">
+              <div style="flex:1"><span class="priority-p0">P0</span> <b>联系苏泊尔确认3款缺品引入时间</b><br><span style="font-size:11px;color:#636e72">来自：供给缺口分析 · 截止今天</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f8f9fc;border-radius:8px;border-left:3px solid #f0a500">
+              <input type="checkbox" style="width:16px;height:16px">
+              <div style="flex:1"><span class="priority-p1">P1</span> <b>准备周三苏泊尔拜访简报</b><br><span style="font-size:11px;color:#636e72">来自：拜访提醒 · 截止明天</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f8f9fc;border-radius:8px;border-left:3px solid #f0a500">
+              <input type="checkbox" checked style="width:16px;height:16px">
+              <div style="flex:1;opacity:.6"><span class="priority-p1">P1</span> <s>完成九阳品牌周报审阅</s><br><span style="font-size:11px;color:#636e72">已完成 · 09:32</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f8f9fc;border-radius:8px;border-left:3px solid #636e72">
+              <input type="checkbox" style="width:16px;height:16px">
+              <div style="flex:1"><span class="priority-p2">P2</span> <b>更新摩飞品牌方组织架构信息</b><br><span style="font-size:11px;color:#636e72">来自：知识库过期提醒 · 截止本周五</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Intelligence Feed -->
+        <div class="card">
+          <div style="font-weight:700;font-size:14px;margin-bottom:14px">📰 最新情报</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+            <div style="padding:8px 0;border-bottom:1px solid #f0f2f5">
+              <span class="badge badge-red">P0</span> <b>苏泊尔</b> 竞对天猫旗舰店上线3款京东未覆盖新品，单品月销已破百万
+              <div style="font-size:11px;color:#636e72;margin-top:3px">2小时前 · 竞对监控自动发现</div>
+            </div>
+            <div style="padding:8px 0;border-bottom:1px solid #f0f2f5">
+              <span class="badge badge-yellow">P1</span> <b>九阳</b> 品牌方发布Q2财报，线上渠道增速放缓，CEO表示将加大京东资源投入
+              <div style="font-size:11px;color:#636e72;margin-top:3px">昨天 · AI从财报提取</div>
+            </div>
+            <div style="padding:8px 0;border-bottom:1px solid #f0f2f5">
+              <span class="badge badge-yellow">P1</span> <b>摩飞</b> 电商总监张伟已离职，新任总监尚未公布。采销需尽快建立新对接关系
+              <div style="font-size:11px;color:#636e72;margin-top:3px">3天前 · 企查查+采销确认</div>
+            </div>
+            <div style="padding:8px 0">
+              <span class="badge badge-green">P2</span> <b>小熊电器</b> 618预售期间京东GMV同比增长32%，超品类均值18pp
+              <div style="font-size:11px;color:#636e72;margin-top:3px">昨天 · 数据系统自动生成</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== VIEW 2: 品牌档案 ========== -->
+    <div class="view" id="view-brand-profile">
+      <div class="page-title">品牌全景档案</div>
+      <div class="tab-bar">
+        <div class="tab-item active" onclick="switchBrandTab(this,'overview')">品牌列表</div>
+        <div class="tab-item" onclick="switchBrandTab(this,'detail')">苏泊尔 · 详情</div>
+      </div>
+
+      <!-- Brand List View -->
+      <div id="brand-list-view">
+        <div style="display:flex;gap:12px;margin-bottom:16px">
+          <select style="padding:8px 14px;border:1px solid #e8ecf1;border-radius:8px;font-size:13px">
+            <option>全部品类</option><option>厨具</option><option>水具</option><option>餐具</option>
+          </select>
+          <select style="padding:8px 14px;border:1px solid #e8ecf1;border-radius:8px;font-size:13px">
+            <option>全部等级</option><option>S-战略</option><option>A-核心</option><option>B-常规</option><option>C-长尾</option>
+          </select>
+          <input type="text" placeholder="搜索品牌..." style="padding:8px 14px;border:1px solid #e8ecf1;border-radius:8px;font-size:13px;flex:1">
+        </div>
+        <table class="data-table">
+          <thead><tr><th>品牌</th><th>等级</th><th>健康分</th><th>周GMV</th><th>JD市占</th><th>关系温度</th><th>上次拜访</th><th>待办</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>苏泊尔</b> <span style="font-size:11px;color:#636e72">厨具·锅具</span></td>
+              <td><span class="brand-grade-s">S</span></td>
+              <td><span style="color:#f0a500;font-weight:700">72</span>/100</td>
+              <td>¥623万 <span class="trend-down">▼5.2%</span></td>
+              <td>31.2% <span class="trend-down">▼2.3pp</span></td>
+              <td><span class="risk-dot risk-mid"></span>降温</td>
+              <td>45天前</td>
+              <td><span class="badge badge-red">5待办</span></td>
+              <td><span style="color:#3b7ddd;cursor:pointer;font-weight:600" onclick="document.querySelectorAll('#view-brand-profile .tab-item')[1].click()">查看详情 →</span></td>
+            </tr>
+            <tr>
+              <td><b>九阳</b> <span style="font-size:11px;color:#636e72">厨具·小家电</span></td>
+              <td><span class="brand-grade-s">S</span></td>
+              <td><span style="color:#00b894;font-weight:700">88</span>/100</td>
+              <td>¥512万 <span class="trend-up">▲12.1%</span></td>
+              <td>28.5% <span class="trend-up">▲1.8pp</span></td>
+              <td><span class="risk-dot risk-low"></span>稳定</td>
+              <td>30天前</td>
+              <td><span class="badge badge-yellow">2待办</span></td>
+              <td><span style="color:#3b7ddd;cursor:pointer;font-weight:600">查看详情 →</span></td>
+            </tr>
+            <tr>
+              <td><b>摩飞</b> <span style="font-size:11px;color:#636e72">厨具·小家电</span></td>
+              <td><span class="brand-grade-a">A</span></td>
+              <td><span style="color:#f0a500;font-weight:700">65</span>/100</td>
+              <td>¥187万 <span class="trend-up">▲3.5%</span></td>
+              <td>8.3% <span class="trend-up">▲0.5pp</span></td>
+              <td><span class="risk-dot risk-mid"></span>关注</td>
+              <td>60天前</td>
+              <td><span class="badge badge-red">3待办</span></td>
+              <td><span style="color:#3b7ddd;cursor:pointer;font-weight:600">查看详情 →</span></td>
+            </tr>
+            <tr>
+              <td><b>小熊电器</b> <span style="font-size:11px;color:#636e72">厨具·小家电</span></td>
+              <td><span class="brand-grade-a">A</span></td>
+              <td><span style="color:#00b894;font-weight:700">91</span>/100</td>
+              <td>¥298万 <span class="trend-up">▲32.0%</span></td>
+              <td>12.1% <span class="trend-up">▲3.2pp</span></td>
+              <td><span class="risk-dot risk-low"></span>升温</td>
+              <td>20天前</td>
+              <td><span class="badge badge-green">1待办</span></td>
+              <td><span style="color:#3b7ddd;cursor:pointer;font-weight:600">查看详情 →</span></td>
+            </tr>
+            <tr>
+              <td><b>双立人</b> <span style="font-size:11px;color:#636e72">厨具·刀具</span></td>
+              <td><span class="brand-grade-b">B</span></td>
+              <td><span style="color:#636e72;font-weight:700">78</span>/100</td>
+              <td>¥84万 <span class="trend-down">▼1.2%</span></td>
+              <td>15.7% <span style="color:#636e72">持平</span></td>
+              <td><span class="risk-dot risk-low"></span>稳定</td>
+              <td>90天前</td>
+              <td><span class="badge badge-gray">0待办</span></td>
+              <td><span style="color:#3b7ddd;cursor:pointer;font-weight:600">查看详情 →</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Brand Detail View (苏泊尔) -->
+      <div id="brand-detail-view" style="display:none">
+        <!-- 一屏概览 -->
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px">
+          <div class="card" style="background:linear-gradient(135deg,#fff5f5,#fff);border-left:4px solid #e33333">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+              <div><span class="brand-grade-s" style="font-size:12px;padding:3px 10px">S-战略</span> <b style="font-size:18px;margin-left:8px">苏泊尔</b> <span style="color:#636e72;font-size:13px">厨具 · 锅具/小家电</span></div>
+              <span style="font-size:12px;color:#636e72">档案健康度 85/100</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:12px">
+              <div><div class="stat-label">近7日GMV</div><div class="stat-value" style="font-size:22px">¥623<span style="font-size:14px">万</span></div><div class="stat-change trend-down">▼5.2% 周环比 · 低于品类均值8pp</div></div>
+              <div><div class="stat-label">JD市占</div><div class="stat-value" style="font-size:22px">31.2<span style="font-size:14px">%</span></div><div class="stat-change trend-down">▼2.3pp 连续3周下滑</div></div>
+              <div><div class="stat-label">关系温度</div><div class="stat-value" style="font-size:22px;color:#f0a500">降温<span style="font-size:14px;font-weight:400"> ⚠️</span></div><div class="stat-change" style="color:#636e72">45天未拜访 · 合同83天后到期</div></div>
+            </div>
+            <div style="background:#f8f9fc;padding:12px;border-radius:8px;font-size:13px">
+              <b>🤖 AI一句话：</b>苏泊尔连续3周在京东市占下滑，同期天猫上线3款京东未覆盖的新品且月销破百万。品牌方可能正在将新品资源向天猫倾斜。建议本周内安排拜访，核心议题：争取3款新品京东首发。
+            </div>
+          </div>
+          <div class="card">
+            <div style="font-weight:700;font-size:14px;margin-bottom:12px">⏰ 品牌日历</div>
+            <div style="font-size:12px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#e33333;font-weight:700">6/11</span><div>🔴 苏泊尔拜访（建议本周三）</div></div>
+              <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#f0a500;font-weight:700">6/15</span><div>🟡 618大促资源确认截止</div></div>
+              <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#636e72;font-weight:700">8/30</span><div>⚪ 年度合同到期</div></div>
+              <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:#3b7ddd;font-weight:700">9/15</span><div>🔵 苏泊尔秋季新品发布会</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs for Brand Detail -->
+        <div class="tab-bar" style="margin-bottom:16px">
+          <div class="tab-item active">经营数据</div>
+          <div class="tab-item">品牌方画像</div>
+          <div class="tab-item">互动时间线</div>
+          <div class="tab-item">供给分析</div>
+        </div>
+
+        <!-- 经营数据子页 -->
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px">
+          <div class="card">
+            <div style="font-weight:700;font-size:13px;margin-bottom:12px">GMV趋势（近12周）</div>
+            <div class="chart-bar">
+              <div class="bar" style="height:80px;background:#3b7ddd"></div><div class="bar" style="height:85px;background:#3b7ddd"></div>
+              <div class="bar" style="height:90px;background:#3b7ddd"></div><div class="bar" style="height:82px;background:#3b7ddd"></div>
+              <div class="bar" style="height:75px;background:#3b7ddd"></div><div class="bar" style="height:70px;background:#e33333"></div>
+              <div class="bar" style="height:65px;background:#e33333"></div><div class="bar" style="height:60px;background:#e33333"></div>
+              <div class="bar" style="height:55px;background:#e33333"></div><div class="bar" style="height:58px;background:#e33333"></div>
+              <div class="bar" style="height:52px;background:#e33333"></div><div class="bar" style="height:48px;background:#e33333"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#636e72;margin-top:24px">
+              <span>W-12</span><span>W-11</span><span>W-10</span><span>W-9</span><span>W-8</span><span>W-7</span><span>W-6</span><span>W-5</span><span>W-4</span><span>W-3</span><span>W-2</span><span>W-1</span>
+            </div>
+          </div>
+          <div class="card">
+            <div style="font-weight:700;font-size:13px;margin-bottom:12px">经营指标一览</div>
+            <table style="width:100%;font-size:12px">
+              <tr><td style="padding:6px 0;color:#636e72">毛利率</td><td style="font-weight:700">28.5%</td><td style="color:#00b894">▲0.8pp</td></tr>
+              <tr><td style="padding:6px 0;color:#636e72">转化率</td><td style="font-weight:700">4.2%</td><td style="color:#636e72">持平</td></tr>
+              <tr><td style="padding:6px 0;color:#636e72">退货率</td><td style="font-weight:700;color:#e33333">3.8%</td><td style="color:#e33333">▲0.5pp</td></tr>
+              <tr><td style="padding:6px 0;color:#636e72">广告ROI</td><td style="font-weight:700">3.2</td><td style="color:#00b894">▲0.3</td></tr>
+              <tr><td style="padding:6px 0;color:#636e72">动销SKU数</td><td style="font-weight:700">1,247</td><td style="color:#e33333">▼23个</td></tr>
+              <tr><td style="padding:6px 0;color:#636e72">库存周转天数</td><td style="font-weight:700">32天</td><td style="color:#00b894">▼3天</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== VIEW 3: 博弈推演 ========== -->
+    <div class="view" id="view-strategy-sim">
+      <div class="page-title">博弈推演引擎</div>
+      <div class="page-subtitle">AI多角色模拟，预演品牌方行为，输出采销策略建议</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <!-- Input Panel -->
+        <div class="card">
+          <div style="font-weight:700;font-size:14px;margin-bottom:16px">🎯 推演配置</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label style="font-size:12px;color:#636e72;display:block;margin-bottom:4px">推演场景</label>
+              <select style="width:100%;padding:10px;border:1px solid #e8ecf1;border-radius:8px;font-size:13px">
+                <option selected>场景一：品牌方行为推演</option>
+                <option>场景二：品牌间竞争推演（TOP1 vs TOP2）</option>
+                <option>场景三：采销谈判模拟器</option>
+                <option>场景四：竞对平台冲击推演</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px;color:#636e72;display:block;margin-bottom:4px">目标品牌</label>
+              <select style="width:100%;padding:10px;border:1px solid #e8ecf1;border-radius:8px;font-size:13px">
+                <option selected>苏泊尔（S级 · 厨具）</option>
+                <option>九阳（S级 · 厨具）</option>
+                <option>摩飞（A级 · 厨具）</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px;color:#636e72;display:block;margin-bottom:4px">谈判目标 / 关注议题</label>
+              <textarea style="width:100%;padding:10px;border:1px solid #e8ecf1;border-radius:8px;font-size:13px;height:80px;resize:none" placeholder="描述你想达成的目标...">争取苏泊尔3款天猫独家新品在京东首发，要求京东专属价格优势和广告资源包</textarea>
+            </div>
+            <button style="background:linear-gradient(135deg,#f0a500,#e33333);color:#fff;border:none;padding:12px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;width:100%" onclick="runSimulation()">🚀 开始AI推演</button>
+          </div>
+        </div>
+
+        <!-- Output Panel -->
+        <div class="card" id="sim-output">
+          <div style="font-weight:700;font-size:14px;margin-bottom:16px;display:flex;justify-content:space-between">
+            <span>📊 推演结果</span>
+            <span class="badge badge-blue">置信度：中</span>
+          </div>
+          <div style="font-size:13px">
+            <div style="background:#f8f9fc;padding:12px;border-radius:8px;margin-bottom:12px">
+              <b>🤖 品牌方视角推演：</b>如果我是苏泊尔的电商负责人，当前我的核心诉求是——<br>
+              ① 618期间最大化全渠道GMV（天猫目前贡献更大）<br>
+              ② 新品首发需要快速起量（天猫的流量和用户匹配度给我信心）<br>
+              ③ 京东的增长在放缓，但我暂时不想放弃京东这个渠道
+            </div>
+            <div style="margin-bottom:12px">
+              <b>情景A（乐观·概率35%）：</b>品牌方同意将2-3款新品京东首发。<br>
+              <span style="color:#00b894">条件：京东提供首页资源位+专属价格优势+联合营销预算</span>
+            </div>
+            <div style="margin-bottom:12px">
+              <b>情景B（基准·概率45%）：</b>品牌方同意1款新品京东首发，其余全渠道同步。<br>
+              <span style="color:#f0a500">条件：京东确保首发14天独家+不低于天猫的流量支持</span>
+            </div>
+            <div style="margin-bottom:12px">
+              <b>情景C（悲观·概率20%）：</b>品牌方拒绝京东独家，全渠道同步上市。<br>
+              <span style="color:#e33333">条件：京东需保证至少不低于天猫的上架速度和价格</span>
+            </div>
+            <div style="background:#fff8e6;padding:12px;border-radius:8px;margin-top:12px">
+              <b>🎯 策略建议：</b><br>
+              ① 目标：争取情景B，挑战情景A<br>
+              ② 筹码：京东厨具品类618流量包+搜索加权+达人直播坑位<br>
+              ③ 话术切入点："天猫的新品用户画像偏女性，京东厨具用户更精准，新品首发转化率预期高15%"<br>
+              ④ 替代方案：如果品牌方拒绝，至少争取京东专属SKU（同款不同色/不同规格）
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strategy Library -->
+      <div class="card" style="margin-top:20px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:14px">📚 博弈策略库 · 匹配推荐</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:12px">
+          <div style="padding:12px;background:#f8f9fc;border-radius:8px;cursor:pointer" onclick="alert('策略详情：2025Q4美的厨具独家首发案例。采销利用美的与九阳的竞争关系，向美的承诺京东首页资源位+站内搜索加权，成功争取3款新品京东首发14天独家。成果：首发期间GMV超预期40%，美的后续将京东列为新品首发优先平台。')">
+            <b>🔖 新品首发争取</b><br>
+            <span style="color:#636e72">美的厨具 · 2025Q4</span><br>
+            <span style="color:#00b894">✓ 成功 · 首发GMV超预期40%</span>
+          </div>
+          <div style="padding:12px;background:#f8f9fc;border-radius:8px;cursor:pointer" onclick="alert('策略详情：2025Q2九阳广告增投案例。向九阳展示其竞对苏泊尔在京东的广告投放力度和ROI对比，证明京东站内广告的投放效率优于天猫。成功争取九阳将京东广告预算从30%提升至45%。')">
+            <b>💰 广告预算争取</b><br>
+            <span style="color:#636e72">九阳 · 2025Q2</span><br>
+            <span style="color:#00b894">✓ 成功 · 广告预算+50%</span>
+          </div>
+          <div style="padding:12px;background:#f8f9fc;border-radius:8px;cursor:pointer" onclick="alert('策略详情：2025Q1双立人包销案例。监测到双立人经销商库存积压，京东采销主动提出包销方案：以优惠价买断3万件库存，京东独家销售。成果：双立人快速回笼资金，京东获得独家价格优势，单月GMV突破2000万。')">
+            <b>📦 包销谈判</b><br>
+            <span style="color:#636e72">双立人 · 2025Q1</span><br>
+            <span style="color:#00b894">✓ 成功 · GMV突破2000万</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== VIEW 4: 待办中心 ========== -->
+    <div class="view" id="view-task-center">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div><div class="page-title" style="margin-bottom:4px">待办指挥中心</div><div class="page-subtitle" style="margin-bottom:0">闭环率76% · 超期3项 · 本周新增5项</div></div>
+        <div style="display:flex;gap:8px">
+          <button style="padding:8px 16px;border:1px solid #e8ecf1;border-radius:8px;background:#fff;font-size:13px;cursor:pointer">采销视角</button>
+          <button style="padding:8px 16px;border:1px solid #e8ecf1;border-radius:8px;background:#1a1a2e;color:#fff;font-size:13px;cursor:pointer">管理者视角</button>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <select style="padding:7px 12px;border:1px solid #e8ecf1;border-radius:6px;font-size:12px"><option>全部优先级</option><option>P0-紧急</option><option>P1-重要</option><option>P2-常规</option></select>
+        <select style="padding:7px 12px;border:1px solid #e8ecf1;border-radius:6px;font-size:12px"><option>全部品牌</option><option>苏泊尔</option><option>九阳</option><option>摩飞</option><option>小熊电器</option></select>
+        <select style="padding:7px 12px;border:1px solid #e8ecf1;border-radius:6px;font-size:12px"><option>全部类型</option><option>拜访跟进</option><option>谈判推进</option><option>供给补充</option><option>合同续约</option></select>
+        <select style="padding:7px 12px;border:1px solid #e8ecf1;border-radius:6px;font-size:12px"><option>全部状态</option><option>待处理</option><option>进行中</option><option>已逾期</option><option>已完成</option></select>
+      </div>
+
+      <table class="data-table">
+        <thead><tr><th>优先级</th><th>待办内容</th><th>品牌</th><th>责任人</th><th>截止</th><th>完成标准</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="priority-p0">P0</span></td>
+            <td><b>联系苏泊尔确认3款缺品引入时间</b><br><span style="font-size:11px;color:#636e72">来源：供给缺口分析 · SKU-7823/7824/7825</span></td>
+            <td>苏泊尔</td>
+            <td>@张明远</td>
+            <td style="color:#e33333;font-weight:600">今天</td>
+            <td style="font-size:11px">已在系统录入品牌方回复的具体时间</td>
+            <td><span class="badge badge-red">待处理</span></td>
+          </tr>
+          <tr style="background:#fff8e6">
+            <td><span class="priority-p0">P0</span></td>
+            <td><b>准备苏泊尔拜访简报</b><br><span style="font-size:11px;color:#636e72">来源：拜访提醒 · 建议6/11拜访</span></td>
+            <td>苏泊尔</td>
+            <td>@张明远</td>
+            <td style="color:#f0a500;font-weight:600">明天</td>
+            <td style="font-size:11px">生成并审阅拜访一页纸简报</td>
+            <td><span class="badge badge-yellow">进行中</span></td>
+          </tr>
+          <tr>
+            <td><span class="priority-p1">P1</span></td>
+            <td><b>更新摩飞品牌方组织架构信息</b><br><span style="font-size:11px;color:#636e72">来源：知识库过期提醒 · 电商总监已离职</span></td>
+            <td>摩飞</td>
+            <td>@张明远</td>
+            <td>本周五</td>
+            <td style="font-size:11px">确认新任电商总监信息并录入系统</td>
+            <td><span class="badge badge-blue">待处理</span></td>
+          </tr>
+          <tr>
+            <td><span class="priority-p1">P1</span></td>
+            <td><b>跟进九阳618广告预算追加</b><br><span style="font-size:11px;color:#636e72">来源：5/15拜访纪要 · 品牌方承诺618期间追加50万广告预算</span></td>
+            <td>九阳</td>
+            <td>@张明远</td>
+            <td>6/12</td>
+            <td style="font-size:11px">广告后台确认预算到账并截图上传</td>
+            <td><span class="badge badge-blue">待处理</span></td>
+          </tr>
+          <tr style="opacity:.5">
+            <td><span class="priority-p2">P2</span></td>
+            <td><s>完成九阳品牌周报审阅</s></td>
+            <td>九阳</td>
+            <td>@张明远</td>
+            <td>—</td>
+            <td style="font-size:11px">—</td>
+            <td><span class="badge badge-green">✓ 已完成</span></td>
+          </tr>
+          <tr>
+            <td><span class="priority-p1">P1</span></td>
+            <td><b>苏泊尔合同续约谈判启动</b><br><span style="font-size:11px;color:#636e72">来源：品牌日历 · 合同8/30到期</span></td>
+            <td>苏泊尔</td>
+            <td>@张明远</td>
+            <td>6/30</td>
+            <td style="font-size:11px">发起续约流程并确认品牌方谈判时间</td>
+            <td><span class="badge badge-blue">待处理</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ========== VIEW 5: 战局视图 ========== -->
+    <div class="view" id="view-battlefield">
+      <div class="page-title">品类战局视图</div>
+      <div style="display:flex;gap:12px;margin-bottom:20px">
+        <select style="padding:8px 14px;border:1px solid #e8ecf1;border-radius:8px;font-size:13px"><option>厨具</option><option>水具</option><option>餐具</option></select>
+        <select style="padding:8px 14px;border:1px solid #e8ecf1;border-radius:8px;font-size:13px"><option>全部价格带</option><option>高端</option><option>中端</option><option>低端</option></select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:20px">
+        <!-- Competitive Matrix -->
+        <div class="card">
+          <div style="font-weight:700;font-size:14px;margin-bottom:8px">品牌竞争矩阵 · 厨具品类</div>
+          <div style="font-size:11px;color:#636e72;margin-bottom:16px">横轴=JD市占 · 纵轴=行业增速 · 气泡=GMV</div>
+          <div style="position:relative;height:280px;border-left:2px solid #e8ecf1;border-bottom:2px solid #e8ecf1;margin:0 30px 30px 30px">
+            <!-- 中轴线 -->
+            <div style="position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed #dfe6e9"></div>
+            <div style="position:absolute;left:0;right:0;top:50%;border-top:1px dashed #dfe6e9"></div>
+            <!-- 四象限标签 -->
+            <div style="position:absolute;left:8%;top:12%;font-size:12px;color:#00b894;font-weight:700">明星</div>
+            <div style="position:absolute;right:8%;top:12%;font-size:12px;color:#636e72;font-weight:700">金牛</div>
+            <div style="position:absolute;left:8%;bottom:8%;font-size:12px;color:#f0a500;font-weight:700">机会</div>
+            <div style="position:absolute;right:8%;bottom:8%;font-size:12px;color:#e33333;font-weight:700">问题</div>
+            <!-- Bubbles -->
+            <div style="position:absolute;left:65%;top:32%;width:48px;height:48px;background:rgba(59,125,221,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;cursor:pointer" title="九阳: JD市占28.5% 行业增速18%">九阳</div>
+            <div style="position:absolute;left:58%;top:58%;width:56px;height:56px;background:rgba(227,51,51,.6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;cursor:pointer" title="苏泊尔: JD市占31.2% 行业增速5%">苏泊尔</div>
+            <div style="position:absolute;left:35%;top:25%;width:36px;height:36px;background:rgba(0,184,148,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:700;cursor:pointer" title="小熊: JD市占12.1% 行业增速32%">小熊</div>
+            <div style="position:absolute;left:28%;top:60%;width:28px;height:28px;background:rgba(240,165,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:700;cursor:pointer" title="摩飞: JD市占8.3% 行业增速15%">摩飞</div>
+            <div style="position:absolute;left:70%;top:22%;width:22px;height:22px;background:rgba(99,110,114,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700;cursor:pointer" title="双立人: JD市占15.7% 行业增速22%">双立人</div>
+            <!-- 轴标签 -->
+            <div style="position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);font-size:11px;color:#636e72">JD市占 →</div>
+            <div style="position:absolute;left:-24px;top:50%;transform:translateY(-50%) rotate(-90deg);font-size:11px;color:#636e72;white-space:nowrap">行业增速 →</div>
+          </div>
+        </div>
+
+        <!-- Brand Comparison -->
+        <div class="card">
+          <div style="font-weight:700;font-size:14px;margin-bottom:12px">品牌优劣势对比</div>
+          <table style="width:100%;font-size:12px">
+            <tr style="border-bottom:1px solid #e8ecf1"><td style="padding:8px 0;font-weight:600">维度</td><td style="font-weight:600;color:#3b7ddd">九阳</td><td style="font-weight:600;color:#e33333">苏泊尔</td></tr>
+            <tr><td style="padding:6px 0;color:#636e72">商品丰富度</td><td>⭐⭐⭐⭐</td><td>⭐⭐⭐⭐⭐</td></tr>
+            <tr><td style="padding:6px 0;color:#636e72">价格竞争力</td><td style="color:#00b894">⭐⭐⭐⭐</td><td>⭐⭐⭐</td></tr>
+            <tr><td style="padding:6px 0;color:#636e72">服务体验</td><td>⭐⭐⭐</td><td style="color:#00b894">⭐⭐⭐⭐</td></tr>
+            <tr><td style="padding:6px 0;color:#636e72">营销投入</td><td style="color:#00b894">⭐⭐⭐⭐⭐</td><td>⭐⭐⭐</td></tr>
+            <tr><td style="padding:6px 0;color:#636e72">新品节奏</td><td>⭐⭐⭐</td><td style="color:#00b894">⭐⭐⭐⭐</td></tr>
+            <tr><td style="padding:6px 0;color:#636e72">用户口碑</td><td style="color:#00b894">⭐⭐⭐⭐</td><td>⭐⭐⭐</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Brand Relationship Graph -->
+      <div class="card">
+        <div style="font-weight:700;font-size:14px;margin-bottom:12px">品牌关系图谱 · 厨具品类</div>
+        <div style="display:flex;justify-content:center;align-items:center;gap:40px;padding:20px;font-size:13px">
+          <div style="text-align:center;padding:20px 28px;background:#fff5f5;border:2px solid #e33333;border-radius:12px;font-weight:700">苏泊尔<br><span style="font-size:11px;color:#636e72">31.2%市占</span></div>
+          <div style="text-align:center;font-size:24px;color:#e33333">⚔️<br><span style="font-size:10px">直接竞争</span></div>
+          <div style="text-align:center;padding:20px 28px;background:#f0f6ff;border:2px solid #3b7ddd;border-radius:12px;font-weight:700">九阳<br><span style="font-size:11px;color:#636e72">28.5%市占</span></div>
+          <div style="text-align:center;font-size:24px;color:#f0a500">🤝<br><span style="font-size:10px">差异化</span></div>
+          <div style="text-align:center;padding:14px 20px;background:#f8f9fc;border:1px solid #dfe6e9;border-radius:10px;font-weight:600">小熊电器<br><span style="font-size:11px;color:#636e72">12.1%市占</span></div>
+        </div>
+        <div style="text-align:center;font-size:12px;color:#636e72;margin-top:8px">AI洞察：九阳与苏泊尔在锅具品类直接竞争，小熊电器主打差异化（年轻化/高颜值），采销可利用九阳-苏泊尔竞争关系争取双方资源倾斜</div>
+      </div>
+    </div>
+
+    <!-- ========== VIEW 6: 管理驾驶舱 ========== -->
+    <div class="view" id="view-management">
+      <div class="page-title">管理驾驶舱</div>
+      <div class="page-subtitle">品类负责人视角 · 厨具品类 · 5个品牌 · 3名采销</div>
+
+      <!-- Health Overview -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px">
+        <div class="card" style="text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;border:4px solid #f0a500;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;font-weight:700;color:#f0a500">72</div>
+          <div style="font-weight:700;font-size:13px">苏泊尔</div>
+          <div style="font-size:11px;color:#636e72">需关注 · 市占下滑</div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;border:4px solid #00b894;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;font-weight:700;color:#00b894">88</div>
+          <div style="font-weight:700;font-size:13px">九阳</div>
+          <div style="font-size:11px;color:#636e72">健康 · 增长强劲</div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;border:4px solid #f0a500;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;font-weight:700;color:#f0a500">65</div>
+          <div style="font-weight:700;font-size:13px">摩飞</div>
+          <div style="font-size:11px;color:#636e72">关注 · 关键人变动</div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;border:4px solid #00b894;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;font-weight:700;color:#00b894">91</div>
+          <div style="font-weight:700;font-size:13px">小熊电器</div>
+          <div style="font-size:11px;color:#636e72">优秀 · 618爆发</div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;border:4px solid #636e72;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;font-weight:700;color:#636e72">78</div>
+          <div style="font-weight:700;font-size:13px">双立人</div>
+          <div style="font-size:11px;color:#636e72">稳定 · 低频维护</div>
+        </div>
+      </div>
+
+      <!-- Team & Risk -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <!-- Team Performance -->
+        <div class="card">
+          <div style="font-weight:700;font-size:14px;margin-bottom:14px">👥 采销人效看板</div>
+          <table class="data-table">
+            <thead><tr><th>采销</th><th>负责品牌</th><th>拜访频次</th><th>待办闭环率</th><th>Q2资源达成</th><th>品牌GMV趋势</th></tr></thead>
+            <tbody>
+              <tr><td><b>张明远</b></td><td>苏泊尔/九阳/摩飞/小熊/双立人</td><td>2.1/月</td><td><span style="color:#f0a500">76%</span></td><td>3/7</td><td style="color:#00b894">▲8.3%</td></tr>
+              <tr><td><b>李婷</b></td><td>美的/格兰仕/松下</td><td>3.5/月</td><td><span style="color:#00b894">91%</span></td><td>5/6</td><td style="color:#00b894">▲15.2%</td></tr>
+              <tr><td><b>王浩</b></td><td>飞利浦/博朗/戴森</td><td>1.8/月</td><td><span style="color:#e33333">62%</span></td><td>1/5</td><td style="color:#e33333">▼3.1%</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Risk Dashboard -->
+        <div class="card">
+          <div style="font-weight:700;font-size:14px;margin-bottom:14px">⚠️ 风险预警面板</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff5f5;border-radius:8px;border-left:3px solid #e33333">
+              <span class="risk-dot risk-high"></span>
+              <div style="flex:1"><b>苏泊尔</b> · 市占连续3周下滑 · 竞对天猫独家新品 · 45天未拜访</div>
+              <span class="badge badge-red">高风险</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff8e6;border-radius:8px;border-left:3px solid #f0a500">
+              <span class="risk-dot risk-mid"></span>
+              <div style="flex:1"><b>摩飞</b> · 关键人员离职 · 60天未拜访 · 档案信息过期</div>
+              <span class="badge badge-yellow">中风险</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff8e6;border-radius:8px;border-left:3px solid #f0a500">
+              <span class="risk-dot risk-mid"></span>
+              <div style="flex:1"><b>王浩</b>（采销） · 待办闭环率62% · 拜访频次偏低 · Q2资源达成率20%</div>
+              <span class="badge badge-yellow">中风险</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f0f2f5;border-radius:8px;border-left:3px solid #636e72">
+              <span class="risk-dot risk-low"></span>
+              <div style="flex:1"><b>双立人</b> · 90天未拜访 · B级品牌 · 暂无紧急事项</div>
+              <span class="badge badge-gray">低风险</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end page-content -->
+</div><!-- end main-content -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// Navigation
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    this.classList.add('active');
+    const viewName = this.dataset.view;
+    switchView(viewName);
+  });
+});
+
+function switchView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const target = document.getElementById('view-' + name);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(i => {
+    i.classList.remove('active');
+    if (i.dataset.view === name) i.classList.add('active');
+  });
+}
+
+// Tab switching
+function switchBrandTab(el, tab) {
+  const tabs = el.parentElement.querySelectorAll('.tab-item');
+  tabs.forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  if (tab === 'overview') {
+    document.getElementById('brand-list-view').style.display = 'block';
+    document.getElementById('brand-detail-view').style.display = 'none';
+  } else {
+    document.getElementById('brand-list-view').style.display = 'none';
+    document.getElementById('brand-detail-view').style.display = 'block';
+  }
+}
+
+// Brand detail tabs
+document.querySelectorAll('#brand-detail-view .tab-item').forEach(tab => {
+  tab.addEventListener('click', function() {
+    this.parentElement.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// Simulation
+function runSimulation() {
+  const btn = event.target;
+  btn.textContent = '⏳ AI推演中...';
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.textContent = '✅ 推演完成 · 点击刷新';
+    btn.disabled = false;
+    showToast('博弈推演完成！品牌方最可能接受情景B（概率45%）');
+    document.getElementById('sim-output').scrollIntoView({behavior:'smooth'});
+  }, 1500);
+}
+
+// Toast
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Search
+document.querySelector('.search-box').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && this.value.trim()) {
+    showToast('搜索"' + this.value + '"：找到3个品牌、12条情报、5项待办');
+  }
+});
+
+// Task toggle checkboxes
+document.querySelectorAll('#view-dashboard input[type="checkbox"], #view-task-center input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', function() {
+    const row = this.closest('div');
+    if (this.checked) {
+      row.style.opacity = '.5';
+      setTimeout(() => showToast('✅ 待办已标记完成'), 300);
+    } else {
+      row.style.opacity = '1';
+    }
+  });
+});
+
+// Manager view toggle
+document.querySelectorAll('#view-task-center button').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const buttons = this.parentElement.querySelectorAll('button');
+    buttons.forEach(b => {b.style.background='#fff';b.style.color='#2d3436';b.style.border='1px solid #e8ecf1'});
+    this.style.background = '#1a1a2e';
+    this.style.color = '#fff';
+    showToast(this.textContent.includes('管理者') ? '已切换至管理者视角 · 查看全局进展' : '已切换至采销视角');
+  });
+});
+
+// Initial toast
+setTimeout(() => showToast('🏯 品牌沙盘已就绪 · 3条预警需关注'), 800);
+</script>
+</body>
+</html>

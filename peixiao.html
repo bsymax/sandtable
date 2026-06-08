@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>品牌沙盘 · Brand Sandbox</title>
+<style>
+:root { color-scheme: light; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; background:#f0f2f5; color:#1a1a2e; display:flex; height:100vh; overflow:hidden; }
+
+/* Sidebar */
+.sidebar { width:240px; background:#fff; border-right:1px solid #e8e8e8; display:flex; flex-direction:column; flex-shrink:0; }
+.sidebar-header { padding:20px; border-bottom:1px solid #f0f0f0; }
+.sidebar-header h1 { font-size:18px; font-weight:700; color:#c00; }
+.sidebar-header .sub { font-size:11px; color:#999; margin-top:2px; }
+.sidebar-nav { flex:1; overflow-y:auto; padding:8px 0; }
+.nav-section { padding:4px 20px 2px; font-size:11px; color:#999; text-transform:uppercase; letter-spacing:1px; margin-top:8px; }
+.nav-item { padding:10px 20px; cursor:pointer; display:flex; align-items:center; gap:10px; font-size:14px; color:#555; transition:all 0.15s; border-left:3px solid transparent; }
+.nav-item:hover { background:#fafafa; color:#333; }
+.nav-item.active { background:#fff0f0; color:#c00; border-left-color:#c00; font-weight:600; }
+.nav-item .icon { width:20px; text-align:center; font-size:15px; }
+.nav-item .badge { margin-left:auto; background:#ff4d4f; color:#fff; font-size:10px; padding:1px 6px; border-radius:8px; min-width:18px; text-align:center; }
+.nav-item .badge.warn { background:#faad14; }
+.nav-item .badge.ok { background:#52c41a; }
+.sidebar-footer { padding:12px 20px; border-top:1px solid #f0f0f0; font-size:12px; color:#999; display:flex; align-items:center; gap:8px; }
+.sidebar-footer .avatar { width:32px; height:32px; border-radius:50%; background:#c00; color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
+
+/* Main */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.topbar { height:52px; background:#fff; border-bottom:1px solid #e8e8e8; display:flex; align-items:center; padding:0 24px; gap:16px; flex-shrink:0; }
+.topbar .breadcrumb { font-size:13px; color:#999; }
+.topbar .breadcrumb span { color:#333; font-weight:600; }
+.topbar .actions { margin-left:auto; display:flex; gap:12px; }
+.topbar input[type=search] { border:1px solid #d9d9d9; border-radius:6px; padding:6px 12px; font-size:13px; width:240px; outline:none; }
+.topbar input[type=search]:focus { border-color:#c00; box-shadow:0 0 0 2px rgba(204,0,0,0.08); }
+
+/* Page content */
+.page { flex:1; overflow-y:auto; padding:24px; display:none; }
+.page.active { display:block; }
+
+/* Cards */
+.card { background:#fff; border-radius:8px; padding:20px; margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+.card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.card-header h3 { font-size:15px; font-weight:600; }
+.card-header .tag { font-size:11px; padding:2px 8px; border-radius:4px; }
+.tag-red { background:#fff1f0; color:#cf1322; }
+.tag-green { background:#f6ffed; color:#389e0d; }
+.tag-orange { background:#fff7e6; color:#d46b08; }
+.tag-blue { background:#e6f7ff; color:#096dd9; }
+
+/* Metric grid */
+.metrics { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:16px; }
+.metric { background:#fff; border-radius:8px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+.metric .label { font-size:12px; color:#999; margin-bottom:4px; }
+.metric .value { font-size:24px; font-weight:700; }
+.metric .delta { font-size:12px; margin-top:2px; }
+.delta-up { color:#cf1322; }
+.delta-down { color:#389e0d; }
+
+/* Tables */
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; padding:10px 12px; background:#fafafa; font-weight:600; color:#666; border-bottom:2px solid #f0f0f0; font-size:12px; }
+td { padding:10px 12px; border-bottom:1px solid #f5f5f5; }
+tr:hover td { background:#fafafa; }
+.status-dot { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:6px; }
+.status-dot.red { background:#ff4d4f; }
+.status-dot.green { background:#52c41a; }
+.status-dot.orange { background:#faad14; }
+.status-dot.gray { background:#d9d9d9; }
+
+/* Buttons */
+.btn { padding:6px 16px; border-radius:6px; font-size:13px; cursor:pointer; border:1px solid #d9d9d9; background:#fff; color:#333; transition:all 0.15s; }
+.btn:hover { border-color:#c00; color:#c00; }
+.btn-primary { background:#c00; color:#fff; border-color:#c00; }
+.btn-primary:hover { background:#a00; }
+.btn-sm { padding:4px 10px; font-size:12px; }
+.btn-text { border:none; background:none; color:#c00; padding:4px 8px; }
+
+/* Tabs */
+.tabs { display:flex; gap:0; border-bottom:2px solid #f0f0f0; margin-bottom:16px; }
+.tab { padding:8px 16px; font-size:13px; cursor:pointer; color:#999; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.15s; }
+.tab:hover { color:#c00; }
+.tab.active { color:#c00; border-bottom-color:#c00; font-weight:600; }
+
+/* Alert banner */
+.alert-banner { background:linear-gradient(135deg, #fff1f0, #fff); border:1px solid #ffccc7; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; gap:12px; font-size:13px; }
+.alert-banner.warn { background:linear-gradient(135deg, #fff7e6, #fff); border-color:#ffd591; }
+.alert-banner.info { background:linear-gradient(135deg, #e6f7ff, #fff); border-color:#91d5ff; }
+.alert-banner .alert-icon { font-size:18px; flex-shrink:0; }
+
+/* Progress bar */
+.progress-bar { height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden; }
+.progress-fill { height:100%; border-radius:3px; }
+.progress-fill.red { background:#ff4d4f; }
+.progress-fill.green { background:#52c41a; }
+.progress-fill.blue { background:#1890ff; }
+
+/* Modal overlay */
+.modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:#fff; border-radius:12px; width:680px; max-height:80vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,0.15); }
+.modal-header { padding:17px 24px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; }
+.modal-header h3 { font-size:16px; }
+.modal-body { padding:24px; }
+.modal-footer { padding:12px 24px; border-top:1px solid #f0f0f0; display:flex; justify-content:flex-end; gap:8px; }
+.modal-close { cursor:pointer; font-size:20px; color:#999; background:none; border:none; }
+
+/* Game engine specific */
+.scenario-card { border:1px solid #f0f0f0; border-radius:8px; padding:16px; margin-bottom:12px; cursor:pointer; transition:all 0.15s; }
+.scenario-card:hover { border-color:#c00; box-shadow:0 2px 8px rgba(204,0,0,0.08); }
+.scenario-card.selected { border-color:#c00; background:#fff5f5; }
+
+/* Matrix quadrants */
+.matrix { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#e8e8e8; border-radius:8px; overflow:hidden; margin:16px 0; }
+.matrix-cell { background:#fff; padding:20px; min-height:180px; }
+.matrix-cell h4 { font-size:14px; margin-bottom:8px; }
+
+/* Pulse animation */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.pulse { animation:pulse 2s infinite; }
+
+/* Responsive grid */
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+
+/* Chat-like sim */
+.sim-chat { background:#fafafa; border-radius:8px; padding:16px; max-height:400px; overflow-y:auto; }
+.sim-msg { margin-bottom:12px; display:flex; gap:10px; }
+.sim-msg.agent { flex-direction:row-reverse; }
+.sim-msg .bubble { max-width:75%; padding:10px 14px; border-radius:12px; font-size:13px; line-height:1.6; }
+.sim-msg.brand .bubble { background:#e6f7ff; border-bottom-left-radius:4px; }
+.sim-msg.agent .bubble { background:#fff0f0; border-bottom-right-radius:4px; }
+.sim-msg .role-tag { font-size:11px; color:#999; margin-bottom:4px; }
+
+/* Radar/chart placeholder */
+.chart-box { background:#fafafa; border-radius:8px; padding:24px; text-align:center; color:#bbb; font-size:13px; min-height:200px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; }
+
+/* Heat dots */
+.heat-dot { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:4px; }
+.heat-dot.hot { background:#ff4d4f; }
+.heat-dot.warm { background:#faad14; }
+.heat-dot.cool { background:#52c41a; }
+.heat-dot.cold { background:#d9d9d9; }
+
+/* Decision tree */
+.decision-node { border:1px solid #e8e8e8; border-radius:8px; padding:12px; margin:8px 0; font-size:13px; }
+.decision-node .prob { font-size:12px; color:#999; }
+.decision-node.best { border-color:#52c41a; background:#f6ffed; }
+
+/* Timeline */
+.timeline { position:relative; padding-left:24px; }
+.timeline::before { content:""; position:absolute; left:8px; top:4px; bottom:4px; width:2px; background:#f0f0f0; }
+.tl-item { position:relative; margin-bottom:16px; font-size:13px; }
+.tl-item::before { content:""; position:absolute; left:-20px; top:4px; width:10px; height:10px; border-radius:50%; border:2px solid #c00; background:#fff; }
+.tl-item .tl-date { font-size:11px; color:#999; }
+.tl-item .tl-content { margin-top:2px; }
+
+.scroll-list { max-height: 360px; overflow-y: auto; }
+/* Visit assistant form styles */
+.visit-tab { display:block; }
+textarea { font-family: inherit; }
+input[type="date"], input[type="time"] { font-family: inherit; }
+select { font-family: inherit; cursor: pointer; }
+.form-hint { font-size: 11px; color: #999; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h1>🏯 品牌沙盘</h1>
+    <div class="sub">Brand Sandbox · AI战略决策平台</div>
+  </div>
+  <nav class="sidebar-nav" id="sidebarNav">
+    <div class="nav-section">个人工作台</div>
+    <div class="nav-item active" data-page="workbench">
+      <span class="icon">📋</span>今日工作台
+      <span class="badge">5</span>
+    </div>
+
+    <div class="nav-section">感知层</div>
+    <div class="nav-item" data-page="archive">
+      <span class="icon">📁</span>品牌全景档案
+    </div>
+    <div class="nav-item" data-page="intel">
+      <span class="icon">📡</span>品牌情报流
+      <span class="badge warn">3</span>
+    </div>
+    <div class="nav-item" data-page="alert">
+      <span class="icon">🚨</span>风险预警中心
+      <span class="badge">2</span>
+    </div>
+
+    <div class="nav-section">判断层</div>
+    <div class="nav-item" data-page="game">
+      <span class="icon">♟️</span>博弈推演引擎
+    </div>
+    <div class="nav-item" data-page="warroom">
+      <span class="icon">🗺️</span>品类战局视图
+    </div>
+
+    <div class="nav-section">行动层</div>
+    <div class="nav-item" data-page="visit">
+      <span class="icon">🤝</span>智能拜访助手
+    </div>
+    <div class="nav-item" data-page="todos">
+      <span class="icon">✅</span>待办指挥中心
+      <span class="badge">8</span>
+    </div>
+    <div class="nav-item" data-page="supply">
+      <span class="icon">📦</span>全渠道供给分析
+    </div>
+
+    <div class="nav-section">指挥层</div>
+    <div class="nav-item" data-page="cockpit">
+      <span class="icon">🎯</span>全局管理驾驶舱
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="avatar">张</div>
+    <div>张明远 · 厨小品类采销</div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar" id="topbar">
+    <div class="breadcrumb" id="breadcrumb">🏠 <span>今日工作台</span></div>
+    <div class="actions">
+      <input type="search" placeholder="搜索品牌、待办、情报...">
+      <button class="btn btn-sm">🔔 通知</button>
+    </div>
+  </div>
+
+  <!-- PAGE: 今日工作台 (Workbench) -->
+  <div class="page active" id="page-workbench">
+    <div class="alert-banner">
+      <span class="alert-icon">🔔</span>
+      <div><b>今日有5条待办</b> — 其中1条已逾期。方太品牌GMV连续2周下滑，建议本周内安排拜访。美的洗碗机竞品在抖音独家首发新品。</div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="label">我负责的品牌</div>
+        <div class="value">8</div>
+        <div class="delta">个品牌 · 厨小品类</div>
+      </div>
+      <div class="metric">
+        <div class="label">今日待办</div>
+        <div class="value">5</div>
+        <div class="delta delta-up">1条已逾期</div>
+      </div>
+      <div class="metric">
+        <div class="label">本周拜访</div>
+        <div class="value">2</div>
+        <div class="delta">周三方太 · 周五美的</div>
+      </div>
+      <div class="metric">
+        <div class="label">本月GMV达成</div>
+        <div class="value">87<span style="font-size:14px;font-weight:400;">%</span></div>
+        <div class="delta delta-up">落后时间进度3%</div>
+      </div>
+      <div class="metric">
+        <div class="label">资源争取</div>
+        <div class="value">¥320<span style="font-size:14px;font-weight:400;">万</span></div>
+        <div class="delta">本季度广告+新品折让</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-header"><h3>⏰ 今日待办</h3><span class="tag tag-red">1条逾期</span></div>
+        <table>
+          <tr><td><span class="status-dot red"></span><b>【P0】约方太电商总监沟通GMV下滑</b><br><span style="font-size:11px;color:#999">逾期1天 · 关联：方太FOTILE · 来源：预警自动生成</span></td><td><button class="btn btn-primary btn-sm">处理</button></td></tr>
+          <tr><td><span class="status-dot orange"></span><b>【P1】确认美的洗碗机618资源包</b><br><span style="font-size:11px;color:#999">今日截止 · 关联：美的Midea · 来源：拜访纪要</span></td><td><button class="btn btn-sm">处理</button></td></tr>
+          <tr><td><span class="status-dot green"></span><b>【P1】补充苏泊尔空气炸锅SKU缺口</b><br><span style="font-size:11px;color:#999">本周截止 · 关联：苏泊尔Supor · 来源：供给分析</span></td><td><button class="btn btn-sm">处理</button></td></tr>
+          <tr><td><span class="status-dot gray"></span><b>【P2】更新九阳品牌方人员信息</b><br><span style="font-size:11px;color:#999">下周截止 · 关联：九阳Joyoung · 来源：档案健康度提醒</span></td><td><button class="btn btn-sm">处理</button></td></tr>
+          <tr><td><span class="status-dot gray"></span><b>【P2】查看美的618竞品策略推演报告</b><br><span style="font-size:11px;color:#999">下周截止 · 关联：美的Midea · 来源：博弈推演</span></td><td><button class="btn btn-sm">查看</button></td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>⚠️ 异动关注</h3></div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="alert-banner" style="margin:0">
+            <span class="alert-icon">📉</span>
+            <div><b>方太 · GMV连续2周下滑</b><br><span style="font-size:11px;color:#999">周环比-18%，市占率降1.2pp → <a href="#" onclick="switchPage('alert')" style="color:#c00">查看详情</a></span></div>
+          </div>
+          <div class="alert-banner warn" style="margin:0">
+            <span class="alert-icon">👤</span>
+            <div><b>美的 · 电商总监已离职</b><br><span style="font-size:11px;color:#999">建联关系出现真空 → <a href="#" onclick="switchPage('alert')" style="color:#c00">查看详情</a></span></div>
+          </div>
+          <div class="alert-banner info" style="margin:0">
+            <span class="alert-icon">🆕</span>
+            <div><b>行业动态 · 洗碗机品类新政</b><br><span style="font-size:11px;color:#999">新国标将于7月实施 → <a href="#" onclick="switchPage('intel')" style="color:#c00">查看详情</a></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>🤝 今日建议联系</h3><span class="tag tag-blue">AI推荐</span></div>
+      <table>
+        <tr>
+          <th>品牌</th><th>建议动作</th><th>原因</th><th>优先级</th><th>操作</th>
+        </tr>
+        <tr>
+          <td><b>方太 FOTILE</b></td><td>紧急拜访</td><td>GMV连续2周下滑，建议本周内安排拜访了解原因</td><td><span class="tag tag-red">P0</span></td>
+          <td><button class="btn btn-primary btn-sm">生成拜访手册</button></td>
+        </tr>
+        <tr>
+          <td><b>美的 Midea</b></td><td>建联重建</td><td>电商总监离职，新对接人需尽快建立关系</td><td><span class="tag tag-orange">P1</span></td>
+          <td><button class="btn btn-sm">查看档案</button></td>
+        </tr>
+        <tr>
+          <td><b>苏泊尔 Supor</b></td><td>供给谈判</td><td>3款竞品独家SKU京东缺失，可尝试争取</td><td><span class="tag tag-blue">P1</span></td>
+          <td><button class="btn btn-sm">推演策略</button></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE: 品牌全景档案 (Archive) -->
+  <div class="page" id="page-archive">
+    <div class="tabs" id="archiveTabs">
+      <div class="tab active" data-brand="fotile">方太 FOTILE</div>
+      <div class="tab" data-brand="midea">美的 Midea</div>
+      <div class="tab" data-brand="supor">苏泊尔 Supor</div>
+      <div class="tab" data-brand="joyoung">九阳 Joyoung</div>
+      <div style="margin-left:auto;font-size:13px;color:#999;display:flex;align-items:center;">档案健康度: <span class="tag tag-green" style="margin-left:8px;">92分</span></div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="label">JD本月GMV</div><div class="value">2.8<span style="font-size:14px">亿</span></div><div class="delta delta-down">同比+12.3%</div></div>
+      <div class="metric"><div class="label">JD市占</div><div class="value">31.2<span style="font-size:14px">%</span></div><div class="delta delta-up">环比-1.2pp</div></div>
+      <div class="metric"><div class="label">综合毛利率</div><div class="value">18.6<span style="font-size:14px">%</span></div><div class="delta delta-down">同比+0.8pp</div></div>
+      <div class="metric"><div class="label">广告ROI</div><div class="value">4.2</div><div class="delta">高于品类均值3.1</div></div>
+      <div class="metric"><div class="label">关系健康度</div><div class="value" style="color:#faad14">⚠️ 降温</div><div class="delta">近30天无建联</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-header"><h3>📊 GMV趋势（近12周）</h3></div>
+        <div class="chart-box">
+          <svg width="100%" height="180" viewBox="0 0 500 180">
+            <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c00" stop-opacity="0.15"/><stop offset="100%" stop-color="#c00" stop-opacity="0"/></linearGradient></defs>
+            <rect x="0" y="0" width="500" height="180" fill="url(#grad)"/>
+            <polyline points="10,50 55,45 100,60 145,55 190,70 235,65 280,80 325,75 370,95 415,90 460,110 500,105" fill="none" stroke="#c00" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="415" cy="90" r="5" fill="#c00"/><circle cx="460" cy="110" r="5" fill="#c00"/><circle cx="500" cy="105" r="5" fill="#c00"/>
+            <text x="500" y="100" fill="#c00" font-size="11" text-anchor="end">⚠下滑</text>
+            <line x1="0" y1="120" x2="500" y2="120" stroke="#e8e8e8" stroke-dasharray="4"/>
+            <text x="10" y="135" fill="#999" font-size="10">W14</text><text x="460" y="135" fill="#999" font-size="10">W24</text>
+          </svg>
+          <span style="color:#999;font-size:11px;">近3周出现下行趋势，AI归因: 竞品促销+618前蓄水</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>🏢 品牌方决策链地图</h3></div>
+        <table>
+          <tr><th>角色</th><th>姓名</th><th>决策影响</th><th>关系温度</th><th>最近联系</th></tr>
+          <tr><td>电商VP</td><td>李伟强</td><td><span class="tag tag-red">预算审批</span></td><td>🟡 一般</td><td>2026-03-15</td></tr>
+          <tr><td>电商总监</td><td>陈敏</td><td><span class="tag tag-red">核心对接</span></td><td>🟢 良好</td><td>2026-05-20</td></tr>
+          <tr><td>渠道经理</td><td>王建国</td><td><span class="tag tag-orange">日常执行</span></td><td>🟢 良好</td><td>2026-06-05</td></tr>
+          <tr><td>品牌总监</td><td>赵玲</td><td><span class="tag tag-blue">策略影响</span></td><td>🟡 一般</td><td>2026-04-10</td></tr>
+        </table>
+        <div style="font-size:12px;color:#999;margin-top:8px;">⚠ 电商VP超过90天未联系，建议近期安排高层拜访</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>📜 历史互动时间线</h3></div>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-date">2026-06-02</div><div class="tl-content"><b>618大促资源确认会议</b> — 确认300万广告预算+首页坑位，品牌方对ROI目标有顾虑</div></div>
+        <div class="tl-item"><div class="tl-date">2026-05-20</div><div class="tl-content"><b>季度复盘拜访</b> — Q1 GMV达成103%，约定Q2目标2.5亿。品牌方提出希望增加直播场次</div></div>
+        <div class="tl-item"><div class="tl-date">2026-04-15</div><div class="tl-content"><b>新品引入谈判</b> — 成功引入智能蒸烤箱新品，京东独家首发。承诺：品牌方给JD 2周独占期</div></div>
+        <div class="tl-item"><div class="tl-date">2026-03-10</div><div class="tl-content"><b>年度合同续约</b> — 签署2026年度框架，返利条款比去年优化0.5pp</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: 品牌情报流 (Intel) -->
+  <div class="page" id="page-intel">
+    <div class="tabs">
+      <div class="tab active">全部情报</div>
+      <div class="tab">P0-紧急</div>
+      <div class="tab">P1-重要</div>
+      <div class="tab">P2-常规</div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>📡 方太 · 本周情报周报</h3><span style="font-size:12px;color:#999;">自动生成 · 2026年6月8日 周一</span></div>
+      <div class="alert-banner" style="margin-bottom:16px;">
+        <span class="alert-icon">🤖</span>
+        <div><b>AI一句话总结：</b>方太本周核心关注点是GMV持续下滑背后的竞品促销冲击，需尽快与品牌方对齐618期间京东方资源投入是否足够。</div>
+      </div>
+      <table>
+        <tr><th>级别</th><th>类型</th><th>情报内容</th><th>来源</th><th>时间</th></tr>
+        <tr><td><span class="tag tag-red">P0</span></td><td>经营异动</td><td>方太GMV周环比-18%，市占率降1.2pp至31.2%</td><td>系统自动</td><td>06-08</td></tr>
+        <tr><td><span class="tag tag-orange">P1</span></td><td>竞对动态</td><td>老板电器在京东加大广告投放50%，主攻蒸烤箱品类</td><td>竞对品池</td><td>06-07</td></tr>
+        <tr><td><span class="tag tag-orange">P1</span></td><td>商家互动</td><td>618资源确认会议：品牌方对ROI达标有顾虑，需跟进</td><td>拜访纪要</td><td>06-02</td></tr>
+        <tr><td><span class="tag tag-blue">P2</span></td><td>行业政策</td><td>新国标GB-2026油烟机能效标准将于7月1日实施</td><td>外部采集</td><td>06-05</td></tr>
+        <tr><td><span class="tag tag-gray">P3</span></td><td>品牌方动态</td><td>方太发布2026年品牌战略，聚焦"健康厨房"</td><td>社媒舆情</td><td>06-03</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>🔗 跨品牌关联发现</h3></div>
+      <div style="font-size:13px;color:#666;line-height:2;">
+        <p>🤖 AI发现：<b>方太GMV下滑</b>与 <b>老板电器广告投放增加50%</b>可能存在因果关系。同期老板电器在京东蒸烤箱品类的市占率上升了2.3pp。</p>
+        <p>🤖 AI发现：<b>美的洗碗机</b>在抖音独家首发新品，可能影响京东618洗碗机品类格局。建议关注 <b>西门子洗碗机</b>在京东是否有机会承接这部分需求。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: 风险预警中心 (Alert) -->
+  <div class="page" id="page-alert">
+    <div class="metrics">
+      <div class="metric"><div class="label">活跃预警</div><div class="value">5</div><div class="delta delta-up">2条P0 · 需立即响应</div></div>
+      <div class="metric"><div class="label">品牌关系风险</div><div class="value">2</div><div class="delta">涉及美的、方太</div></div>
+      <div class="metric"><div class="label">竞对威胁</div><div class="value">1</div><div class="delta">老板电器广告增幅50%</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>🚨 活跃预警列表</h3><button class="btn btn-sm">+ 配置预警规则</button></div>
+      <table>
+        <tr><th>级别</th><th>品牌</th><th>预警类型</th><th>触发条件</th><th>触发时间</th><th>建议动作</th><th>操作</th></tr>
+        <tr>
+          <td><span class="tag tag-red">P0</span></td>
+          <td><b>方太</b></td>
+          <td>数据异动</td>
+          <td>GMV连续2周下滑>15%，市占率降1.2pp</td>
+          <td>06-08</td>
+          <td>建议本周内拜访了解原因</td>
+          <td><button class="btn btn-primary btn-sm">生成拜访手册</button></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-red">P0</span></td>
+          <td><b>美的</b></td>
+          <td>品牌关系</td>
+          <td>电商总监离职，建联关系真空</td>
+          <td>06-06</td>
+          <td>尽快拜访重建关系</td>
+          <td><button class="btn btn-sm">查看档案</button></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-orange">P1</span></td>
+          <td><b>方太</b></td>
+          <td>竞对威胁</td>
+          <td>老板电器京东广告投放+50%</td>
+          <td>06-07</td>
+          <td>与方太沟通是否需要增加防守投放</td>
+          <td><button class="btn btn-sm">推演策略</button></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-orange">P1</span></td>
+          <td><b>苏泊尔</b></td>
+          <td>供给恶化</td>
+          <td>京东缺失3款竞品独家SKU，抖音/天猫已上架</td>
+          <td>06-05</td>
+          <td>争取品牌方在京东上架</td>
+          <td><button class="btn btn-sm">查看缺口</button></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-blue">P2</span></td>
+          <td><b>九阳</b></td>
+          <td>合约风险</td>
+          <td>年度合同将于45天后到期</td>
+          <td>06-04</td>
+          <td>提前准备续约谈判</td>
+          <td><button class="btn btn-sm">查看合同</button></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE: 博弈推演引擎 (Game Engine) -->
+  <div class="page" id="page-game">
+    <div class="tabs">
+      <div class="tab active">采销vs品牌方</div>
+      <div class="tab">品牌间博弈</div>
+      <div class="tab">推演历史</div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-header"><h3>🎯 选择推演场景</h3></div>
+        <div class="scenario-card selected">
+          <b>场景A：争取方太618追加广告预算</b>
+          <div style="font-size:12px;color:#999;margin-top:4px;">当前：方太京东广告ROI 4.2（品类均值3.1），但品牌方对ROI达标有顾虑。目标：争取追加200万广告预算。</div>
+        </div>
+        <div class="scenario-card">
+          <b>场景B：争取美的洗碗机京东独家首发</b>
+          <div style="font-size:12px;color:#999;margin-top:4px;">背景：竞品在抖音独家首发。目标：争取美的下一款新品在京东首发，换取首页资源+数据赋能。</div>
+        </div>
+        <div class="scenario-card">
+          <b>场景C：苏泊尔年度合同续约谈判预演</b>
+          <div style="font-size:12px;color:#999;margin-top:4px;">合同30天后到期。目标：争取返利条款优化+包销品独家授权。</div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:12px;width:100%;" onclick="document.getElementById('gameResult').scrollIntoView({behavior:'smooth'})">🚀 开始推演</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>⚙️ 策略模拟器</h3><span class="tag tag-blue">你主动输入，AI推演反应</span></div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:13px;font-weight:600;">你的假设动作：</label>
+          <select style="width:100%;padding:8px;border:1px solid #d9d9d9;border-radius:6px;margin-top:4px;font-size:13px;">
+            <option>如果我要求方太降价5%换取更多流量资源...</option>
+            <option>如果我承诺给方太首页大促坑位换取追加200万广告预算...</option>
+            <option>如果我告诉方太"老板电器正在争取你的独家坑位"...</option>
+          </select>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:13px;font-weight:600;">品牌方关注指标（多选）：</label>
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+            <span class="tag tag-red" style="cursor:pointer;">京东市占</span>
+            <span class="tag tag-blue" style="cursor:pointer;">广告ROI</span>
+            <span class="tag tag-green" style="cursor:pointer;">新品首发</span>
+            <span class="tag tag-orange" style="cursor:pointer;">库存周转</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="document.getElementById('gameResult').scrollIntoView({behavior:'smooth'})">▶ 模拟推演</button>
+      </div>
+    </div>
+
+    <div class="card" id="gameResult">
+      <div class="card-header"><h3>📊 推演结果：争取方太618追加广告预算</h3><span class="tag tag-blue">置信度：中</span></div>
+
+      <div style="margin-bottom:16px;font-size:13px;color:#666;line-height:1.8;">
+        <b>推演假设：</b>京东采销以"首页大促坑位+数据赋能"为筹码，要求方太追加200万618广告预算。<br>
+        <b>品牌方当前状态：</b>京东GMV 2.8亿/月，广告ROI 4.2，但近3周GMV下滑。品牌方对ROI达标有顾虑。竞品老板电器在京东投放增加50%。
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:16px;">
+        <div class="decision-node best" style="flex:1">
+          <b>✅ 情景A：接受（概率 55%）</b>
+          <div class="prob">品牌方反应：认可京东流量价值，同意追加预算，但附带ROI对赌条款</div>
+          <div style="margin-top:4px;font-size:12px;color:#389e0d;">采销策略：接受对赌，承诺618期间ROI不低于3.5（低于当前4.2，有达成空间）</div>
+        </div>
+        <div class="decision-node" style="flex:1">
+          <b>⚠️ 情景B：讨价还价（概率 30%）</b>
+          <div class="prob">品牌方反应：要求京东先证明流量效果，追加预算降至100万试水</div>
+          <div style="margin-top:4px;font-size:12px;color:#d46b08;">采销策略：提供过去6个月方太在京东的流量-转化数据，证明渠道效率</div>
+        </div>
+        <div class="decision-node" style="flex:1">
+          <b>❌ 情景C：拒绝（概率 15%）</b>
+          <div class="prob">品牌方反应：认为当前GMV下滑说明京东渠道效率下降，预算转投抖音</div>
+          <div style="margin-top:4px;font-size:12px;color:#cf1322;">采销策略：立即复盘GMV下滑原因，提供竞品威胁数据（老板电器投放增加）</div>
+        </div>
+      </div>
+
+      <div style="background:#fafafa;border-radius:8px;padding:16px;">
+        <h4 style="font-size:14px;margin-bottom:8px;">🤖 AI策略建议</h4>
+        <table>
+          <tr><th>建议维度</th><th>具体内容</th><th>杠杆率</th></tr>
+          <tr><td>谈判目标</td><td>争取追加200万，可接受150万+ROI对赌3.5</td><td><span class="tag tag-green">高</span></td></tr>
+          <tr><td>核心筹码</td><td>首页大促坑位（估值约80万曝光）+ 京东数据赋能（品牌方无法从竞品平台获得）</td><td><span class="tag tag-green">高</span></td></tr>
+          <tr><td>辅助筹码</td><td>竞对威胁——"老板电器在京东投放已增加50%，蚕食你的市占"</td><td><span class="tag tag-orange">中</span></td></tr>
+          <tr><td>关键话术</td><td>"方太在京东的广告ROI是4.2，远高于品类均值3.1。现在不是削减投放的时候，正是拉开与老板差距的窗口期。"</td><td>—</td></tr>
+          <tr><td>风险提示</td><td>如果方太已经在跟抖音谈年框，京东的广告预算争夺将更加困难。建议尽快行动。</td><td>—</td></tr>
+          <tr><td>替代方案</td><td>如预算争取失败，转为争取方太在京东独家上架2款高端新品，用供给差异化替代广告增量</td><td><span class="tag tag-blue">B计划</span></td></tr>
+        </table>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;font-size:12px;color:#999;">
+        <span>🔍 <a href="#" style="color:#c00;">查看推理链路和数据支撑</a></span>
+        <span style="margin-left:auto;">👍 有用 <span style="color:#52c41a;">(12)</span> | 👎 无用 (1)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: 品类战局视图 (War Room) -->
+  <div class="page" id="page-warroom">
+    <div class="grid2" style="margin-bottom:16px;">
+      <div class="metric"><div class="label">品类总GMV（厨小）</div><div class="value">48<span style="font-size:14px">亿</span></div><div class="delta delta-down">同比+15.2%</div></div>
+      <div class="metric"><div class="label">活跃品牌数</div><div class="value">86</div><div class="delta">S级3 · A级12 · B级28 · C级43</div></div>
+      <div class="metric"><div class="label">京东全渠道市占</div><div class="value">38.5<span style="font-size:14px">%</span></div><div class="delta delta-down">同比+2.1pp</div></div>
+      <div class="metric"><div class="label">供给健康度</div><div class="value">87<span style="font-size:14px">分</span></div><div class="delta">23个SKU缺口待补充</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>🎯 品牌竞争矩阵（厨小品类）</h3><span style="font-size:12px;color:#999;">X轴: JD市占 · Y轴: 行业增速 · 气泡大小: GMV</span></div>
+      <div class="matrix">
+        <div class="matrix-cell">
+          <h4 style="color:#c00;">⭐ 明星 · 高市占+高增速</h4>
+          <div style="font-size:13px;line-height:2;">
+            <span class="heat-dot hot"></span><b>美的</b> · 市占28% · 增速+22%<br>
+            <span class="heat-dot hot"></span><b>海尔</b> · 市占15% · 增速+18%<br>
+            <span style="font-size:11px;color:#999;">→ 策略：加大资源投入，巩固优势</span>
+          </div>
+        </div>
+        <div class="matrix-cell">
+          <h4 style="color:#faad14;">💰 金牛 · 高市占+低增速</h4>
+          <div style="font-size:13px;line-height:2;">
+            <span class="heat-dot warm"></span><b>方太</b> · 市占31% · 增速+3%<br>
+            <span class="heat-dot warm"></span><b>九阳</b> · 市占18% · 增速+1%<br>
+            <span style="font-size:11px;color:#999;">→ 策略：维持合作，争取利润最大化</span>
+          </div>
+        </div>
+        <div class="matrix-cell">
+          <h4 style="color:#1890ff;">🚀 机会 · 低市占+高增速</h4>
+          <div style="font-size:13px;line-height:2;">
+            <span class="heat-dot cool"></span><b>小米</b> · 市占8% · 增速+35%<br>
+            <span class="heat-dot cool"></span><b>小熊</b> · 市占4% · 增速+28%<br>
+            <span style="font-size:11px;color:#999;">→ 策略：重点攻坚，争取资源倾斜</span>
+          </div>
+        </div>
+        <div class="matrix-cell">
+          <h4 style="color:#999;">❓ 问题 · 低市占+低增速</h4>
+          <div style="font-size:13px;line-height:2;">
+            <span class="heat-dot cold"></span><b>奔腾</b> · 市占2% · 增速-5%<br>
+            <span class="heat-dot cold"></span><b>荣事达</b> · 市占1% · 增速-8%<br>
+            <span style="font-size:11px;color:#999;">→ 策略：评估是否值得投入</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>🔗 品牌间关系图谱</h3></div>
+      <table>
+        <tr><th>品牌A</th><th>品牌B</th><th>关系类型</th><th>竞争强度</th><th>协同机会</th></tr>
+        <tr><td><b>方太</b></td><td>老板电器</td><td><span class="tag tag-red">直接竞争</span></td><td>⭐⭐⭐⭐⭐</td><td>可利用竞争关系争取双方更多广告投放</td></tr>
+        <tr><td><b>方太</b></td><td>美的</td><td><span class="tag tag-orange">差异化竞争</span></td><td>⭐⭐⭐</td><td>方太定位高端，美的覆盖中端，可互补</td></tr>
+        <tr><td><b>苏泊尔</b></td><td>九阳</td><td><span class="tag tag-red">直接竞争</span></td><td>⭐⭐⭐⭐</td><td>厨房小家电场景可推动联合品类日</td></tr>
+        <tr><td><b>美的</b></td><td>小米</td><td><span class="tag tag-blue">互补</span></td><td>⭐⭐</td><td>美的传统家电+小米智能家居，跨品牌场景营销</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE: 智能拜访助手 (Visit) -->
+  <div class="page" id="page-visit">
+    <!-- Tabs: 安排拜访 | 拜访后记录 | 作战手册 | 拜访历史 -->
+    <div class="tabs" id="visitTabs">
+      <div class="tab active" data-vtab="schedule">📝 安排拜访</div>
+      <div class="tab" data-vtab="record">📋 拜访后记录</div>
+      <div class="tab" data-vtab="brief">📖 作战手册</div>
+      <div class="tab" data-vtab="history">📅 拜访日历</div>
+    </div>
+
+    <!-- Tab 1: 安排拜访 (Pre-visit scheduling) -->
+    <div class="visit-tab active" id="vtab-schedule">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-header"><h3>🆕 新建拜访安排</h3></div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">拜访品牌 <span style="color:#ff4d4f;">*</span></label>
+              <select style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;background:#fff;">
+                <option value="">请选择品牌...</option>
+                <option value="fotile" selected>方太 FOTILE（S-战略）</option>
+                <option value="midea">美的 Midea（S-战略）</option>
+                <option value="supor">苏泊尔 Supor（A-核心）</option>
+                <option value="joyoung">九阳 Joyoung（B-常规）</option>
+                <option value="haier">海尔 Haier（A-核心）</option>
+                <option value="xiaomi">小米 Xiaomi（B-常规）</option>
+              </select>
+            </div>
+            <div class="grid2" style="gap:12px;">
+              <div>
+                <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">拜访日期 <span style="color:#ff4d4f;">*</span></label>
+                <input type="date" value="2026-06-10" style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">拜访时间</label>
+                <input type="time" value="14:00" style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;">
+              </div>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">拜访类型 <span style="color:#ff4d4f;">*</span></label>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <label style="cursor:pointer;font-size:13px;"><input type="radio" name="visitType" checked> 紧急拜访</label>
+                <label style="cursor:pointer;font-size:13px;"><input type="radio" name="visitType"> 定期拜访</label>
+                <label style="cursor:pointer;font-size:13px;"><input type="radio" name="visitType"> 关系重建</label>
+                <label style="cursor:pointer;font-size:13px;"><input type="radio" name="visitType"> 合同续约</label>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">拜访目的 <span style="color:#ff4d4f;">*</span></label>
+              <textarea placeholder="请描述本次拜访的核心目的和期望达成的目标..." style="width:100%;padding:10px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;resize:vertical;min-height:90px;font-family:inherit;">1. 了解方太GMV连续2周下滑的原因
+2. 争取追加618广告预算200万
+3. 对齐Q2 GMV补救计划
+4. 沟通竞品老板电器投放增50%的应对策略</textarea>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">拜访对象</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                <span class="tag tag-red" style="cursor:pointer;">✓ 陈敏 · 电商总监</span>
+                <span class="tag tag-orange" style="cursor:pointer;">✓ 王建国 · 渠道经理</span>
+                <span class="tag tag-blue" style="cursor:pointer;">+ 添加</span>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">我的谈判目标（具体、可衡量）</label>
+              <textarea placeholder="例如：争取追加广告预算200万，可接受底线150万..." style="width:100%;padding:10px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;resize:vertical;min-height:70px;font-family:inherit;">核心目标：追加618广告预算200万。底线：150万+ROI对赌3.5。次要目标：确认Q2 GMV补救计划。期望成果：广告追加≥150万 + 明确Q2冲刺方案。</textarea>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">备注 / 需要提前准备的材料</label>
+              <textarea placeholder="例如：带上品类趋势报告、竞品投放数据对比..." style="width:100%;padding:10px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;">1. 带上近12周GMV趋势数据
+2. 准备好竞品老板电器投放对比数据
+3. 京东618资源包清单</textarea>
+            </div>
+            <div style="display:flex;gap:12px;padding-top:4px;">
+              <button class="btn btn-primary" onclick="confirmSchedule()">✅ 确认安排 & 生成作战手册</button>
+              <button class="btn">💾 保存草稿</button>
+            </div>
+            <div id="scheduleConfirm" style="display:none;padding:10px 14px;background:#f6ffed;border:1px solid #b7eb8f;border-radius:6px;font-size:13px;color:#389e0d;">
+              ✅ 拜访已安排！作战手册已生成（切换到"作战手册"Tab查看）。待办已自动创建：<b>6月10日方太拜访准备</b>。
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>⚠️ 拜访前 · AI智能提醒</h3><span class="tag tag-blue">基于实时数据</span></div>
+          <div style="font-size:13px;color:#666;line-height:1.9;">
+            <div class="alert-banner" style="margin-bottom:12px;">
+              <span class="alert-icon">📉</span>
+              <div><b>紧急提醒：</b>方太GMV连续2周下滑18%，市占率降1.2pp。竞品老板电器在京东投放已增加50%。</div>
+            </div>
+            <p><b>📊 关键数据速览：</b></p>
+            <p>· JD本月GMV：2.8亿（同比+12.3%）</p>
+            <p>· JD市占：31.2%（环比-1.2pp）</p>
+            <p>· 广告ROI：4.2（高于品类均值3.1）</p>
+            <p>· 关系状态：⚠️ 降温（近30天无建联）</p>
+            <p>· 上次拜访：2026-05-20（季度复盘）</p>
+            <p style="margin-top:8px;"><b>🔗 上次拜访遗留事项：</b></p>
+            <p>· 品牌方提出希望增加直播场次 — <span style="color:#999;">待跟进</span></p>
+            <p>· Q2 GMV目标2.5亿 — <span style="color:#ff4d4f;">当前落后进度</span></p>
+            <p style="margin-top:8px;"><b>🤖 AI建议关注的谈判切入点：</b></p>
+            <p>1. 以"竞品老板电器投放+50%蚕食市占"为切入点，强调防御必要性</p>
+            <p>2. 方太广告ROI 4.2远超品类均值，追加投放是高效选择</p>
+            <p>3. 京东数据赋能（品类趋势+用户画像）是抖音/天猫无法提供的差异化价值</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: 拜访后记录 (Post-visit recording) -->
+    <div class="visit-tab" id="vtab-record" style="display:none;">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-header"><h3>📋 拜访后记录</h3></div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">选择拜访记录 <span style="color:#ff4d4f;">*</span></label>
+              <select style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;background:#fff;">
+                <option value="">选择已完成的拜访...</option>
+                <option value="1" selected>6月10日 · 方太FOTILE · 紧急拜访（今天下午刚完成）</option>
+                <option value="2">6月5日 · 美的Midea · 关系重建</option>
+                <option value="3">5月20日 · 方太FOTILE · 季度复盘</option>
+              </select>
+            </div>
+            <div class="grid2" style="gap:12px;">
+              <div>
+                <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">实际拜访日期</label>
+                <input type="date" value="2026-06-10" style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;">
+              </div>
+              <div>
+                <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">拜访时长</label>
+                <input type="text" value="1.5小时" placeholder="例如：1.5小时" style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;">
+              </div>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">实际参与人员</label>
+              <input type="text" value="京东：张明远；方太：陈敏（电商总监）、王建国（渠道经理）" placeholder="双方参与人员..." style="width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;">
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">会谈核心议题</label>
+              <textarea placeholder="本次拜访讨论的核心议题..." style="width:100%;padding:10px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;resize:vertical;min-height:80px;font-family:inherit;">1. 方太近3周GMV下滑复盘——品牌方认为主要原因是618前蓄水+竞品促销冲击
+2. 618追加广告预算谈判——品牌方初步同意追加，但对ROI有要求
+3. Q2 GMV补救计划对齐——双方确认冲刺方案
+4. 竞品应对策略——品牌方认可京东数据预警的价值</textarea>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">✅ 达成的事项与承诺 <span style="color:#ff4d4f;">*</span></label>
+              <textarea placeholder="具体达成了什么共识？双方各自承诺了什么？..." style="width:100%;padding:10px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;resize:vertical;min-height:100px;font-family:inherit;">【达成的共识】
+1. 品牌方同意追加618广告预算150万（我方原目标200万，谈判让步至150万）
+2. 品牌方承诺ROI对赌：618期间ROI不低于3.5
+3. Q2 GMV补救计划：6月下旬加大促销力度，目标追回Q2进度缺口
+
+【品牌方承诺】
+- 6月12日前确认150万追加预算的投放方案
+- 6月15日前提供618促销商品清单
+- 安排电商VP李伟强与京东高层7月会面
+
+【京东方承诺】
+- 提供首页大促坑位1个（6月15-18日）
+- 提供竞品投放策略分析报告
+- 618期间仓配优先保障</textarea>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">❌ 未达成 / 待后续推进</label>
+              <textarea placeholder="哪些事项未达成一致？后续如何推进？" style="width:100%;padding:10px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;">· 追加预算金额从200万谈到150万，差50万差距——品牌方表示需内部审批
+· 直播场次增加要求——品牌方暂时搁置</textarea>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">📝 下次拜访建议</label>
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                <input type="date" value="2026-06-24" style="padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;">
+                <input type="text" value="跟进618结果+Q2复盘" placeholder="下次拜访主题" style="flex:1;min-width:180px;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;">
+              </div>
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">关系温度评估</label>
+              <div style="display:flex;gap:12px;font-size:13px;">
+                <label style="cursor:pointer;"><input type="radio" name="relationTemp" checked> 🔥 升温</label>
+                <label style="cursor:pointer;"><input type="radio" name="relationTemp"> ➡️ 持平</label>
+                <label style="cursor:pointer;"><input type="radio" name="relationTemp"> ❄️ 降温</label>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;padding-top:4px;">
+              <button class="btn btn-primary" onclick="confirmRecord()">💾 保存记录 & 自动生成待办</button>
+              <button class="btn">📝 保存草稿</button>
+              <button class="btn btn-text" style="margin-left:auto;">🎤 语音转文字录入</button>
+            </div>
+            <div id="recordConfirm" style="display:none;padding:10px 14px;background:#f6ffed;border:1px solid #b7eb8f;border-radius:6px;font-size:13px;color:#389e0d;">
+              ✅ 拜访记录已保存！已自动生成 <b>4条待办</b>：①方太6/12前确认投放方案 ②方太6/15前提供促销清单 ③安排电商VP李伟强7月会面 ④6/24下次拜访准备。记录已同步至方太品牌档案（M1）和情报流（M2）。
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>🤖 AI自动提取 · 待办预览</h3><span class="tag tag-green">保存后自动创建</span></div>
+          <div style="font-size:13px;color:#666;">
+            <p style="margin-bottom:12px;color:#999;">AI从拜访纪要中自动识别以下待办事项（采销可编辑后确认）：</p>
+            <table>
+              <tr><th>优先级</th><th>自动提取的待办</th><th>责任人</th><th>建议截止</th></tr>
+              <tr><td><span class="tag tag-red">P0</span></td><td>跟进方太6/12前确认150万投放方案</td><td>张明远</td><td>06-12</td></tr>
+              <tr><td><span class="tag tag-red">P0</span></td><td>跟进方太6/15前提供618促销商品清单</td><td>张明远</td><td>06-15</td></tr>
+              <tr><td><span class="tag tag-orange">P1</span></td><td>向方太提供竞品投放策略分析报告</td><td>张明远</td><td>06-13</td></tr>
+              <tr><td><span class="tag tag-orange">P1</span></td><td>安排电商VP李伟强与京东高层7月会面</td><td>张明远</td><td>06-20</td></tr>
+              <tr><td><span class="tag tag-blue">P2</span></td><td>6月24日下次拜访准备（618复盘+Q2总结）</td><td>张明远</td><td>06-22</td></tr>
+            </table>
+          </div>
+          <div style="margin-top:16px;font-size:13px;color:#666;line-height:1.9;">
+            <h4 style="font-size:14px;margin-bottom:8px;color:#333;">📊 本次拜访效果预估</h4>
+            <p>· 预计额外GMV贡献：618期间+500万</p>
+            <p>· 广告预算增量：+150万（本次争取）</p>
+            <p>· 关系温度变化：⚠降温 → 预计回升至🟢稳定</p>
+            <p style="margin-top:8px;color:#999;">系统将在拜访后7天/14天/30天自动追踪该品牌的经营数据变化，评估拜访成效。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: 作战手册 (Battle Brief) -->
+    <div class="visit-tab" id="vtab-brief" style="display:none;">
+      <div class="card">
+        <div class="card-header"><h3>📖 拜访作战手册 · 方太 FOTILE</h3><span class="tag tag-red">6月10日（周三）14:00 · 紧急拜访</span></div>
+        <div style="margin-bottom:12px;padding:10px 14px;background:#fff7e6;border:1px solid #ffd591;border-radius:6px;font-size:13px;color:#d46b08;">
+          📋 基于你在「安排拜访」中填写的拜访目的和谈判目标自动生成。上次更新：2026-06-08 09:30。
+        </div>
+        <div class="grid2">
+          <div>
+            <h4 style="font-size:14px;margin-bottom:8px;">📋 拜访背景</h4>
+            <div style="font-size:13px;color:#666;line-height:1.8;">
+              <b>采销设定目的：</b>了解GMV下滑原因 + 争取追加618广告预算200万 + 对齐Q2补救计划<br>
+              <b>上次拜访回顾：</b>5月20日季度复盘，GMV达成103%，约定Q2目标2.5亿。当前进度落后。<br>
+              <b>期间关键变化：</b>老板电器京东投放增50%，美的洗碗机抖音独家首发。
+            </div>
+          </div>
+          <div>
+            <h4 style="font-size:14px;margin-bottom:8px;">🎯 谈判目标（来自你的输入）</h4>
+            <div style="font-size:13px;color:#666;line-height:1.8;">
+              <b>核心目标：</b>追加618广告预算200万<br>
+              <b>底线：</b>150万+ROI对赌3.5<br>
+              <b>次要目标：</b>确认Q2 GMV补救计划<br>
+              <b>可放弃：</b>直播场次增加要求
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px;font-size:13px;color:#666;line-height:1.8;">
+          <h4 style="font-size:14px;margin-bottom:8px;color:#333;">🗣️ 博弈策略（来自推演引擎M4）</h4>
+          核心话术："方太在京东的广告ROI是4.2，远高于品类均值3.1。老板电器已经在京东增加投放50%，现在是拉开差距的窗口期。京东愿意给方太首页大促坑位（估值80万曝光），条件是追加预算。"<br><br>
+          <b>让步梯度：</b>200万 → 150万（+ROI对赌3.5）→ 100万（仅限618期间）<br>
+          <b>替代方案：</b>如预算争取失败，转为争取2款高端新品京东独家首发
+        </div>
+        <div style="margin-top:16px;font-size:13px;color:#666;line-height:1.8;">
+          <h4 style="font-size:14px;margin-bottom:8px;color:#333;">🎒 资源弹药（京东可以给什么）</h4>
+          首页大促坑位（估值80万曝光） · 京东数据赋能（品类趋势报告+用户画像） · 618专区品牌日 · 仓配优先履约保障
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px;">
+          <button class="btn btn-primary">📥 下载完整手册（PDF）</button>
+          <button class="btn" onclick="document.querySelector('#visitTabs .tab[data-vtab=record]').click()">📋 前往记录拜访结果</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: 拜访日历 (Visit History) -->
+    <div class="visit-tab" id="vtab-history" style="display:none;">
+      <div class="card">
+        <div class="card-header"><h3>📅 拜访日历 · 2026年6月</h3><button class="btn btn-sm" onclick="document.querySelector('#visitTabs .tab[data-vtab=schedule]').click()">+ 安排拜访</button></div>
+        <table>
+          <tr><th>日期</th><th>品牌</th><th>类型</th><th>拜访目的</th><th>达成情况</th><th>状态</th><th>操作</th></tr>
+          <tr>
+            <td>6月10日（周三）</td><td><b>方太 FOTILE</b></td><td><span class="tag tag-red">紧急拜访</span></td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">了解GMV下滑+争取618追加广告预算+对齐Q2补救</td>
+            <td>—</td><td>📋 待准备</td>
+            <td>
+              <button class="btn btn-primary btn-sm">生成作战手册</button>
+              <button class="btn btn-sm btn-text" style="margin-top:4px;">查看详情</button>
+            </td>
+          </tr>
+          <tr>
+            <td>6月12日（周五）</td><td><b>美的 Midea</b></td><td><span class="tag tag-orange">关系重建</span></td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">拜访新电商对接人，重建建联关系</td>
+            <td>—</td><td>📋 待准备</td>
+            <td>
+              <button class="btn btn-sm">生成作战手册</button>
+              <button class="btn btn-sm btn-text" style="margin-top:4px;">查看详情</button>
+            </td>
+          </tr>
+          <tr>
+            <td>6月5日（上周五）</td><td><b>美的 Midea</b></td><td><span class="tag tag-green">已完成</span></td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">618资源确认+库存盘点</td>
+            <td>✅ 确认300万资源包，新增待办3条</td><td><span class="tag tag-green">已完成</span></td>
+            <td>
+              <button class="btn btn-sm btn-text">查看记录</button>
+            </td>
+          </tr>
+          <tr>
+            <td>5月20日</td><td><b>方太 FOTILE</b></td><td><span class="tag tag-green">已完成</span></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Q1复盘+Q2目标对齐</td>
+            <td>✅ GMV达成103%，约定Q2目标2.5亿</td><td><span class="tag tag-green">已完成</span></td>
+            <td>
+              <button class="btn btn-sm btn-text">查看记录</button>
+            </td>
+          </tr>
+          <tr>
+            <td>6月18日（周四）</td><td><b>九阳 Joyoung</b></td><td><span class="tag tag-blue">定期拜访</span></td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">季度例行拜访</td>
+            <td>—</td><td>📅 已排期</td>
+            <td>
+              <button class="btn btn-sm">查看档案</button>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>📊 拜访频率健康度</h3></div>
+        <table>
+          <tr><th>品牌</th><th>等级</th><th>拜访基线</th><th>近90天拜访次数</th><th>状态</th><th>下次计划</th></tr>
+          <tr><td><b>方太</b></td><td>S-战略</td><td>每2-4周≥1次</td><td>2次</td><td><span class="tag tag-orange">⚠偏低</span></td><td>6月10日</td></tr>
+          <tr><td><b>美的</b></td><td>S-战略</td><td>每2-4周≥1次</td><td>3次</td><td><span class="tag tag-green">达标</span></td><td>6月12日</td></tr>
+          <tr><td><b>苏泊尔</b></td><td>A-核心</td><td>每季度≥1次</td><td>1次</td><td><span class="tag tag-green">达标</span></td><td>7月</td></tr>
+          <tr><td><b>九阳</b></td><td>B-常规</td><td>每半年≥1次</td><td>1次</td><td><span class="tag tag-green">达标</span></td><td>6月18日</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: 待办指挥中心 (Todos) -->
+  <div class="page" id="page-todos">
+    <div class="metrics">
+      <div class="metric"><div class="label">全部待办</div><div class="value">12</div><div class="delta">P0:2 · P1:5 · P2:5</div></div>
+      <div class="metric"><div class="label">本周完成率</div><div class="value">67<span style="font-size:14px">%</span></div><div class="delta delta-up">6/9已完成</div></div>
+      <div class="metric"><div class="label">超期待办</div><div class="value" style="color:#ff4d4f;">3</div><div class="delta delta-up">需立即处理</div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active">全部待办</div>
+      <div class="tab">我的待办</div>
+      <div class="tab">团队待办</div>
+      <div class="tab">管理者视图</div>
+    </div>
+
+    <div class="card">
+      <table>
+        <tr><th>优先级</th><th>待办内容</th><th>类型</th><th>品牌</th><th>责任人</th><th>截止</th><th>状态</th><th>操作</th></tr>
+        <tr>
+          <td><span class="tag tag-red">P0</span></td>
+          <td><b>约方太电商总监沟通GMV下滑</b></td>
+          <td>拜访跟进</td>
+          <td>方太</td>
+          <td>张明远</td>
+          <td style="color:#ff4d4f;">06-07 ⚠逾期1天</td>
+          <td><span class="tag tag-red">逾期</span></td>
+          <td><button class="btn btn-primary btn-sm">处理</button></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-red">P0</span></td>
+          <td><b>联系美的确认新电商对接人</b></td>
+          <td>关系维护</td>
+          <td>美的</td>
+          <td>张明远</td>
+          <td>06-09</td>
+          <td><span class="tag tag-orange">待处理</span></td>
+          <td><button class="btn btn-sm">处理</button></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-orange">P1</span></td>
+          <td><b>确认方太618资源包（广告+坑位）</b></td>
+          <td>谈判推进</td>
+          <td>方太</td>
+          <td>张明远</td>
+          <td>06-08</td>
+          <td><span class="tag tag-blue">进行中</span></td>
+          <td><button class="btn btn-sm">更新</button></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-orange">P1</span></td>
+          <td><b>补充苏泊尔空气炸锅SKU缺口</b></td>
+          <td>供给补充</td>
+          <td>苏泊尔</td>
+          <td>张明远</td>
+          <td>06-12</td>
+          <td><span class="tag tag-gray">待处理</span></td>
+          <td><button class="btn btn-sm">处理</button></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>📊 团队待办总览（管理者视图）</h3></div>
+      <div class="grid3" style="margin-bottom:16px;">
+        <div style="text-align:center;padding:16px;background:#fafafa;border-radius:8px;">
+          <div style="font-size:28px;font-weight:700;color:#52c41a;">85%</div>
+          <div style="font-size:12px;color:#999;">张明远 · 完成率</div>
+        </div>
+        <div style="text-align:center;padding:16px;background:#fafafa;border-radius:8px;">
+          <div style="font-size:28px;font-weight:700;color:#faad14;">72%</div>
+          <div style="font-size:12px;color:#999;">李芳 · 完成率</div>
+        </div>
+        <div style="text-align:center;padding:16px;background:#fafafa;border-radius:8px;">
+          <div style="font-size:28px;font-weight:700;color:#ff4d4f;">58%</div>
+          <div style="font-size:12px;color:#999;">王强 · 完成率</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: 全渠道供给分析 (Supply) -->
+  <div class="page" id="page-supply">
+    <div class="metrics">
+      <div class="metric"><div class="label">品牌SKU数（京东）</div><div class="value">342</div><div class="delta delta-up">vs 天猫389 · 缺口47</div></div>
+      <div class="metric"><div class="label">高价值缺口(P0)</div><div class="value">3</div><div class="delta">竞品月销>10万 · 京东缺失</div></div>
+      <div class="metric"><div class="label">供给补充率</div><div class="value">31<span style="font-size:14px">%</span></div><div class="delta">上月补充15/48缺口</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>📦 供给缺口清单（方太 FOTILE）</h3></div>
+      <table>
+        <tr><th>优先级</th><th>SKU</th><th>京东状态</th><th>天猫</th><th>抖音</th><th>竞品月销(万)</th><th>负责人</th><th>进展</th></tr>
+        <tr>
+          <td><span class="tag tag-red">P0</span></td>
+          <td>智能蒸烤箱 X5 Pro</td>
+          <td><span style="color:#ff4d4f;">缺失</span></td>
+          <td>✅ 在售</td><td>✅ 在售</td><td>¥45万</td><td>张明远</td><td>已建联，谈判中</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-red">P0</span></td>
+          <td>嵌入式洗碗机 W3</td>
+          <td><span style="color:#ff4d4f;">缺失</span></td>
+          <td>✅ 在售</td><td>✅ 独家</td><td>¥32万</td><td>张明远</td><td>品牌方拒绝（抖音有独家协议）</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-red">P0</span></td>
+          <td>超薄油烟机 S8</td>
+          <td><span style="color:#ff4d4f;">缺失</span></td>
+          <td>✅ 在售</td><td>—</td><td>¥18万</td><td>张明远</td><td>待建联</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-orange">P1</span></td>
+          <td>净水器滤芯套装</td>
+          <td><span style="color:#ff4d4f;">缺失</span></td>
+          <td>✅ 在售</td><td>—</td><td>¥7万</td><td>李芳</td><td>待处理</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE: 全局管理驾驶舱 (Cockpit) -->
+  <div class="page" id="page-cockpit">
+    <div class="metrics">
+      <div class="metric"><div class="label">品牌健康度</div><div class="value" style="color:#52c41a;">🟢 良好</div><div class="delta">12个品牌绿灯 · 3个黄灯 · 1个红灯</div></div>
+      <div class="metric"><div class="label">团队待办总量</div><div class="value">28</div><div class="delta">完成率72% · 超期5条</div></div>
+      <div class="metric"><div class="label">资源争取（Q2累计）</div><div class="value">¥1,280<span style="font-size:14px">万</span></div><div class="delta delta-down">达成目标的76%</div></div>
+      <div class="metric"><div class="label">品类结构健康度</div><div class="value">82<span style="font-size:14px">分</span></div><div class="delta">头牌集中度适中</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-header"><h3>🏥 品牌健康度总览</h3></div>
+        <table>
+          <tr><th>品牌</th><th>等级</th><th>GMV趋势</th><th>关系</th><th>预警</th><th>档案健康度</th></tr>
+          <tr><td><b>方太</b></td><td><span class="tag tag-red">S-战略</span></td><td style="color:#ff4d4f;">📉 -18%</td><td>⚠降温</td><td><span class="tag tag-red">2条</span></td><td>92分</td></tr>
+          <tr><td><b>美的</b></td><td><span class="tag tag-red">S-战略</span></td><td style="color:#52c41a;">📈 +22%</td><td>⚠真空</td><td><span class="tag tag-red">1条</span></td><td>88分</td></tr>
+          <tr><td><b>海尔</b></td><td><span class="tag tag-orange">A-核心</span></td><td style="color:#52c41a;">📈 +18%</td><td>🟢稳定</td><td>—</td><td>85分</td></tr>
+          <tr><td><b>苏泊尔</b></td><td><span class="tag tag-orange">A-核心</span></td><td style="color:#1890ff;">📊 持平</td><td>🟢稳定</td><td><span class="tag tag-orange">1条</span></td><td>78分</td></tr>
+          <tr><td><b>九阳</b></td><td><span class="tag tag-blue">B-常规</span></td><td style="color:#52c41a;">📈 +1%</td><td>🟢稳定</td><td><span class="tag tag-blue">1条</span></td><td>65分</td></tr>
+          <tr><td><b>小米</b></td><td><span class="tag tag-blue">B-常规</span></td><td style="color:#52c41a;">📈 +35%</td><td>🟢升温</td><td>—</td><td>70分</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>👥 人效分析</h3></div>
+        <table>
+          <tr><th>采销</th><th>品牌数</th><th>拜访频次</th><th>待办完成率</th><th>GMV变化</th><th>资源争取</th></tr>
+          <tr><td><b>张明远</b></td><td>8</td><td>2.3/月</td><td>85%</td><td style="color:#52c41a;">+12%</td><td>¥320万</td></tr>
+          <tr><td><b>李芳</b></td><td>6</td><td>1.8/月</td><td>72%</td><td style="color:#52c41a;">+8%</td><td>¥210万</td></tr>
+          <tr><td><b>王强</b></td><td>7</td><td>1.2/月</td><td>58%</td><td style="color:#ff4d4f;">-3%</td><td>¥85万</td></tr>
+        </table>
+        <div style="font-size:12px;color:#ff4d4f;margin-top:8px;">⚠ 王强负责品牌的拜访频次和待办完成率低于团队均值，建议管理者关注</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for quick view -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header"><h3 id="modalTitle">详情</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal()">关闭</button><button class="btn btn-primary">确认</button></div>
+  </div>
+</div>
+
+<script>
+// Page switching
+function switchPage(pageName) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + pageName);
+  if (page) page.classList.add('active');
+  const navItem = document.querySelector('[data-page="' + pageName + '"]');
+  if (navItem) navItem.classList.add('active');
+  // Update breadcrumb
+  const labels = {
+    workbench: '今日工作台', archive: '品牌全景档案', intel: '品牌情报流',
+    alert: '风险预警中心', game: '博弈推演引擎', warroom: '品类战局视图',
+    visit: '智能拜访助手', todos: '待办指挥中心', supply: '全渠道供给分析', cockpit: '全局管理驾驶舱'
+  };
+  document.getElementById('breadcrumb').innerHTML = '🏠 <span>' + (labels[pageName] || pageName) + '</span>';
+}
+
+// Sidebar nav clicks
+document.getElementById('sidebarNav').addEventListener('click', function(e) {
+  const item = e.target.closest('.nav-item');
+  if (!item) return;
+  switchPage(item.dataset.page);
+});
+
+// Tab switching
+document.addEventListener('click', function(e) {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  const tabsContainer = tab.parentElement;
+  tabsContainer.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+});
+
+// Brand archive tabs
+document.getElementById('archiveTabs').addEventListener('click', function(e) {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  this.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  // In a real app this would load different brand data
+});
+
+// Visit tab switching
+document.getElementById('visitTabs').addEventListener('click', function(e) {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  const vtab = tab.dataset.vtab;
+  // Update tab active states
+  this.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  // Show/hide visit sub-pages
+  document.querySelectorAll('.visit-tab').forEach(v => v.style.display = 'none');
+  const target = document.getElementById('vtab-' + vtab);
+  if (target) target.style.display = 'block';
+});
+
+// Confirm schedule function
+function confirmSchedule() {
+  const el = document.getElementById('scheduleConfirm');
+  el.style.display = 'block';
+  el.scrollIntoView({behavior:'smooth'});
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+// Confirm record function
+function confirmRecord() {
+  const el = document.getElementById('recordConfirm');
+  el.style.display = 'block';
+  el.scrollIntoView({behavior:'smooth'});
+  setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+// Scenario selection
+document.querySelectorAll('.scenario-card').forEach(card => {
+  card.addEventListener('click', function() {
+    document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
+    this.classList.add('selected');
+  });
+});
+
+// Modal
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+// Handle "处理" and "查看" button clicks with simple feedback
+document.addEventListener('click', function(e) {
+  if (e.target.matches('button') || e.target.closest('button')) {
+    const btn = e.target.matches('button') ? e.target : e.target.closest('button');
+    const text = btn.textContent.trim();
+    if (['处理', '查看', '更新', '生成拜访手册', '推演策略'].includes(text)) {
+      e.preventDefault();
+      const originalText = btn.textContent;
+      btn.textContent = '✓ 已触发';
+      btn.style.background = '#52c41a';
+      btn.style.color = '#fff';
+      btn.style.borderColor = '#52c41a';
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 1500);
+    }
+  }
+});
+
+// Keyboard shortcut: 1-9 to switch pages
+document.addEventListener('keydown', function(e) {
+  const pages = ['workbench','archive','intel','alert','game','warroom','visit','todos','supply','cockpit'];
+  if (e.key >= '1' && e.key <= '9' && !e.target.closest('input')) {
+    const idx = parseInt(e.key) - 1;
+    if (idx < pages.length) switchPage(pages[idx]);
+  }
+});
+</script>
+
+</body>
+</html>

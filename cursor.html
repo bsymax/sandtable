@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>品牌沙盘 · 品牌管理与作战指挥平台</title>
+  <style>
+    :root {
+      --sidebar-w: 240px;
+      --header-h: 56px;
+      --primary: #1e40af;
+      --primary-light: #3b82f6;
+      --primary-bg: #eff6ff;
+      --sidebar-bg: #0f172a;
+      --sidebar-hover: #1e293b;
+      --sidebar-active: #1e3a8a;
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --success: #059669;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --info: #0284c7;
+      --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
+      --shadow: 0 4px 12px rgba(15,23,42,.08);
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+      overflow: hidden;
+    }
+    .app { display: flex; height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--sidebar-bg);
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .sidebar-brand {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .sidebar-brand h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f8fafc;
+      letter-spacing: .5px;
+    }
+    .sidebar-brand p {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .sidebar-nav { flex: 1; overflow-y: auto; padding: 12px 0; }
+    .nav-group { margin-bottom: 8px; }
+    .nav-group-label {
+      padding: 8px 20px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      cursor: pointer;
+      transition: all .15s;
+      border-left: 3px solid transparent;
+      font-size: 13px;
+    }
+    .nav-item:hover { background: var(--sidebar-hover); color: #f1f5f9; }
+    .nav-item.active {
+      background: rgba(30,64,175,.35);
+      color: #fff;
+      border-left-color: var(--primary-light);
+    }
+    .nav-icon {
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; opacity: .85;
+    }
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,.08);
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar {
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      flex-shrink: 0;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .breadcrumb { color: var(--text-secondary); font-size: 13px; }
+    .breadcrumb strong { color: var(--text); font-weight: 600; }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .search-box {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 12px; width: 260px;
+    }
+    .search-box input {
+      border: none; background: transparent; outline: none;
+      font-size: 13px; width: 100%; color: var(--text);
+    }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600;
+    }
+    .user-info { text-align: right; }
+    .user-info .name { font-size: 13px; font-weight: 500; }
+    .user-info .role { font-size: 11px; color: var(--text-muted); }
+
+    .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+    /* Views */
+    .view { display: none; animation: fadeIn .2s ease; }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    /* Common components */
+    .page-header { margin-bottom: 20px; }
+    .page-header h2 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .page-header p { color: var(--text-secondary); font-size: 13px; }
+    .page-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 6px; font-size: 13px;
+      font-weight: 500; cursor: pointer; border: 1px solid transparent;
+      transition: all .15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-outline { background: var(--surface); border-color: var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--bg); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid-2-1 { grid-template-columns: 2fr 1fr; }
+    .grid-1-2 { grid-template-columns: 1fr 2fr; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+    }
+    .card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-header h3 { font-size: 14px; font-weight: 600; }
+    .card-body { padding: 16px 18px; }
+
+    .kpi-card { padding: 18px; }
+    .kpi-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+    .kpi-value { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+    .kpi-change { font-size: 12px; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+    .kpi-change.up { color: var(--success); }
+    .kpi-change.down { color: var(--danger); }
+    .kpi-change.neutral { color: var(--text-muted); }
+
+    .tag {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 500;
+    }
+    .tag-s { background: #fef3c7; color: #92400e; }
+    .tag-a { background: #dbeafe; color: #1e40af; }
+    .tag-p0 { background: #fee2e2; color: #991b1b; }
+    .tag-p1 { background: #ffedd5; color: #9a3412; }
+    .tag-p2 { background: #f1f5f9; color: #475569; }
+    .tag-success { background: #d1fae5; color: #065f46; }
+    .tag-warning { background: #fef3c7; color: #92400e; }
+    .tag-danger { background: #fee2e2; color: #991b1b; }
+    .tag-info { background: #e0f2fe; color: #075985; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left; padding: 10px 12px;
+      font-size: 12px; font-weight: 600; color: var(--text-secondary);
+      background: #f8fafc; border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 11px 12px; border-bottom: 1px solid var(--border);
+      font-size: 13px; vertical-align: middle;
+    }
+    tr:hover td { background: #fafbfc; }
+    tr.clickable { cursor: pointer; }
+
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .tab {
+      padding: 10px 16px; cursor: pointer; font-size: 13px;
+      color: var(--text-secondary); border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: all .15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .timeline { position: relative; padding-left: 20px; }
+    .timeline::before {
+      content: ''; position: absolute; left: 5px; top: 4px; bottom: 4px;
+      width: 2px; background: var(--border);
+    }
+    .timeline-item { position: relative; padding-bottom: 16px; }
+    .timeline-item::before {
+      content: ''; position: absolute; left: -18px; top: 5px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--primary-light); border: 2px solid var(--surface);
+    }
+    .timeline-date { font-size: 11px; color: var(--text-muted); }
+    .timeline-title { font-weight: 500; margin: 2px 0; }
+    .timeline-desc { font-size: 12px; color: var(--text-secondary); }
+
+    .alert-item {
+      display: flex; gap: 12px; padding: 12px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 8px; cursor: pointer; transition: all .15s;
+    }
+    .alert-item:hover { border-color: var(--primary-light); background: var(--primary-bg); }
+    .alert-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .alert-dot.red { background: var(--danger); }
+    .alert-dot.orange { background: var(--warning); }
+    .alert-dot.blue { background: var(--info); }
+
+    .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+    .progress-fill.green { background: var(--success); }
+    .progress-fill.blue { background: var(--primary-light); }
+    .progress-fill.orange { background: var(--warning); }
+
+    .health-score {
+      width: 80px; height: 80px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; border: 4px solid var(--success);
+      font-weight: 700; font-size: 22px;
+    }
+    .health-score span { font-size: 10px; font-weight: 400; color: var(--text-muted); }
+
+    .matrix-chart {
+      position: relative; width: 100%; height: 320px;
+      background: linear-gradient(to right, transparent 49.5%, var(--border) 49.5%, var(--border) 50.5%, transparent 50.5%),
+                  linear-gradient(to bottom, transparent 49.5%, var(--border) 49.5%, var(--border) 50.5%, transparent 50.5%);
+      background-color: #fafbfc;
+      border-radius: var(--radius);
+    }
+    .matrix-label {
+      position: absolute; font-size: 11px; color: var(--text-muted); font-weight: 500;
+    }
+    .matrix-quadrant {
+      position: absolute; font-size: 11px; color: var(--text-muted); opacity: .6;
+    }
+    .bubble {
+      position: absolute; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600; color: #fff;
+      cursor: pointer; transition: transform .15s;
+      box-shadow: var(--shadow);
+    }
+    .bubble:hover { transform: scale(1.1); z-index: 10; }
+
+    .ai-box {
+      background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .ai-box-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 8px;
+    }
+    .ai-box p { font-size: 13px; line-height: 1.7; color: var(--text); }
+    .confidence { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 8px; }
+
+    .todo-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px; border-bottom: 1px solid var(--border);
+    }
+    .todo-check {
+      width: 18px; height: 18px; border: 2px solid var(--border);
+      border-radius: 4px; cursor: pointer; flex-shrink: 0; margin-top: 1px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .todo-check.done { background: var(--success); border-color: var(--success); color: #fff; font-size: 11px; }
+    .todo-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+    .stat-row:last-child { border-bottom: none; }
+
+    .mini-chart { display: flex; align-items: flex-end; gap: 3px; height: 40px; }
+    .mini-bar { flex: 1; background: var(--primary-light); border-radius: 2px 2px 0 0; opacity: .7; }
+    .mini-bar:last-child { opacity: 1; }
+
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-select {
+      padding: 6px 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 12px; background: var(--surface); color: var(--text);
+    }
+
+    .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
+
+    @media (max-width: 1200px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h1>品牌沙盘</h1>
+      <p>品牌管理与作战指挥平台</p>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <div class="nav-group">
+        <div class="nav-group-label">指挥层</div>
+        <div class="nav-item active" data-view="workbench"><span class="nav-icon">◉</span>今日工作台</div>
+        <div class="nav-item" data-view="dashboard"><span class="nav-icon">▦</span>管理驾驶舱</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">感知层</div>
+        <div class="nav-item" data-view="profile"><span class="nav-icon">◧</span>品牌全景档案</div>
+        <div class="nav-item" data-view="intel"><span class="nav-icon">◈</span>品牌情报流</div>
+        <div class="nav-item" data-view="alert"><span class="nav-icon">⚠</span>多维预警系统</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">判断层</div>
+        <div class="nav-item" data-view="simulation"><span class="nav-icon">◎</span>博弈推演引擎</div>
+        <div class="nav-item" data-view="battlefield"><span class="nav-icon">◫</span>品类战局视图</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">行动层</div>
+        <div class="nav-item" data-view="visit"><span class="nav-icon">✎</span>智能拜访助手</div>
+        <div class="nav-item" data-view="todo"><span class="nav-icon">☑</span>待办指挥中心</div>
+        <div class="nav-item" data-view="supply"><span class="nav-icon">⊞</span>全渠道供给分析</div>
+        <div class="nav-item" data-view="resource"><span class="nav-icon">◆</span>资源争取工具包</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">沉淀层</div>
+        <div class="nav-item" data-view="knowledge"><span class="nav-icon">📚</span>品牌知识库</div>
+        <div class="nav-item" data-view="story"><span class="nav-icon">★</span>品牌故事库</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">体系</div>
+        <div class="nav-item" data-view="grading"><span class="nav-icon">⬡</span>品牌分级管理</div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">V1.0 · 厨小/卫浴试点 · 内部</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="breadcrumb">品牌沙盘 / <strong id="pageTitle">今日工作台</strong></div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">
+          <span>🔍</span>
+          <input type="text" placeholder="搜索品牌、待办、情报…" id="globalSearch">
+        </div>
+        <div style="position:relative">
+          <span style="font-size:18px;cursor:pointer">🔔</span>
+          <span style="position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:10px;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center">3</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="user-info">
+            <div class="name">张明</div>
+            <div class="role">厨小品类 · 一线采销</div>
+          </div>
+          <div class="avatar">张</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content" id="contentArea">
+
+      <!-- M13 今日工作台 -->
+      <div class="view active" id="view-workbench">
+        <div class="page-header">
+          <h2>今日工作台</h2>
+          <p>2026年6月8日 星期一 · 感知 → 判断 → 行动 → 反馈 → 学习</p>
+        </div>
+        <div class="grid grid-4" style="margin-bottom:16px">
+          <div class="card kpi-card">
+            <div class="kpi-label">今日待办</div>
+            <div class="kpi-value">7</div>
+            <div class="kpi-change down">2项今日到期 · 1项已逾期</div>
+          </div>
+          <div class="card kpi-card">
+            <div class="kpi-label">异动预警</div>
+            <div class="kpi-value" style="color:var(--danger)">3</div>
+            <div class="kpi-change down">九阳GMV连续两周-15.2%</div>
+          </div>
+          <div class="card kpi-card">
+            <div class="kpi-label">建议联系</div>
+            <div class="kpi-value">2</div>
+            <div class="kpi-change neutral">基于预警+拜访节奏触发</div>
+          </div>
+          <div class="card kpi-card">
+            <div class="kpi-label">本周拜访</div>
+            <div class="kpi-value">1/2</div>
+            <div class="kpi-change up">完成率 50% · 周四九阳</div>
+          </div>
+        </div>
+        <div class="grid grid-2-1">
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-header"><h3>今日待办 · 优先级排序</h3><button class="btn btn-sm btn-outline" onclick="switchView('todo')">查看全部</button></div>
+              <div class="card-body" style="padding:0">
+                <div class="todo-item">
+                  <div class="todo-check"></div>
+                  <div style="flex:1">
+                    <div><span class="tag tag-p0">P0</span> <strong>跟进九阳抖音独家款谈判</strong></div>
+                    <div class="todo-meta">截止 6/8 18:00 · 来源：博弈推演 · 关联：九阳 <span class="tag tag-s">S级</span></div>
+                  </div>
+                </div>
+                <div class="todo-item">
+                  <div class="todo-check"></div>
+                  <div style="flex:1">
+                    <div><span class="tag tag-p1">P1</span> <strong>确认苏泊尔618备货缺口清单</strong></div>
+                    <div class="todo-meta">截止 6/9 · 来源：供给分析 · 关联：苏泊尔</div>
+                  </div>
+                </div>
+                <div class="todo-item">
+                  <div class="todo-check done">✓</div>
+                  <div style="flex:1" style="opacity:.6">
+                    <div style="text-decoration:line-through;color:var(--text-muted)"><span class="tag tag-p2">P2</span> 更新美的品牌方决策链信息</div>
+                    <div class="todo-meta">已完成 · 6/8 09:30</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3>异动关注</h3><button class="btn btn-sm btn-outline" onclick="switchView('alert')">预警中心</button></div>
+              <div class="card-body">
+                <div class="alert-item" onclick="switchView('alert')">
+                  <div class="alert-dot red"></div>
+                  <div>
+                    <div><span class="tag tag-p0">经营异动</span> <strong>九阳</strong> GMV连续2周跌幅15.2%</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">AI归因：抖音平台独家新品分流 · 建议本周内拜访</div>
+                  </div>
+                </div>
+                <div class="alert-item">
+                  <div class="alert-dot orange"></div>
+                  <div>
+                    <div><span class="tag tag-p1">关系温度</span> <strong>小熊电器</strong> 关键对接人离职</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">品牌方采购总监王某已离职 · 需重建决策链</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-header"><h3>AI 今日摘要</h3></div>
+              <div class="card-body">
+                <div class="ai-box">
+                  <div class="ai-box-header">🤖 智能助手 · 6/8 08:00 生成</div>
+                  <p>本周重点关注<strong>九阳</strong>：GMV连续下滑且竞对在抖音上线独家款，品牌方当前核心诉求是保住抖音增长。建议周四拜访，核心筹码为京东用户画像优势与618流量资源。苏泊尔存在12个高价值SKU缺口，建议同步推进补品谈判。</p>
+                  <div class="confidence"><span class="tag tag-info">置信度：高</span> <span style="color:var(--text-muted)">基于完整经营数据+近期情报</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h3>今日拜访安排</h3></div>
+              <div class="card-body">
+                <div style="padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:8px">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div><strong>九阳 · 季度战略沟通</strong><br><span style="font-size:12px;color:var(--text-secondary)">6/12 14:00 · 杭州总部 · 线上+线下</span></div>
+                    <button class="btn btn-sm btn-primary" onclick="switchView('visit')">作战手册</button>
+                  </div>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px">下一场计划拜访：美的 · 6/18（距上次已28天）</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- M12 管理驾驶舱 -->
+      <div class="view" id="view-dashboard">
+        <div class="page-header">
+          <h2>全局管理驾驶舱</h2>
+          <p>厨小品类 · 12个品牌 · 8名采销 · 数据截至 2026-06-07</p>
+          <div class="filter-bar">
+            <select class="filter-select"><option>厨小品类</option><option>卫浴品类</option><option>全部品类</option></select>
+            <select class="filter-select"><option>近7天</option><option selected>近30天</option><option>近90天</option></select>
+          </div>
+        </div>
+        <div class="grid grid-4" style="margin-bottom:16px">
+          <div class="card kpi-card"><div class="kpi-label">品牌健康度</div><div class="kpi-value" style="color:var(--warning)">78<span style="font-size:14px">分</span></div><div class="kpi-change down">2个红灯 · 3个黄灯</div></div>
+          <div class="card kpi-card"><div class="kpi-label">待办完成率</div><div class="kpi-value">82.4%</div><div class="kpi-change up">↑ 3.2pp vs 上周</div></div>
+          <div class="card kpi-card"><div class="kpi-label">超期待办</div><div class="kpi-value" style="color:var(--danger)">5</div><div class="kpi-change down">涉及3个S/A级品牌</div></div>
+          <div class="card kpi-card"><div class="kpi-label">资源争取达成</div><div class="kpi-value">¥1,240<span style="font-size:14px">万</span></div><div class="kpi-change up">新品首发3单 · 广告+18%</div></div>
+        </div>
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-header"><h3>品牌健康度分布</h3></div>
+            <div class="card-body">
+              <div style="display:flex;gap:24px;margin-bottom:16px">
+                <div style="text-align:center"><div style="width:48px;height:48px;border-radius:50%;background:#d1fae5;display:flex;align-items:center;justify-content:center;font-weight:700;color:#065f46;margin:0 auto 4px">7</div><div style="font-size:11px;color:var(--text-muted)">绿灯</div></div>
+                <div style="text-align:center"><div style="width:48px;height:48px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-weight:700;color:#92400e;margin:0 auto 4px">3</div><div style="font-size:11px;color:var(--text-muted)">黄灯</div></div>
+                <div style="text-align:center"><div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-weight:700;color:#991b1b;margin:0 auto 4px">2</div><div style="font-size:11px;color:var(--text-muted)">红灯</div></div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>品牌</th><th>级别</th><th>健康度</th><th>负责采销</th><th>主要风险</th></tr></thead>
+                  <tbody>
+                    <tr><td>九阳</td><td><span class="tag tag-s">S</span></td><td><span class="tag tag-danger">62</span></td><td>张明</td><td>GMV连续下滑+竞对分流</td></tr>
+                    <tr><td>苏泊尔</td><td><span class="tag tag-a">A</span></td><td><span class="tag tag-warning">74</span></td><td>李华</td><td>供给缺口未补</td></tr>
+                    <tr><td>美的</td><td><span class="tag tag-s">S</span></td><td><span class="tag tag-success">91</span></td><td>王芳</td><td>—</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>团队人效分析</h3></div>
+            <div class="card-body">
+              <div class="stat-row"><span>张明</span><span>3品牌 · 拜访完成率92% · GMV +4.2%</span></div>
+              <div class="stat-row"><span>李华</span><span>2品牌 · 拜访完成率78% · GMV -1.1%</span></div>
+              <div class="stat-row"><span>王芳</span><span>4品牌 · 拜访完成率100% · GMV +8.7%</span></div>
+              <div class="stat-row"><span>陈磊</span><span>3品牌 · 待办超期2项 · GMV +0.3%</span></div>
+              <div style="margin-top:16px">
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">团队待办完成率趋势</div>
+                <div class="mini-chart">
+                  <div class="mini-bar" style="height:60%"></div><div class="mini-bar" style="height:65%"></div>
+                  <div class="mini-bar" style="height:70%"></div><div class="mini-bar" style="height:75%"></div>
+                  <div class="mini-bar" style="height:82%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- M1 品牌全景档案 -->
+      <div class="view" id="view-profile">
+        <div class="page-header">
+          <h2>品牌全景档案</h2>
+          <p>活的品牌画像 · 随数据更新与互动持续演进</p>
+          <div class="filter-bar">
+            <select class="filter-select" id="brandSelect" onchange="updateBrandProfile()">
+              <option value="jiuyang">九阳 · S级</option>
+              <option value="supor">苏泊尔 · A级</option>
+              <option value="midea">美的 · S级</option>
+            </select>
+            <button class="btn btn-outline btn-sm">导出档案</button>
+            <button class="btn btn-primary btn-sm">补充信息</button>
+          </div>
+        </div>
+        <div class="grid grid-4" style="margin-bottom:16px">
+          <div class="card kpi-card"><div class="kpi-label">月GMV</div><div class="kpi-value" id="pf-gmv">¥2,840万</div><div class="kpi-change down" id="pf-gmv-chg">环比 -15.2%</div></div>
+          <div class="card kpi-card"><div class="kpi-label">毛利率</div><div class="kpi-value" id="pf-margin">18.6%</div><div class="kpi-change down">同比 -1.2pp</div></div>
+          <div class="card kpi-card"><div class="kpi-label">JD市占</div><div class="kpi-value" id="pf-share">23.4%</div><div class="kpi-change neutral">品类排名第2</div></div>
+          <div class="card kpi-card"><div class="kpi-label">档案健康度</div><div class="kpi-value" id="pf-health" style="color:var(--warning)">78</div><div class="kpi-change down">决策链信息过期32天</div></div>
+        </div>
+        <div class="tabs" id="profileTabs">
+          <div class="tab active" data-tab="pf-data">经营数据</div>
+          <div class="tab" data-tab="pf-org">品牌方画像</div>
+          <div class="tab" data-tab="pf-history">历史互动</div>
+          <div class="tab" data-tab="pf-event">重大事件</div>
+          <div class="tab" data-tab="pf-compete">竞对关系</div>
+          <div class="tab" data-tab="pf-channel">渠道版图</div>
+        </div>
+        <div class="tab-panel active" id="pf-data">
+          <div class="grid grid-2">
+            <div class="card"><div class="card-header"><h3>GMV趋势（近12周）</h3></div><div class="card-body">
+              <div class="mini-chart" style="height:120px;gap:6px">
+                <div class="mini-bar" style="height:90%;opacity:.5"></div><div class="mini-bar" style="height:85%;opacity:.5"></div>
+                <div class="mini-bar" style="height:88%;opacity:.5"></div><div class="mini-bar" style="height:82%;opacity:.5"></div>
+                <div class="mini-bar" style="height:78%;opacity:.6"></div><div class="mini-bar" style="height:72%;opacity:.7"></div>
+                <div class="mini-bar" style="height:68%;opacity:.8"></div><div class="mini-bar" style="height:65%;opacity:.9"></div>
+                <div class="mini-bar" style="height:60%;background:var(--danger)"></div><div class="mini-bar" style="height:55%;background:var(--danger)"></div>
+                <div class="mini-bar" style="height:52%;background:var(--danger)"></div><div class="mini-bar" style="height:48%;background:var(--danger)"></div>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center">W1 — W12 · 近4周明显下行</div>
+            </div></div>
+            <div class="card"><div class="card-header"><h3>核心SKU表现</h3></div><div class="card-body"><div class="table-wrap"><table>
+              <thead><tr><th>SKU</th><th>月销</th><th>转化率</th><th>退货率</th><th>趋势</th></tr></thead>
+              <tbody>
+                <tr><td>破壁机 L18-P139</td><td>¥420万</td><td>3.2%</td><td>1.8%</td><td><span class="tag tag-danger">↓18%</span></td></tr>
+                <tr><td>空气炸锅 KL-J63A</td><td>¥380万</td><td>4.1%</td><td>2.1%</td><td><span class="tag tag-warning">↓8%</span></td></tr>
+                <tr><td>电水壶 K15-F23</td><td>¥210万</td><td>5.6%</td><td>0.9%</td><td><span class="tag tag-success">↑3%</span></td></tr>
+              </tbody>
+            </table></div></div></div>
+          </div>
+        </div>
+        <div class="tab-panel" id="pf-org">
+          <div class="grid grid-2">
+            <div class="card"><div class="card-header"><h3>决策链地图</h3></div><div class="card-body">
+              <div class="stat-row"><span><strong>CEO · 王某</strong></span><span class="tag tag-success">关系温度 85</span></div>
+              <div class="stat-row"><span>电商总监 · 李某</span><span class="tag tag-warning">关系温度 62 · 90天未更新</span></div>
+              <div class="stat-row"><span>京东渠道经理 · 张某</span><span class="tag tag-success">关系温度 78</span></div>
+              <div class="stat-row"><span>采购总监 · 赵某</span><span class="tag tag-info">新对接 · 待建联</span></div>
+            </div></div>
+            <div class="card"><div class="card-header"><h3>品牌策略方向</h3></div><div class="card-body">
+              <p style="font-size:13px;line-height:1.8;color:var(--text-secondary)">2026年核心KPI：全渠道GMV增长15%，抖音占比提升至35%。产品策略聚焦健康小家电，Q2重点推空气炸锅新品线。对京东态度：维持合作但议价意愿增强，倾向将独家款优先给抖音。</p>
+            </div></div>
+          </div>
+        </div>
+        <div class="tab-panel" id="pf-history">
+          <div class="card"><div class="card-body"><div class="timeline">
+            <div class="timeline-item"><div class="timeline-date">2026-05-15</div><div class="timeline-title">季度战略沟通 · 线上</div><div class="timeline-desc">品牌承诺618加大京东投放200万；我方承诺首页资源位。待办：跟进投放确认（进行中）</div></div>
+            <div class="timeline-item"><div class="timeline-date">2026-04-02</div><div class="timeline-title">价格谈判 · 杭州总部</div><div class="timeline-desc">要求降价3%，最终让步1.5%。品牌方态度偏强硬，提及抖音独家合作意向</div></div>
+            <div class="timeline-item"><div class="timeline-date">2026-02-20</div><div class="timeline-title">新品首发沟通</div><div class="timeline-desc">破壁机新品京东首发成功，首月GMV ¥180万</div></div>
+          </div></div></div>
+        </div>
+        <div class="tab-panel" id="pf-event">
+          <div class="card"><div class="card-body"><div class="table-wrap"><table>
+            <thead><tr><th>时间</th><th>类型</th><th>事件</th><th>影响评估</th></tr></thead>
+            <tbody>
+              <tr><td>2026-05-28</td><td><span class="tag tag-p0">竞对动作</span></td><td>抖音上线破壁机独家款，定价低8%</td><td><span class="tag tag-danger">高</span></td></tr>
+              <tr><td>2026-04-10</td><td><span class="tag tag-p1">人事变动</span></td><td>采购总监更换，新负责人待建联</td><td><span class="tag tag-warning">中</span></td></tr>
+              <tr><td>2026-03-01</td><td><span class="tag tag-p2">合同</span></td><td>年度框架合同续签完成</td><td><span class="tag tag-success">低</span></td></tr>
+            </tbody>
+          </table></div></div></div>
+        </div>
+        <div class="tab-panel" id="pf-compete">
+          <div class="card"><div class="card-body"><div class="table-wrap"><table>
+            <thead><tr><th>竞对品牌</th><th>JD市占</th><th>相对优势</th><th>相对劣势</th><th>近期动作</th></tr></thead>
+            <tbody>
+              <tr><td>美的</td><td>28.6%</td><td>产品线全、广告投入大</td><td>高端破壁机份额低</td><td>618加大京东包销</td></tr>
+              <tr><td>苏泊尔</td><td>19.2%</td><td>价格竞争力强</td><td>品牌溢价弱</td><td>抖音直播带货</td></tr>
+            </tbody>
+          </table></div></div></div>
+        </div>
+        <div class="tab-panel" id="pf-channel">
+          <div class="grid grid-2">
+            <div class="card"><div class="card-header"><h3>全渠道销售占比</h3></div><div class="card-body">
+              <div class="stat-row"><span>京东</span><span><strong>32%</strong> · 增速 -8%</span></div>
+              <div class="stat-row"><span>天猫</span><span>28% · 增速 +2%</span></div>
+              <div class="stat-row"><span>抖音</span><span><strong>25%</strong> · 增速 <span style="color:var(--success)">+22%</span></span></div>
+              <div class="stat-row"><span>拼多多</span><span>10% · 增速 +5%</span></div>
+              <div class="stat-row"><span>线下/其他</span><span>5% · 增速 -3%</span></div>
+            </div></div>
+            <div class="card"><div class="card-header"><h3>渠道风险提示</h3></div><div class="card-body">
+              <div class="ai-box"><div class="ai-box-header">⚠ 渠道偏移预警</div>
+              <p>抖音占比近6个月从18%升至25%，京东占比从38%降至32%。品牌方资源倾斜明显，需通过独家款+流量资源挽留。</p></div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- M2 品牌情报流 -->
+      <div class="view" id="view-intel">
+        <div class="page-header">
+          <h2>品牌情报流</h2>
+          <p>全源情报聚合 · 分级推送 · 智能周报</p>
+        </div>
+        <div class="grid grid-2-1">
+          <div class="card">
+            <div class="card-header"><h3>实时情报</h3>
+              <div class="filter-bar" style="margin:0"><select class="filter-select"><option>全部级别</option><option>P0紧急</option><option>P1重要</option></select></div>
+            </div>
+            <div class="card-body">
+              <div class="alert-item"><div class="alert-dot red"></div><div><div><span class="tag tag-p0">P0</span> <strong>九阳CEO出席抖音战略发布会</strong></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px">6/7 · 外部情报 · 暗示平台资源倾斜 · 已自动建待办</div></div></div>
+              <div class="alert-item"><div class="alert-dot orange"></div><div><div><span class="tag tag-p1">P1</span> <strong>苏泊尔618备货量同比+30%</strong></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px">6/6 · 供应链情报 · 天猫为主力渠道</div></div></div>
+              <div class="alert-item"><div class="alert-dot blue"></div><div><div><span class="tag tag-p2">P2</span> <strong>小熊电器发布2026新品路线图</strong></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px">6/5 · 行业情报 · 3款空气炸锅新品</div></div></div>
+              <div class="alert-item"><div class="alert-dot blue"></div><div><div><span class="tag tag-p2">P2</span> <strong>厨小品类Q2行业报告发布</strong></div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px">6/3 · 背景情报 · 健康小家电增速12%</div></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>本周情报周报</h3><span style="font-size:11px;color:var(--text-muted)">6/2 - 6/8</span></div>
+            <div class="card-body">
+              <div class="ai-box" style="margin-bottom:12px">
+                <div class="ai-box-header">📋 AI一句话总结</div>
+                <p>本周厨小品类竞争加剧，九阳与苏泊尔均在抖音加大投入，京东侧需通过独家资源挽留核心品牌。美的618表现超预期，可作为标杆案例。</p>
+              </div>
+              <div style="font-size:12px">
+                <div class="stat-row"><span>关键异动</span><span>3条</span></div>
+                <div class="stat-row"><span>跨品牌关联</span><span>九阳降价 ↔ 美的新品发布</span></div>
+                <div class="stat-row"><span>待办建议</span><span>5条</span></div>
+              </div>
+              <button class="btn btn-outline btn-sm" style="width:100%;margin-top:12px">下载完整周报 PDF</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- M3 多维预警 -->
+      <div class="view" id="view-alert">
+        <div class="page-header">
+          <h2>多维预警系统</h2>
+          <p>不只盯数据，更盯关系 · 预警→拜访智能联动</p>
+        </div>
+        <div class="grid grid-4" style="margin-bottom:16px">
+          <div class="card kpi-card"><div class="kpi-label">活跃预警</div><div class="kpi-value" style="color:var(--danger)">8</div></div>
+          <div class="card kpi-card"><div class="kpi-label">经营异动</div><div class="kpi-value">3</div></div>
+          <div class="card kpi-card"><div class="kpi-label">关系温度</div><div class="kpi-value">2</div></div>
+          <div class="card kpi-card"><div class="kpi-label">建议拜访</div><div class="kpi-value">4</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>预警列表</h3></div>
+          <div class="card-body" style="padding:0"><div class="table-wrap"><table>
+            <thead><tr><th>级别</th><th>类型</th><th>品牌</th><th>触发条件</th><th>AI归因</th><th>建议动作</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr class="clickable"><td><span class="tag tag-p0">P0</span></td><td>经营异动</td><td>九阳</td><td>GMV连续2周-15.2%</td><td>抖音独家款分流</td><td><button class="btn btn-sm btn-primary" onclick="switchView('visit')">建议拜访</button></td><td><span class="tag tag-warning">处理中</span></td></tr>
+              <tr><td><span class="tag tag-p1">P1</span></td><td>关系温度</td><td>小熊电器</td><td>关键人离职</td><td>决策链断裂风险</td><td>重建建联</td><td><span class="tag tag-danger">待处理</span></td></tr>
+              <tr><td><span class="tag tag-p1">P1</span></td><td>竞对威胁</td><td>苏泊尔</td><td>抖音增速+35% vs JD +8%</td><td>平台资源倾斜</td><td>推演分析</td><td><span class="tag tag-warning">处理中</span></td></tr>
+              <tr><td><span class="tag tag-p1">P1</span></td><td>供给恶化</td><td>苏泊尔</td><td>核心SKU缺货>7天</td><td>产能调配至天猫</td><td><button class="btn btn-sm btn-outline" onclick="switchView('supply')">查看缺口</button></td><td><span class="tag tag-danger">待处理</span></td></tr>
+              <tr><td><span class="tag tag-p2">P2</span></td><td>合约风险</td><td>九阳</td><td>返利条款Q2未达标</td><td>GMV下滑导致</td><td>协商调整</td><td><span class="tag tag-info">已知晓</span></td></tr>
+            </tbody>
+          </table></div></div>
+        </div>
+      </div>
+
+      <!-- M4 博弈推演 -->
+      <div class="view" id="view-simulation">
+        <div class="page-header">
+          <h2>博弈推演引擎</h2>
+          <p>模拟品牌方在想什么 · 输出策略建议与谈判区间</p>
+        </div>
+        <div class="grid grid-1-2">
+          <div class="card">
+            <div class="card-header"><h3>推演配置</h3></div>
+            <div class="card-body">
+              <div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">推演场景</label>
+                <select class="filter-select" style="width:100%"><option>单品牌策略推演</option><option>谈判策略模拟</option><option>品牌间博弈推演</option><option>竞对平台冲击推演</option></select></div>
+              <div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">目标品牌</label>
+                <select class="filter-select" style="width:100%"><option>九阳</option><option>苏泊尔</option><option>美的</option></select></div>
+              <div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">假设动作（谈判模拟）</label>
+                <textarea style="width:100%;height:80px;border:1px solid var(--border);border-radius:6px;padding:8px;font-size:13px;resize:vertical" placeholder="例：要求九阳将破壁机独家款首发放在京东，并给予5%额外返利">要求九阳将破壁机新品独家首发放在京东，并给予618首页资源位</textarea></div>
+              <button class="btn btn-primary" style="width:100%" onclick="runSimulation()">开始推演</button>
+            </div>
+          </div>
+          <div class="card" id="simResult">
+            <div class="card-header"><h3>推演报告 · 九阳谈判策略模拟</h3><span class="tag tag-info">置信度：高</span></div>
+            <div class="card-body">
+              <div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">1. 品牌方视角分析</div>
+                <div class="ai-box"><p>如果我是九阳决策者，当前<strong>核心诉求</strong>是保住抖音25%增速和全渠道GMV目标。京东议价窗口在收缩——破壁机品类已被抖音独家款分流。我的<strong>筹码</strong>是618大促流量预期和多平台选择权；<strong>担心</strong>的是过度绑定单一平台导致其他渠道反弹。</p></div></div>
+              <div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">2. 情景推演</div>
+                <div class="grid grid-3" style="gap:8px">
+                  <div style="padding:10px;background:#f0fdf4;border-radius:6px;border:1px solid #bbf7d0"><div style="font-size:11px;color:var(--success)">乐观 25%</div><div style="font-size:12px;margin-top:4px">接受京东独家+资源置换</div></div>
+                  <div style="padding:10px;background:#eff6ff;border-radius:6px;border:1px solid #bfdbfe"><div style="font-size:11px;color:var(--primary)">基准 55%</div><div style="font-size:12px;margin-top:4px">要求对等资源，拖延决策</div></div>
+                  <div style="padding:10px;background:#fef2f2;border-radius:6px;border:1px solid #fecaca"><div style="font-size:11px;color:var(--danger)">悲观 20%</div><div style="font-size:12px;margin-top:4px">明确倾向抖音，JD让步</div></div>
+                </div></div>
+              <div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">3. 策略建议</div>
+                <div class="stat-row"><span>谈判目标</span><span>争取破壁机新品京东独家首发</span></div>
+                <div class="stat-row"><span>核心筹码</span><span>618首页资源位 + 用户画像数据赋能</span></div>
+                <div class="stat-row"><span>让步梯度</span><span>独家→首发48h→同步上架</span></div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-primary btn-sm" onclick="switchView('visit')">生成作战手册</button>
+                <button class="btn btn-outline btn-sm" onclick="switchView('todo')">转为待办</button>
+                <button class="btn btn-outline btn-sm">👍 有用</button>
+                <button class="btn btn-outline btn-sm">👎 无用</button>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:12px;border-top:1px solid var(--border);padding-top:8px">⚠ 以下是我的分析，最终决策由你做出 · <a href="#" style="color:var(--primary)">查看推理链路</a></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- M5 品类战局 -->
+      <div class="view" id="view-battlefield">
+        <div class="page-header">
+          <h2>品类战局视图</h2>
+          <p>厨小品类 · 品牌竞争矩阵与关系图谱</p>
+        </div>
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-header"><h3>品牌竞争矩阵</h3><span style="font-size:11px;color:var(--text-muted)">横轴：JD市占 · 纵轴：行业增速 · 气泡：GMV</span></div>
+            <div class="card-body">
+              <div class="matrix-chart">
+                <div class="matrix-label" style="bottom:8px;left:50%;transform:translateX(-50%)">JD市占 →</div>
+                <div class="matrix-label" style="top:50%;left:8px;transform:rotate(-90deg) translateX(-50%);transform-origin:left">行业增速 →</div>
+                <div class="matrix-quadrant" style="top:12px;right:12px">明星区</div>
+                <div class="matrix-quadrant" style="top:12px;left:12px">机会区</div>
+                <div class="matrix-quadrant" style="bottom:12px;right:12px">金牛区</div>
+                <div class="matrix-quadrant" style="bottom:12px;left:12px">问题区</div>
+                <div class="bubble" style="width:56px;height:56px;background:#059669;top:18%;right:22%" title="美的">美的</div>
+                <div class="bubble" style="width:44px;height:44px;background:#d97706;top:55%;right:35%" title="九阳">九阳</div>
+                <div class="bubble" style="width:40px;height:40px;background:#0284c7;top:40%;right:48%" title="苏泊尔">苏</div>
+                <div class="bubble" style="width:32px;height:32px;background:#7c3aed;top:25%;left:58%" title="小熊">熊</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>跨品牌协同机会</h3></div>
+            <div class="card-body">
+              <div class="ai-box" style="margin-bottom:12px">
+                <div class="ai-box-header">🔗 AI识别：资源置换机会</div>
+                <p><strong>美的</strong>有618包销意愿但缺广告预算；<strong>苏泊尔</strong>有广告预算但需要独家品。建议采销联动谈判，以美的包销资源换取苏泊尔广告投入。</p>
+                <div class="confidence"><span class="tag tag-info">置信度：中</span></div>
+              </div>
+              <div class="table-wrap"><table>
+                <thead><tr><th>品牌</th><th>象限</th><th>策略方向</th></tr></thead>
+                <tbody>
+                  <tr><td>美的</td><td><span class="tag tag-success">明星</span></td><td>深度绑定，争取独家</td></tr>
+                  <tr><td>九阳</td><td><span class="tag tag-warning">问题</span></td><td>挽留+资源倾斜</td></tr>
+                  <tr><td>苏泊尔</td><td><span class="tag tag-info">金牛</span></td><td>维持+缺口补充</td></tr>
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- M6 拜访助手 -->
+      <div class="view" id="view-visit">
+        <div class="page-header">
+          <h2>智能拜访助手</h2>
+          <p>每一次拜访都带着策略出发</p>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><h3>拜访作战手册 · 九阳季度战略沟通</h3><span class="tag tag-s">S级</span></div>
+          <div class="card-body">
+            <div class="grid grid-2" style="gap:16px">
+              <div><div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:6px">📋 拜访背景</div>
+                <p style="font-size:13px;color:var(--text-secondary);line-height:1.7">GMV连续2周下滑15.2%，抖音上线独家破壁机款。距上次拜访53天（S级基线：每月1次）。触发源：经营异动预警 + 拜访节奏逾期。</p></div>
+              <div><div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:6px">📊 数据洞察</div>
+                <p style="font-size:13px;color:var(--text-secondary);line-height:1.7">JD月GMV ¥2,840万（环比-15.2%），破壁机SKU -18%。抖音渠道占比升至25%（+7pp）。需重点讨论：独家款回流可能性、618投放计划。</p></div>
+              <div><div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:6px">🎯 谈判目标</div>
+                <ol style="font-size:13px;color:var(--text-secondary);padding-left:18px;line-height:1.8">
+                  <li>争取破壁机新品京东独家首发（P0）</li>
+                  <li>确认618追加投放200万（P1）</li>
+                  <li>重建与新采购总监建联（P1）</li>
+                </ol></div>
+              <div><div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:6px">⚔ 博弈策略</div>
+                <p style="font-size:13px;color:var(--text-secondary);line-height:1.7">开场用数据共情→抛出618资源筹码→提出独家首发方案→预留48h同步上架作为让步。避免先谈价格，先锁定合作深度。</p></div>
+              <div><div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:6px">🎁 资源弹药</div>
+                <p style="font-size:13px;color:var(--text-secondary);line-height:1.7">618首页资源位、用户画像报告、联合营销方案、品类趋势白皮书</p></div>
+              <div><div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:6px">⚠ 风险预案</div>
+                <p style="font-size:13px;color:var(--text-secondary);line-height:1.7">若品牌方坚持抖音优先→提出分阶段独家方案；若要求降价→以资源置换替代直接让利</p></div>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+              <button class="btn btn-primary">导出 PDF</button>
+              <button class="btn btn-outline">录入拜访纪要</button>
+              <button class="btn btn-outline" onclick="switchView('todo')">预置待办模板</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>季度拜访日历</h3></div>
+          <div class="card-body"><div class="table-wrap"><table>
+            <thead><tr><th>品牌</th><th>级别</th><th>计划日期</th><th>上次拜访</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td>九阳</td><td><span class="tag tag-s">S</span></td><td>6/12</td><td>53天前</td><td><span class="tag tag-warning">已逾期</span></td></tr>
+              <tr><td>美的</td><td><span class="tag tag-s">S</span></td><td>6/18</td><td>28天前</td><td><span class="tag tag-success">计划中</span></td></tr>
+              <tr><td>苏泊尔</td><td><span class="tag tag-a">A</span></td><td>7/05</td><td>45天前</td><td><span class="tag tag-success">计划中</span></td></tr>
+            </tbody>
+          </table></div></div>
+        </div>
+      </div>
+
+      <!-- M7 待办中心 -->
+      <div class="view" id="view-todo">
+        <div class="page-header">
+          <h2>待办指挥中心</h2>
+          <p>结论必须落到人 · 多源聚合 · 升级机制</p>
+        </div>
+        <div class="grid grid-4" style="margin-bottom:16px">
+          <div class="card kpi-card"><div class="kpi-label">我的待办</div><div class="kpi-value">12</div></div>
+          <div class="card kpi-card"><div class="kpi-label">今日到期</div><div class="kpi-value" style="color:var(--warning)">2</div></div>
+          <div class="card kpi-card"><div class="kpi-label">已逾期</div><div class="kpi-value" style="color:var(--danger)">1</div></div>
+          <div class="card kpi-card"><div class="kpi-label">完成率（本月）</div><div class="kpi-value">86%</div></div>
+        </div>
+        <div class="tabs" id="todoTabs">
+          <div class="tab active" data-tab="todo-my">我的待办</div>
+          <div class="tab" data-tab="todo-team">团队视图</div>
+        </div>
+        <div class="tab-panel active" id="todo-my">
+          <div class="card"><div class="card-body" style="padding:0"><div class="table-wrap"><table>
+            <thead><tr><th>优先级</th><th>待办内容</th><th>关联品牌</th><th>来源</th><th>截止</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag tag-p0">P0</span></td><td>跟进九阳抖音独家款谈判</td><td>九阳</td><td><a href="#" onclick="switchView('simulation');return false" style="color:var(--primary)">博弈推演</a></td><td style="color:var(--danger)">6/8</td><td><span class="tag tag-warning">进行中</span></td></tr>
+              <tr><td><span class="tag tag-p1">P1</span></td><td>确认苏泊尔618备货缺口</td><td>苏泊尔</td><td><a href="#" onclick="switchView('supply');return false" style="color:var(--primary)">供给分析</a></td><td>6/9</td><td><span class="tag tag-info">待开始</span></td></tr>
+              <tr><td><span class="tag tag-p1">P1</span></td><td>重建小熊电器决策链建联</td><td>小熊</td><td><a href="#" onclick="switchView('alert');return false" style="color:var(--primary)">预警系统</a></td><td>6/10</td><td><span class="tag tag-info">待开始</span></td></tr>
+              <tr style="background:#fff7ed"><td><span class="tag tag-p1">P1</span></td><td>提交美的618复盘报告</td><td>美的</td><td>管理者指令</td><td style="color:var(--danger)">6/5</td><td><span class="tag tag-danger">逾期3天↑</span></td></tr>
+            </tbody>
+          </table></div></div></div>
+        </div>
+        <div class="tab-panel" id="todo-team">
+          <div class="card"><div class="card-body">
+            <div class="grid grid-3" style="margin-bottom:16px">
+              <div class="kpi-card" style="background:#f8fafc;border-radius:8px"><div class="kpi-label">团队总量</div><div class="kpi-value" style="font-size:20px">47</div></div>
+              <div class="kpi-card" style="background:#f8fafc;border-radius:8px"><div class="kpi-label">完成率</div><div class="kpi-value" style="font-size:20px">82.4%</div></div>
+              <div class="kpi-card" style="background:#f8fafc;border-radius:8px"><div class="kpi-label">超期率</div><div class="kpi-value" style="font-size:20px;color:var(--danger)">10.6%</div></div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">升级机制：逾期1天→橙色 · 3天→抄送上级 · 7天→管理者关注</div>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- M8 供给分析 -->
+      <div class="view" id="view-supply">
+        <div class="page-header">
+          <h2>全渠道供给分析</h2>
+          <p>别人有京东没有，就是机会 · JD vs TM/DY/PDD SKU对比</p>
+        </div>
+        <div class="grid grid-4" style="margin-bottom:16px">
+          <div class="card kpi-card"><div class="kpi-label">缺口SKU总数</div><div class="kpi-value">156</div></div>
+          <div class="card kpi-card"><div class="kpi-label">P0高价值缺口</div><div class="kpi-value" style="color:var(--danger)">23</div></div>
+          <div class="card kpi-card"><div class="kpi-label">已补/谈判中</div><div class="kpi-value">68</div></div>
+          <div class="card kpi-card"><div class="kpi-label">补充率</div><div class="kpi-value">28.4%</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>缺口SKU清单 · 苏泊尔</h3><button class="btn btn-sm btn-primary">批量转待办</button></div>
+          <div class="card-body" style="padding:0"><div class="table-wrap"><table>
+            <thead><tr><th>优先级</th><th>SKU</th><th>竞对平台</th><th>月销</th><th>增速</th><th>缺口原因</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag tag-p0">P0</span></td><td>电饭煲 SF40FC863</td><td>天猫</td><td>¥86万</td><td>+32%</td><td>未入驻京东</td><td><span class="tag tag-warning">谈判中</span></td></tr>
+              <tr><td><span class="tag tag-p0">P0</span></td><td>破壁机 SP902S</td><td>抖音</td><td>¥62万</td><td>+45%</td><td>京东下架</td><td><span class="tag tag-danger">待处理</span></td></tr>
+              <tr><td><span class="tag tag-p1">P1</span></td><td>养生壶 SW-15T01</td><td>天猫</td><td>¥28万</td><td>+18%</td><td>未入驻京东</td><td><span class="tag tag-info">已转待办</span></td></tr>
+            </tbody>
+          </table></div></div>
+        </div>
+      </div>
+
+      <!-- M9 资源争取 -->
+      <div class="view" id="view-resource">
+        <div class="page-header">
+          <h2>品牌资源争取工具包</h2>
+          <p>对内决策支撑 · 对外价值论证 · 双向武器</p>
+        </div>
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-header"><h3>对内 · 决策支撑</h3></div>
+            <div class="card-body">
+              <div class="stat-row"><span>品类趋势报告</span><button class="btn btn-sm btn-outline">查看</button></div>
+              <div class="stat-row"><span>竞对投放效率对比</span><button class="btn btn-sm btn-outline">查看</button></div>
+              <div class="stat-row"><span>品牌差评归因分析</span><button class="btn btn-sm btn-outline">查看</button></div>
+              <div class="stat-row"><span>新品机会论证</span><button class="btn btn-sm btn-outline">查看</button></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>对外 · 品牌方报告</h3></div>
+            <div class="card-body">
+              <div style="padding:16px;background:#f8fafc;border-radius:8px;margin-bottom:12px">
+                <div style="font-weight:600;margin-bottom:8px">京东合作价值报告 · 九阳</div>
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.7">包含：JD增长趋势、用户画像优势、投放效率 vs 抖音/天猫、618资源方案</div>
+              </div>
+              <button class="btn btn-primary">一键生成 PDF/PPT</button>
+              <button class="btn btn-outline" style="margin-left:8px">竞品对标刺激</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- M10 知识库 -->
+      <div class="view" id="view-knowledge">
+        <div class="page-header">
+          <h2>品牌知识库</h2>
+          <p>对抗人走知识走 · 结构化沉淀与自动补全</p>
+        </div>
+        <div class="grid grid-3">
+          <div class="card"><div class="card-header"><h3>九阳 · 谈判底线</h3><span class="tag tag-warning">可能过期</span></div><div class="card-body"><p style="font-size:13px;color:var(--text-secondary)">价格让步上限2%，独家款可谈但需对等资源。采购总监更换后底线可能变化。</p><div style="font-size:11px;color:var(--text-muted);margin-top:8px">更新：2026-04-02 · 质量分 72</div></div></div>
+          <div class="card"><div class="card-header"><h3>美的 · 沟通偏好</h3><span class="tag tag-success">有效</span></div><div class="card-body"><p style="font-size:13px;color:var(--text-secondary)">偏好数据驱动沟通，先给行业报告再谈合作。决策链短，电商总监可拍板80%事项。</p><div style="font-size:11px;color:var(--text-muted);margin-top:8px">更新：2026-05-20 · 质量分 91</div></div></div>
+          <div class="card"><div class="card-header"><h3>厨小品类 · 行业知识</h3><span class="tag tag-success">有效</span></div><div class="card-body"><p style="font-size:13px;color:var(--text-secondary)">2026年健康小家电增速12%，空气炸锅/破壁机为核心增长品类。抖音直播带货占比持续提升。</p><div style="font-size:11px;color:var(--text-muted);margin-top:8px">更新：2026-06-01 · 质量分 88</div></div></div>
+        </div>
+      </div>
+
+      <!-- M11 故事库 -->
+      <div class="view" id="view-story">
+        <div class="page-header">
+          <h2>品牌故事库</h2>
+          <p>战果沉淀，以战养战 · 可复用方法论</p>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><h3>⭐ 高价值案例 · 美的618包销破局</h3><span class="tag tag-success">引用转化率 78%</span></div>
+          <div class="card-body">
+            <div class="grid grid-2" style="gap:16px;font-size:13px;color:var(--text-secondary);line-height:1.8">
+              <div><strong style="color:var(--text)">背景</strong><br>美的2025年Q4 GMV下滑8%，品牌方考虑减少京东投入</div>
+              <div><strong style="color:var(--text)">洞察</strong><br>品牌核心诉求不是降价而是确定性——618销量预测</div>
+              <div><strong style="color:var(--text)">破局</strong><br>以数据赋能+包销承诺换取独家款，而非直接让利</div>
+              <div><strong style="color:var(--text)">成果</strong><br>618 GMV +42%，品牌追加广告投入300万</div>
+            </div>
+            <div style="margin-top:12px"><button class="btn btn-outline btn-sm">下载案例</button> <button class="btn btn-outline btn-sm">引用到新提案</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- M14 品牌分级 -->
+      <div class="view" id="view-grading">
+        <div class="page-header">
+          <h2>品牌分级管理体系</h2>
+          <p>按战略价值差异化功能深度 · 预警阈值 · 拜访节奏</p>
+        </div>
+        <div class="card">
+          <div class="card-body"><div class="table-wrap"><table>
+            <thead><tr><th>级别</th><th>定义</th><th>功能深度</th><th>拜访基线</th><th>预警敏感度</th><th>品牌数</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag tag-s">S-战略</span></td><td>收入Top+增长潜力高</td><td>全部14模块</td><td>每月≥1次</td><td>高敏感</td><td>3</td></tr>
+              <tr><td><span class="tag tag-a">A-核心</span></td><td>核心贡献品牌</td><td>10个核心模块</td><td>每季度≥1次</td><td>中敏感</td><td>4</td></tr>
+              <tr><td><span class="tag tag-p2">B-常规</span></td><td>稳定贡献</td><td>档案+预警+待办+周报</td><td>每半年≥1次</td><td>低敏感</td><td>3</td></tr>
+              <tr><td><span class="tag tag-p2">C-长尾</span></td><td>长尾品牌</td><td>基础档案+异动提醒</td><td>按需</td><td>仅重大异常</td><td>2</td></tr>
+            </tbody>
+          </table></div>
+          <div class="ai-box" style="margin:16px"><div class="ai-box-header">📈 级别调整建议</div><p>九阳近期表现下滑，建议维持S级但提高预警敏感度；小熊电器增长加速，建议从B级上调至A级。</p></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const viewTitles = {
+  workbench: '今日工作台', dashboard: '管理驾驶舱', profile: '品牌全景档案',
+  intel: '品牌情报流', alert: '多维预警系统', simulation: '博弈推演引擎',
+  battlefield: '品类战局视图', visit: '智能拜访助手', todo: '待办指挥中心',
+  supply: '全渠道供给分析', resource: '资源争取工具包', knowledge: '品牌知识库',
+  story: '品牌故事库', grading: '品牌分级管理'
+};
+
+function switchView(viewId) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const view = document.getElementById('view-' + viewId);
+  const nav = document.querySelector('[data-view="' + viewId + '"]');
+  if (view) view.classList.add('active');
+  if (nav) nav.classList.add('active');
+  document.getElementById('pageTitle').textContent = viewTitles[viewId] || viewId;
+  document.getElementById('contentArea').scrollTop = 0;
+}
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => switchView(item.dataset.view));
+});
+
+document.querySelectorAll('.tabs').forEach(tabGroup => {
+  tabGroup.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const parent = tab.closest('.view') || tab.closest('.content');
+      const tabs = tab.parentElement.querySelectorAll('.tab');
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const panelId = tab.dataset.tab;
+      const panels = parent.querySelectorAll('.tab-panel');
+      panels.forEach(p => p.classList.toggle('active', p.id === panelId));
+    });
+  });
+});
+
+document.querySelectorAll('.todo-check:not(.done)').forEach(el => {
+  el.addEventListener('click', () => { el.classList.add('done'); el.textContent = '✓'; });
+});
+
+function runSimulation() {
+  const result = document.getElementById('simResult');
+  result.style.opacity = '0.5';
+  setTimeout(() => { result.style.opacity = '1'; result.scrollIntoView({ behavior: 'smooth' }); }, 600);
+}
+
+const brandData = {
+  jiuyang: { gmv: '¥2,840万', chg: '环比 -15.2%', margin: '18.6%', share: '23.4%', health: '78', color: 'var(--warning)' },
+  supor: { gmv: '¥1,920万', chg: '环比 +3.1%', margin: '16.2%', share: '19.2%', health: '74', color: 'var(--warning)' },
+  midea: { gmv: '¥4,560万', chg: '环比 +8.7%', margin: '21.3%', share: '28.6%', health: '91', color: 'var(--success)' }
+};
+
+function updateBrandProfile() {
+  const key = document.getElementById('brandSelect').value;
+  const d = brandData[key];
+  if (!d) return;
+  document.getElementById('pf-gmv').textContent = d.gmv;
+  document.getElementById('pf-gmv-chg').textContent = d.chg;
+  document.getElementById('pf-margin').textContent = d.margin;
+  document.getElementById('pf-share').textContent = d.share;
+  const h = document.getElementById('pf-health');
+  h.textContent = d.health;
+  h.style.color = d.color;
+}
+
+document.getElementById('globalSearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.value.includes('九阳')) switchView('profile');
+});
+</script>
+</body>
+</html>
