@@ -1,0 +1,29 @@
+---
+description: 用户说「启动本机 / 启动 sandtable / 打开本机」时，自动启动 MySQL+后端+静态服务
+alwaysApply: true
+---
+
+# sandtable · 本机一键启动（Max）
+
+当用户消息包含 **启动本机**、**启动 sandtable**、**启动服务**、**打开本机**、**跑起来** 等意图时，**必须用 Shell 实际执行**，不要只贴命令让用户自己跑。
+
+## 环境约定
+
+- 项目：`/Users/baishiyu1/Desktop/sandtable`
+- MySQL 免安装版：`~/mysql-sandtable/mysql/bin/mysqld`，数据目录 `~/mysql-sandtable/data`
+- 端口：MySQL 3306、后端 8000、静态页 5510
+
+## 执行流程
+
+1. **探测**：`nc -z` 检查 3306 / 8000 / 5510；已通的跳过，缺的再启
+2. **MySQL**：后台 `exec mysqld`（参数见 `docs/M1并行开发手册-正式版.md` 附录 C），等待 `ready for connections`
+3. **后端**：`cd server && exec python3 -m uvicorn main:app --host 127.0.0.1 --port 8000`（后台）
+4. **静态服务**：`cd 项目根 && exec python3 -m http.server 5510 --bind 127.0.0.1`（后台）
+5. **验收**：`curl http://127.0.0.1:8000/api/brands` 应返回 5 个品牌
+6. **汇报**：给出主入口 http://127.0.0.1:5510/web/index.html 及附录 C 中其它链接
+
+## 失败时
+
+- MySQL 起不来 → 读 `~/mysql-sandtable` 相关日志，勿覆盖数据目录
+- 8000 连不上库 → 检查 `server/.env` 是否存在（勿打印密码）
+- 不要修改 `.env` 或 `git config`

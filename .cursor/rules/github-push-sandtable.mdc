@@ -1,0 +1,39 @@
+---
+description: 用户说「上传 GitHub / 上传github / push github」时，自动执行 sandtable 仓库推送
+alwaysApply: true
+---
+
+# sandtable · GitHub 自动推送
+
+当用户消息包含 **上传 GitHub**、**上传github**、**推送到 GitHub**、**push github**、**同步 GitHub** 等意图时，**不要只口头说明**，必须在 `sandtable` 仓库根目录用 Shell **实际执行**推送流程。
+
+## 仓库信息
+
+- 本地路径：`/Users/baishiyu1/Desktop/sandtable`
+- 远程：`git@github.com:bsymax/sandtable.git`（SSH，已配置）
+- 默认分支：`main`
+
+## 执行步骤（按序，用工具完成）
+
+1. `git status`、`git diff`、`git log -3 --oneline` 了解变更
+2. **禁止**提交含密码的文件：`**/.env`、含密钥的配置；若被 staged 则取消并警告用户
+3. 若有未提交变更：
+   - `git add` 相关文件（勿 add `.env`）
+   - 用 HEREDOC 写简短中文 commit message（概括 why）
+   - `git commit`
+4. `git push origin main`（或当前分支）
+5. 汇报：推送结果、commit id、仓库链接 https://github.com/bsymax/sandtable
+
+## 无变更时
+
+工作区干净且已与远程同步 → 明确告知「无需推送，已与 GitHub 一致」。
+
+## 认证失败时
+
+SSH 失败则说明原因，提示检查 https://github.com/settings/keys ；**不要**把 token 写进远程 URL 或回复正文。
+
+## 注意
+
+- 用户说「上传 GitHub」视为**同意为完成上传而 commit**（仅此场景可主动 commit）
+- 不要 `git push --force` 除非用户明确要求
+- 不要改 `git config`
