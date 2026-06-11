@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from sqlalchemy import (
     Column, Integer, String, Text, Date, Time, DateTime, Enum,
-    ForeignKey, Boolean, func,
+    ForeignKey, Boolean, Numeric, func,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -33,6 +33,8 @@ class Brand(Base):
 
     contacts = relationship("BrandContact", back_populates="brand", lazy="selectin")
     visits   = relationship("Visit",       back_populates="brand", lazy="selectin")
+    profile  = relationship("BrandProfile", back_populates="brand", uselist=False, lazy="selectin")
+    metrics  = relationship("BrandMetrics", back_populates="brand", lazy="selectin")
 
 
 # ---------- 品牌联系人 ----------
@@ -150,3 +152,136 @@ class Todo(Base):
 
     visit  = relationship("Visit", back_populates="todos")
     record = relationship("VisitRecord", back_populates="todos")
+
+
+# ================================================================
+# 品牌档案模块（佳璇，2026-06-11 合并）
+# ================================================================
+
+# ---------- 品牌档案简介 ----------
+class BrandProfile(Base):
+    __tablename__ = "brand_profiles"
+
+    id               = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id         = Column(Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    founded_year     = Column(String(16))
+    hq               = Column(String(64))
+    positioning      = Column(String(255))
+    org_structure    = Column(Text, comment="组织架构（JSON文本）")
+    taboos           = Column(Text, comment="品牌潜规则")
+    taboo_updated_by = Column(String(32))
+    taboo_updated_at = Column(DateTime)
+    created_at       = Column(DateTime, server_default=func.now())
+    updated_at       = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    brand = relationship("Brand", back_populates="profile")
+
+
+# ---------- 品牌经营指标快照 ----------
+class BrandMetrics(Base):
+    __tablename__ = "brand_metrics"
+
+    id                    = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id              = Column(Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    period_type           = Column(Enum("weekly", "monthly"), nullable=False, default="weekly")
+    period_value          = Column(String(16), nullable=False, comment="周期标识，如 2026W23")
+    gmv                   = Column(Numeric(12, 2))
+    gmv_wow               = Column(Numeric(6, 2))
+    gmv_yoy               = Column(Numeric(6, 2))
+    orders                = Column(Integer)
+    orders_wow            = Column(Numeric(6, 2))
+    jd_share              = Column(Numeric(5, 2))
+    jd_share_wow          = Column(Numeric(5, 2))
+    tmall_share           = Column(Numeric(5, 2))
+    douyin_share          = Column(Numeric(5, 2))
+    pdd_share             = Column(Numeric(5, 2))
+    channel_growth_jd     = Column(Numeric(5, 2))
+    channel_growth_tmall  = Column(Numeric(5, 2))
+    channel_growth_douyin = Column(Numeric(5, 2))
+    category_distribution = Column(Text, comment="三级类目GMV占比 JSON")
+    category_share        = Column(Text, comment="各类目JD市占 JSON")
+    sku_count             = Column(Integer)
+    p0_gap_count          = Column(Integer)
+    gross_margin          = Column(Numeric(5, 2))
+    uv_conversion         = Column(Numeric(5, 2))
+    ad_rate               = Column(Numeric(5, 2))
+    created_at            = Column(DateTime, server_default=func.now())
+    updated_at            = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    brand = relationship("Brand", back_populates="metrics")
+
+
+# ================================================================
+# 情报模块（开开，2026-06-11 合并）
+# ================================================================
+
+# ---------- 外部新闻/资讯 ----------
+class IntelNews(Base):
+    __tablename__ = "intel_news"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id      = Column(Integer, ForeignKey("brands.id", ondelete="SET NULL"), nullable=True)
+    title         = Column(String(255), nullable=False)
+    summary       = Column(Text)
+    url           = Column(String(512))
+    source        = Column(String(64))
+    sentiment     = Column(Enum("positive", "negative", "neutral"), default="neutral")
+    category      = Column(String(32))
+    keywords      = Column(String(255))
+    url_fingerprint = Column(String(64), comment="URL SHA256去重指纹")
+    published_at  = Column(DateTime)
+    fetched_at    = Column(DateTime, server_default=func.now())
+    created_at    = Column(DateTime, server_default=func.now())
+    updated_at    = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    brand = relationship("Brand")
+
+
+# ---------- 内部周报 ----------
+class IntelWeeklyReport(Base):
+    __tablename__ = "intel_weekly_reports"
+
+    id               = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id         = Column(Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    week_start       = Column(Date, nullable=False)
+    week_end         = Column(Date, nullable=False)
+    week_label       = Column(String(16))
+    weekly_gmv       = Column(Numeric(12, 2))
+    gmv_change       = Column(Numeric(6, 2))
+    competitor_moves = Column(Text)
+    inventory_status = Column(Text)
+    risk_points      = Column(Text)
+    opportunities    = Column(Text)
+    next_week_plan   = Column(Text)
+    reporter         = Column(String(32))
+    status           = Column(Enum("draft", "submitted"), default="draft")
+    created_at       = Column(DateTime, server_default=func.now())
+    updated_at       = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    brand = relationship("Brand")
+
+
+# ---------- 情报预警 ----------
+class IntelAlert(Base):
+    __tablename__ = "intel_alerts"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id      = Column(Integer, ForeignKey("brands.id", ondelete="SET NULL"), nullable=True)
+    news_id       = Column(Integer, ForeignKey("intel_news.id", ondelete="SET NULL"), nullable=True)
+    weekly_id     = Column(Integer, ForeignKey("intel_weekly_reports.id", ondelete="SET NULL"), nullable=True)
+    visit_id      = Column(Integer, ForeignKey("visits.id", ondelete="SET NULL"), nullable=True)
+    priority      = Column(Enum("P0", "P1", "P2", "P3"), nullable=False, default="P2")
+    title         = Column(String(255), nullable=False)
+    description   = Column(Text)
+    suggestion    = Column(Text)
+    ai_analysis   = Column(Text)
+    ai_confidence = Column(Numeric(3, 2))
+    status        = Column(Enum("pending", "confirmed", "linked", "closed"), nullable=False, default="pending")
+    assignee      = Column(String(32))
+    created_at    = Column(DateTime, server_default=func.now())
+    updated_at    = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    brand = relationship("Brand")
+    news  = relationship("IntelNews")
+    visit = relationship("Visit")
+    weekly_report = relationship("IntelWeeklyReport")

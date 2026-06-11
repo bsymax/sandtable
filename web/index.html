@@ -613,7 +613,7 @@ table tr:hover td { background:#f8fafd; }
     <div class="nav-section-title">核心业务 · 三模块席</div>
     <div class="nav-item" data-module="profile" data-nav-label="品牌档案">
       <span class="nav-icon">🏢</span><span class="nav-label">品牌档案</span>
-      <span class="badge badge-blue">品牌席</span>
+      <span class="badge badge-blue" style="background:#0e7c4b;color:#fff;">已接真库</span>
     </div>
     <div class="nav-item" data-module="visit" data-nav-label="智能拜访助手">
       <span class="nav-icon">🎯</span><span class="nav-label">智能拜访助手</span>
@@ -621,7 +621,7 @@ table tr:hover td { background:#f8fafd; }
     </div>
     <div class="nav-item" data-module="intelligence" data-nav-label="品牌情报流">
       <span class="nav-icon">🔍</span><span class="nav-label">品牌情报流</span>
-      <span class="badge badge-red">3</span>
+      <span class="badge badge-blue" style="background:#0e7c4b;color:#fff;">已接真库</span>
     </div>
   </div>
 </div>
@@ -1459,9 +1459,12 @@ function getNavLabel(item) {
   return labelEl ? labelEl.textContent.trim() : '';
 }
 
+// 已接真库的模块 → 跳转独立页（2026-06-11 起：拜访 / 品牌档案 / 情报流）
+var LIVE_MODULE_PAGES = { visit: 'visit.html', profile: 'profile.html', intelligence: 'intel.html' };
+
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', function() {
-    if (this.dataset.module === 'visit') { window.location.href = 'visit.html'; return; }
+    if (LIVE_MODULE_PAGES[this.dataset.module]) { window.location.href = LIVE_MODULE_PAGES[this.dataset.module]; return; }
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     this.classList.add('active');
     document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
@@ -1476,10 +1479,10 @@ document.querySelectorAll('.nav-item').forEach(item => {
 
 function switchModule(name, opts) {
   opts = opts || {};
-  // 拜访模块已接入真实后端（S4 第一步，2026-06-10）：跳转到独立页 visit.html
-  if (name === 'visit') {
+  // 已接真库的模块跳转独立页，支持 ?brand= 直达品牌
+  if (LIVE_MODULE_PAGES[name]) {
     var q = opts.brand ? ('?brand=' + encodeURIComponent(opts.brand)) : '';
-    window.location.href = 'visit.html' + q;
+    window.location.href = LIVE_MODULE_PAGES[name] + q;
     return;
   }
   document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));

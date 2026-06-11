@@ -4,17 +4,15 @@
 -- 编码：utf8mb4
 -- =============================================
 
--- 强制会话字符集为 utf8mb4，避免客户端默认 latin1 导致中文乱码
-SET NAMES utf8mb4;
-
--- 关闭外键检查，保证脚本可重复执行（DROP TABLE 不受外键顺序限制）
-SET FOREIGN_KEY_CHECKS = 0;
-
 CREATE DATABASE IF NOT EXISTS brand_sandtable
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
 USE brand_sandtable;
+
+-- 佳璇模块表（重复执行先删）
+DROP TABLE IF EXISTS brand_metrics;
+DROP TABLE IF EXISTS brand_profiles;
 
 -- -----------------------------------------
 -- 1. 品牌表
@@ -226,12 +224,8 @@ INSERT INTO todos (record_id, visit_id, priority, title, deadline, assignee, sta
 (2, 3, 'P1', '跟进K9 Pro包销价',           '2026-06-05', '吴采销', 'done'),
 (2, 3, 'P2', '618库存方案确认',            '2026-06-10', '吴采销', 'pending');
 
--- =============================================
--- 品牌档案模块（佳璇，2026-06-11 合并）
--- =============================================
-
 -- -----------------------------------------
--- 8. 品牌档案简介表
+-- 8. 品牌档案简介表（佳璇）
 -- -----------------------------------------
 DROP TABLE IF EXISTS brand_metrics;
 DROP TABLE IF EXISTS brand_profiles;
@@ -251,7 +245,7 @@ CREATE TABLE brand_profiles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='品牌档案简介表';
 
 -- -----------------------------------------
--- 9. 品牌经营指标表
+-- 9. 品牌经营指标表（佳璇）
 -- -----------------------------------------
 CREATE TABLE brand_metrics (
   id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -294,11 +288,11 @@ INSERT INTO brand_profiles (brand_id, founded_year, hq, positioning, org_structu
  'VP层级会议需提前3天邮件预约，附带JD数据简报。',
  '吴采销', '2026-03-12 09:00:00'),
 (3, '1994年', '浙江杭州（制造基地玉环）', '中国炊具与小家电行业领跑者，SEB集团旗下；明火炊具+厨房小家电+生活家居多品类，注重ROI与品牌矩阵。',
- '{"root":"苏泊尔集团","lead":"电商部","nodes":["刘明 · 总监","京东组 · 待补"]}',
+ '{"root":"苏泊尔集团","lead":"电商部","nodes":["总监 · 待核实","京东组 · 待补"]}',
  '品牌方当前更关注ROI，大规模要量易被拒，建议带数据方案。',
  '陈采销', '2026-02-18 14:00:00'),
 (4, '2006年', '广东佛山顺德', '「年轻人喜欢的小家电」——创意小电品牌，养生壶/电饭煲mini等细分品类领先，线上渠道优势明显。',
- '{"root":"小熊电器","lead":"电商部","nodes":["孙悦 · 电商经理","市场 · 联名"]}',
+ '{"root":"小熊电器","lead":"电商部","nodes":["林晓 · 总监","周帆 · 产品","市场 · 联名"]}',
  '品牌方对联名款创意敏感，需带视觉草案再谈，避免空口承诺。',
  '李采销', '2026-05-18 11:00:00'),
 (5, '1936年', '英国品牌 / 中国运营：广东佛山', '英伦高端创意小电，1936年英国创立；2013年由新宝股份引入中国，抖音/小红书内容电商强势，JD渠道待深化。',
@@ -306,8 +300,7 @@ INSERT INTO brand_profiles (brand_id, founded_year, hq, positioning, org_structu
  '（待补全）决策人偏好与拜访禁忌尚未录入。',
  NULL, NULL);
 
--- 品牌经营指标种子数据（当前周 2026W23；近 12 周历史由 server 启动时按
--- jiaxuan seed 规则补全，或运行 jiaxuan-m1-0610/backend/seed.py）
+-- 品牌经营指标种子数据（当前周 2026W23）
 INSERT INTO brand_metrics (
   brand_id, period_type, period_value, gmv, gmv_wow, gmv_yoy, orders, orders_wow,
   jd_share, jd_share_wow, tmall_share, douyin_share, pdd_share,
@@ -340,127 +333,3 @@ INSERT INTO brand_metrics (
  '[{"name":"多功能锅","share":35},{"name":"榨汁机","share":22},{"name":"电水壶","share":15}]',
  '[{"name":"多功能锅","jd_share":12,"avg":22},{"name":"榨汁机","jd_share":10,"avg":18}]',
  64, 4, 32.10, 3.80, 2.10);
-
--- =============================================
--- 情报模块（开开，2026-06-11 合并）
--- =============================================
-
--- -----------------------------------------
--- 10. 外部新闻/资讯表
--- -----------------------------------------
-DROP TABLE IF EXISTS intel_briefing_cache;
-DROP TABLE IF EXISTS intel_alerts;
-DROP TABLE IF EXISTS intel_weekly_reports;
-DROP TABLE IF EXISTS intel_news;
-CREATE TABLE intel_news (
-  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '新闻ID',
-  brand_id      INT UNSIGNED    DEFAULT NULL COMMENT '关联品牌ID',
-  title         VARCHAR(255)    NOT NULL COMMENT '新闻标题',
-  summary       TEXT            DEFAULT NULL COMMENT '新闻摘要',
-  url           VARCHAR(512)    DEFAULT NULL COMMENT '原始链接',
-  source        VARCHAR(64)     DEFAULT NULL COMMENT '来源',
-  sentiment     ENUM('positive','negative','neutral') DEFAULT 'neutral' COMMENT '情感倾向',
-  category      VARCHAR(32)     DEFAULT NULL COMMENT '分类',
-  keywords      VARCHAR(255)    DEFAULT NULL COMMENT '匹配关键词',
-  url_fingerprint CHAR(64)      DEFAULT NULL COMMENT 'URL SHA256去重指纹',
-  published_at  DATETIME        DEFAULT NULL COMMENT '发布日期',
-  fetched_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '抓取时间',
-  created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_news_brand (brand_id),
-  INDEX idx_news_sentiment (sentiment),
-  INDEX idx_news_published (published_at),
-  INDEX idx_news_fingerprint (url_fingerprint),
-  FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='外部新闻/资讯表';
-
--- -----------------------------------------
--- 11. 内部周报表
--- -----------------------------------------
-CREATE TABLE intel_weekly_reports (
-  id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '周报ID',
-  brand_id         INT UNSIGNED    NOT NULL COMMENT '关联品牌ID',
-  week_start       DATE           NOT NULL COMMENT '周开始日期',
-  week_end         DATE           NOT NULL COMMENT '周结束日期',
-  week_label       VARCHAR(16)    DEFAULT NULL COMMENT '周标签',
-  weekly_gmv       DECIMAL(12,2)  DEFAULT NULL COMMENT '本周GMV（万元）',
-  gmv_change       DECIMAL(6,2)   DEFAULT NULL COMMENT 'GMV环比变化%',
-  competitor_moves TEXT           DEFAULT NULL COMMENT '竞品动态',
-  inventory_status TEXT           DEFAULT NULL COMMENT '库存状况',
-  risk_points      TEXT           DEFAULT NULL COMMENT '风险点',
-  opportunities    TEXT           DEFAULT NULL COMMENT '机会点',
-  next_week_plan   TEXT           DEFAULT NULL COMMENT '下周计划',
-  reporter         VARCHAR(32)    DEFAULT NULL COMMENT '填报人',
-  status           ENUM('draft','submitted') DEFAULT 'draft' COMMENT '状态',
-  created_at       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_brand_week (brand_id, week_start),
-  FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='内部周报表';
-
--- -----------------------------------------
--- 12. 情报预警表
--- -----------------------------------------
-CREATE TABLE intel_alerts (
-  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '预警ID',
-  brand_id      INT UNSIGNED    DEFAULT NULL COMMENT '关联品牌ID',
-  news_id       INT UNSIGNED    DEFAULT NULL COMMENT '关联新闻ID',
-  weekly_id     INT UNSIGNED    DEFAULT NULL COMMENT '关联周报ID',
-  visit_id      INT UNSIGNED    DEFAULT NULL COMMENT '关联拜访ID',
-  priority      ENUM('P0','P1','P2','P3') NOT NULL DEFAULT 'P2' COMMENT '优先级',
-  title         VARCHAR(255)    NOT NULL COMMENT '预警标题',
-  description   TEXT            DEFAULT NULL COMMENT '预警详情',
-  suggestion    TEXT            DEFAULT NULL COMMENT '建议动作',
-  ai_analysis   TEXT            DEFAULT NULL COMMENT 'AI分析结果',
-  ai_confidence DECIMAL(3,2)   DEFAULT NULL COMMENT 'AI置信度',
-  status        ENUM('pending','confirmed','linked','closed') NOT NULL DEFAULT 'pending',
-  assignee      VARCHAR(32)    DEFAULT NULL COMMENT '负责人',
-  created_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_alert_brand (brand_id),
-  INDEX idx_alert_priority (priority),
-  INDEX idx_alert_status (status),
-  FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL,
-  FOREIGN KEY (news_id) REFERENCES intel_news(id) ON DELETE SET NULL,
-  FOREIGN KEY (weekly_id) REFERENCES intel_weekly_reports(id) ON DELETE SET NULL,
-  FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='情报预警表';
-
--- -----------------------------------------
--- 13. 情报简报缓存表
--- -----------------------------------------
-CREATE TABLE intel_briefing_cache (
-  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  brand_id      INT UNSIGNED    NOT NULL,
-  briefing_data JSON           DEFAULT NULL,
-  generated_at  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  expires_at    DATETIME       DEFAULT NULL,
-  created_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_brand_briefing (brand_id),
-  FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='情报简报缓存表';
-
--- 新闻种子（10条）
-INSERT INTO intel_news (brand_id, title, summary, source, sentiment, category, keywords, published_at) VALUES
-(1, '美的电商事业部总经理王建国近期可能岗位变动', '多渠道交叉验证显示王建国可能在Q3调岗。若属实，关键决策链将断裂。', '行业情报', 'negative', '人事', '美的,王建国,岗位变动', '2026-06-07 14:00:00'),
-(1, '抖音618家电专场：美的拿下主会场核心资源位', '抖音获家电主会场头图+搜索品牌专区。京东侧仅为品类楼层第三位，品牌预算向抖音倾斜。', '竞对监测', 'negative', '竞品', '抖音,618,美的,资源位', '2026-06-07 10:30:00'),
-(2, '九阳K系列抖音月销+45%，JD侧K9 Pro谈判停滞', 'JD库存深度不足，抖音侧热卖而JD缺货/缺价并存。建议48h内推进包销价。', '手工录入', 'negative', '渠道', '九阳,K9 Pro,抖音,618', '2026-06-07 09:15:00'),
-(5, '摩飞品牌方运营总监刘洋离职传闻确认中', '猎头渠道显示摩飞正在招聘电商运营总监。建议主动联系确认。', '外部情报', 'negative', '人事', '摩飞,运营总监,离职', '2026-06-06 16:00:00'),
-(3, '苏泊尔Q2财报预告：线上渠道增速放缓至5%', '线上全渠道增速放缓。可能影响京东业绩压力与广告预算谈判。', '行业情报', 'neutral', '行业', '苏泊尔,Q2,增速放缓', '2026-06-05 11:00:00'),
-(4, '小熊电器618联名款首发预计突破500万', '小熊电器与IP联名款养生壶618首发，预售数据超预期，有望冲击品类第一。', '电商监测', 'positive', '新品', '小熊电器,联名款,618', '2026-06-08 08:00:00'),
-(2, '九阳破壁机L18系列京东市占回升至22%', '九阳破壁机L18系列在京东渠道市占率回升，618促销力度加大后效果显著。', '电商监测', 'positive', '渠道', '九阳,破壁机,L18,市占', '2026-06-06 14:00:00'),
-(1, '美的全屋智能战略发布：厨电品类将获资源倾斜', '美的集团发布全屋智能新战略，厨小事业部作为核心品类将获得更多研发和营销资源。', '官方渠道', 'positive', '行业', '美的,全屋智能,厨电', '2026-06-05 09:00:00'),
-(3, '苏泊尔广告预算缩减信号：主要竞品加大投放', '苏泊尔Q2广告投入环比下降12%，而美的、九阳加大618投放，市占率面临压力。', '竞对监测', 'negative', '竞品', '苏泊尔,广告预算,竞品', '2026-06-04 16:00:00'),
-(4, '小熊电器养生壶品类稳居京东第一，领先优势扩大', '小熊电器养生壶京东月GMV突破420万，市占率领先第二名8个百分点。', '电商监测', 'positive', '渠道', '小熊电器,养生壶,市占', '2026-06-03 10:00:00');
-
--- 预警种子（5条）
-INSERT INTO intel_alerts (brand_id, news_id, priority, title, description, suggestion, status) VALUES
-(1, 1, 'P0', '美的电商总经理岗位变动传闻', '多渠道交叉验证显示王建国可能在Q3调岗。若属实，关键决策链将断裂，需尽早确认并建立新对接人关系。', '建议本周内拜访确认决策链', 'pending'),
-(1, 2, 'P0', '抖音618资源倾斜·美的预算外溢', '抖音获家电主会场头图+搜索品牌专区。京东侧仅为品类楼层第三位，品牌预算向抖音倾斜趋势明显。', '建议48h内与品牌方沟通京东侧资源置换方案', 'pending'),
-(2, 3, 'P0', '九阳K系列抖音热销 · JD谈判停滞', 'JD库存深度不足，抖音侧热卖而JD缺货/缺价并存。', '建议48h内推进K9 Pro包销价与618专区库存锁定', 'pending'),
-(5, 4, 'P1', '摩飞运营总监离职待确认', '猎头渠道显示摩飞正在招聘电商运营总监。建议主动联系确认并评估对已推进合作的影响。', '补全决策链信息后安排拜访', 'pending'),
-(3, 5, 'P1', '苏泊尔Q2线上增速放缓', '线上全渠道增速放缓至5%。可能影响京东业绩压力与广告预算谈判。', '关注广告预算变化，准备应对方案', 'pending');
-
--- 恢复外键检查
-SET FOREIGN_KEY_CHECKS = 1;
