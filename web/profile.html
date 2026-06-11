@@ -733,7 +733,7 @@ function renderOrg(orgStr) {
 function renderContacts(contacts) {
   if (!contacts.length) return '<p style="color:var(--text-muted);font-size:13px;">暂无联系人，拜访后补充</p>';
   return contacts.map(function(c) {
-    return '<div class="person-card-editable" id="contact-' + c.id + '" data-id="' + c.id + '">' +
+    return '<div class="person-card person-card-editable" id="contact-' + c.id + '" data-id="' + c.id + '">' +
       '<div class="person-view"><div class="person-head"><div><div class="person-name">' + c.name + '</div><div class="person-role">' + (c.title || '') + '</div></div>' +
       '<button class="btn-sm-outline" onclick="editContact(' + c.id + ')">编辑</button></div>' +
       '<div class="person-tags"><span class="tag ' + roleTagClass(c.role_tag) + '">' + (c.role_tag || '其他') + '</span>' +
@@ -880,5 +880,6 @@ document.querySelectorAll('#profile-tabs .tab-item').forEach(function(tab) {
   }
 })();
 </script>
+<script src="js/shell.js"></script>
 </body>
 </html>
