@@ -200,19 +200,19 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 <div class="sidebar-nav">
   <div class="nav-section">
     <div class="nav-section-title">入口</div>
-    <a class="nav-item" href="visit_assistant_api.html">
+    <a class="nav-item" href="index.html">
       <span class="nav-icon">📋</span>今日工作台
     </a>
   </div>
   <div class="nav-section">
     <div class="nav-section-title">核心业务</div>
-    <a class="nav-item" href="visit_assistant_api.html">
+    <a class="nav-item" href="profile.html">
       <span class="nav-icon">🏢</span>品牌档案
     </a>
-    <a class="nav-item" href="visit_assistant_api.html">
+    <a class="nav-item" href="visit.html">
       <span class="nav-icon">🎯</span>智能拜访助手
     </a>
-    <a class="nav-item active" href="intelligence.html">
+    <a class="nav-item active" href="intel.html">
       <span class="nav-icon">🔍</span>品牌情报流
       <span class="badge badge-red" id="active-alert-count">-</span>
     </a>
@@ -539,7 +539,7 @@ function renderAlerts(alerts) {
           ${a.suggestion ? `· 建议：${a.suggestion}` : ''}
           ${a.assignee ? `· 负责人：${a.assignee}` : ''}
           · ${a.created_at ? a.created_at.slice(0,10) : ''}
-          ${a.visit_id ? '· <a href="visit_assistant_api.html" target="_blank">查看拜访 →</a>' : ''}
+          ${a.visit_id ? '· <a href="visit.html" target="_blank">查看拜访 →</a>' : ''}
         </div>
       </div>
       <div class="alert-actions">
