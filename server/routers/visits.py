@@ -9,7 +9,7 @@ from datetime import date, time, datetime, timedelta
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func, case
 
 from database import get_db
@@ -243,22 +243,25 @@ def list_todos(
     assignee: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    q = db.query(Todo)
+    q = db.query(Todo).options(joinedload(Todo.visit).joinedload(Visit.brand))
     if status:
         q = q.filter(Todo.status == status)
     if priority:
         q = q.filter(Todo.priority == priority)
     if assignee:
         q = q.filter(Todo.assignee == assignee)
-    return q.order_by(
+    rows = q.order_by(
         case((Todo.priority == "P0", 0), (Todo.priority == "P1", 1), else_=2),
         Todo.deadline.asc(),
     ).all()
+    return [_format_todo(t) for t in rows]
 
 
 @router.put("/api/todos/{todo_id}", response_model=TodoOut, tags=["待办"])
 def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)):
-    t = db.query(Todo).filter(Todo.id == todo_id).first()
+    t = db.query(Todo).options(
+        joinedload(Todo.visit).joinedload(Visit.brand)
+    ).filter(Todo.id == todo_id).first()
     if not t:
         raise HTTPException(404, "待办不存在")
     if payload.status:
@@ -269,7 +272,7 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
         t.priority = payload.priority
     db.commit()
     db.refresh(t)
-    return t
+    return _format_todo(t)
 
 
 # ================================================================
@@ -318,6 +321,24 @@ def visit_health(db: Session = Depends(get_db)):
 # ================================================================
 #  辅助函数
 # ================================================================
+def _format_todo(t: Todo) -> TodoOut:
+    brand = t.visit.brand if t.visit else None
+    return TodoOut(
+        id=t.id,
+        record_id=t.record_id,
+        visit_id=t.visit_id,
+        brand_name=brand.name if brand else None,
+        brand_key=brand.name_key if brand else None,
+        priority=t.priority,
+        title=t.title,
+        deadline=t.deadline,
+        assignee=t.assignee,
+        status=t.status,
+        created_at=t.created_at,
+        completed_at=t.completed_at,
+    )
+
+
 def _format_visit(visit: Visit, brand: Optional[Brand] = None) -> VisitOut:
     return VisitOut(
         id=visit.id,

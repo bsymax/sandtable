@@ -20,6 +20,7 @@ fetch "/" "$SNAP/web/index.html"
 fetch "/visit.html" "$SNAP/web/visit.html"
 fetch "/profile.html" "$SNAP/web/profile.html"
 fetch "/intel.html" "$SNAP/web/intel.html"
+fetch "/js/api-base.js" "$SNAP/web/js/api-base.js" 2>/dev/null || true
 fetch "/js/shell.js" "$SNAP/web/js/shell.js" || true
 fetch "/js/api.js" "$SNAP/web/js/api.js" 2>/dev/null || true
 fetch "/js/visit-common.js" "$SNAP/web/js/visit-common.js" 2>/dev/null || true

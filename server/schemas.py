@@ -166,6 +166,8 @@ class TodoOut(BaseModel):
     id: int
     record_id: Optional[int] = None
     visit_id: Optional[int] = None
+    brand_name: Optional[str] = None
+    brand_key: Optional[str] = None
     priority: str
     title: str
     deadline: Optional[date] = None
@@ -315,6 +317,18 @@ class IntelNewsCreate(BaseModel):
     published_at: Optional[datetime] = None
 
 
+class IntelNewsUpdate(BaseModel):
+    brand_id: Optional[int] = None
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    url: Optional[str] = None
+    source: Optional[str] = None
+    sentiment: Optional[str] = None
+    category: Optional[str] = None
+    keywords: Optional[str] = None
+    published_at: Optional[datetime] = None
+
+
 class IntelWeeklyReportOut(BaseModel):
     id: int
     brand_id: int
@@ -356,6 +370,21 @@ class IntelWeeklyReportCreate(BaseModel):
     opportunities: Optional[str] = None
     next_week_plan: Optional[str] = None
     reporter: Optional[str] = None
+
+
+class IntelWeeklyReportUpdate(BaseModel):
+    week_start: Optional[date] = None
+    week_end: Optional[date] = None
+    week_label: Optional[str] = None
+    weekly_gmv: Optional[float] = None
+    gmv_change: Optional[float] = None
+    competitor_moves: Optional[str] = None
+    inventory_status: Optional[str] = None
+    risk_points: Optional[str] = None
+    opportunities: Optional[str] = None
+    next_week_plan: Optional[str] = None
+    reporter: Optional[str] = None
+    status: Optional[str] = None
 
 
 class IntelAlertOut(BaseModel):
