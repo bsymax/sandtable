@@ -271,6 +271,7 @@ class IntelAlert(Base):
     weekly_id     = Column(Integer, ForeignKey("intel_weekly_reports.id", ondelete="SET NULL"), nullable=True)
     visit_id      = Column(Integer, ForeignKey("visits.id", ondelete="SET NULL"), nullable=True)
     priority      = Column(Enum("P0", "P1", "P2", "P3"), nullable=False, default="P2")
+    category      = Column(Enum("增长机会", "风险预警"), nullable=True, comment="情报分类")
     title         = Column(String(255), nullable=False)
     description   = Column(Text)
     suggestion    = Column(Text)

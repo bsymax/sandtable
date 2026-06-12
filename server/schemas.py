@@ -362,11 +362,13 @@ class IntelAlertOut(BaseModel):
     id: int
     brand_id: Optional[int] = None
     brand_name: Optional[str] = None
+    brand_name_key: Optional[str] = None
     brand_level: Optional[str] = None
     news_id: Optional[int] = None
     weekly_id: Optional[int] = None
     visit_id: Optional[int] = None
     priority: str
+    category: Optional[str] = None
     title: str
     description: Optional[str] = None
     suggestion: Optional[str] = None
@@ -389,6 +391,7 @@ class IntelAlertCreate(BaseModel):
     brand_id: Optional[int] = None
     news_id: Optional[int] = None
     priority: str = "P2"
+    category: Optional[str] = None
     title: str
     description: Optional[str] = None
     suggestion: Optional[str] = None
@@ -397,6 +400,7 @@ class IntelAlertCreate(BaseModel):
 
 class IntelAlertUpdate(BaseModel):
     priority: Optional[str] = None
+    category: Optional[str] = None
     status: Optional[str] = None
     assignee: Optional[str] = None
     suggestion: Optional[str] = None

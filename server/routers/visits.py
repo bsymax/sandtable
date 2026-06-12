@@ -4,6 +4,7 @@
 归属：培翛。涵盖 拜访安排 / 拜访记录 / 承诺 / 待办 / 频率健康度。
 """
 
+import re
 from datetime import date, time, datetime, timedelta
 from typing import Optional, List
 
@@ -138,6 +139,9 @@ def create_record(payload: RecordCreate, db: Session = Depends(get_db)):
 
     visit.status = "completed"
     visit.record_id = record.id
+
+    for c in _parse_commitment_lines(payload.commitments_raw, payload.visit_id, record.id):
+        db.add(c)
 
     for td in payload.todos:
         db.add(Todo(
@@ -365,3 +369,34 @@ def _parse_date(val) -> Optional[date]:
         return dt.strptime(str(val)[:10], "%Y-%m-%d").date()
     except Exception:
         return None
+
+
+def _parse_commitment_lines(raw: Optional[str], visit_id: int, record_id: int) -> List[Commitment]:
+    """按行解析 commitments_raw，每行 - 开头写入 commitments 表（S2）。"""
+    if not raw:
+        return []
+    party = "brand"
+    result: List[Commitment] = []
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if "品牌方" in stripped and "承诺" in stripped:
+            party = "brand"
+            continue
+        if ("我方" in stripped or "BD" in stripped) and "承诺" in stripped:
+            party = "bd"
+            continue
+        if not stripped.startswith("-"):
+            continue
+        content = re.sub(r"^-\s*", "", stripped)
+        content = re.sub(r"^【[^】]+】\s*", "", content).strip()[:255]
+        if content:
+            result.append(Commitment(
+                visit_id=visit_id,
+                record_id=record_id,
+                content=content,
+                party=party,
+                status="pending",
+            ))
+    return result

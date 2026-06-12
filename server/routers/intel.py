@@ -14,7 +14,7 @@ from typing import Optional, List
 import hashlib
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func, case
 
 from database import get_db
@@ -53,12 +53,21 @@ def _fmt_weekly(r):
     )
 
 
+def _default_alert_category(priority: str, category: Optional[str] = None) -> str:
+    if category in ("增长机会", "风险预警"):
+        return category
+    return "风险预警" if priority == "P0" else "增长机会"
+
+
 def _fmt_alert(a):
     return IntelAlertOut(
         id=a.id, brand_id=a.brand_id, brand_name=a.brand.name if a.brand else None,
+        brand_name_key=a.brand.name_key if a.brand else None,
         brand_level=a.brand.level if a.brand else None,
         news_id=a.news_id, weekly_id=a.weekly_id, visit_id=a.visit_id,
-        priority=a.priority, title=a.title, description=a.description,
+        priority=a.priority,
+        category=a.category or _default_alert_category(a.priority),
+        title=a.title, description=a.description,
         suggestion=a.suggestion, ai_confidence=a.ai_confidence,
         status=a.status, assignee=a.assignee,
         created_at=a.created_at, updated_at=a.updated_at,
@@ -150,6 +159,7 @@ def latest_weekly(db: Session = Depends(get_db)):
 def list_alerts(
     brand_id: Optional[int] = None,
     priority: Optional[str] = None,
+    category: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 50,
     db: Session = Depends(get_db),
@@ -157,8 +167,9 @@ def list_alerts(
     q = db.query(IntelAlert)
     if brand_id: q = q.filter(IntelAlert.brand_id == brand_id)
     if priority: q = q.filter(IntelAlert.priority == priority)
+    if category: q = q.filter(IntelAlert.category == category)
     if status: q = q.filter(IntelAlert.status == status)
-    return [_fmt_alert(a) for a in q.order_by(
+    return [_fmt_alert(a) for a in q.options(joinedload(IntelAlert.brand)).order_by(
         case((IntelAlert.priority=="P0",0),(IntelAlert.priority=="P1",1),else_=2),
         desc(IntelAlert.created_at),
     ).limit(limit).all()]
@@ -168,11 +179,14 @@ def list_alerts(
 def create_alert(payload: IntelAlertCreate, db: Session = Depends(get_db)):
     alert = IntelAlert(
         brand_id=payload.brand_id, news_id=payload.news_id,
-        priority=payload.priority, title=payload.title,
+        priority=payload.priority,
+        category=_default_alert_category(payload.priority, payload.category),
+        title=payload.title,
         description=payload.description, suggestion=payload.suggestion,
         assignee=payload.assignee, status="pending",
     )
     db.add(alert); db.commit(); db.refresh(alert)
+    alert = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(IntelAlert.id == alert.id).first()
     return _fmt_alert(alert)
 
 
@@ -183,6 +197,7 @@ def update_alert(alert_id: int, payload: IntelAlertUpdate, db: Session = Depends
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(alert, k, v)
     db.commit(); db.refresh(alert)
+    alert = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(IntelAlert.id == alert.id).first()
     return _fmt_alert(alert)
 
 
@@ -266,12 +281,12 @@ def get_brand_briefing(brand_key: str, db: Session = Depends(get_db)):
     if not brand: raise HTTPException(404, "品牌不存在")
 
     two_weeks_ago = datetime.now() - timedelta(days=14)
-    news = db.query(IntelNews).filter(
+    news = db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(
         IntelNews.brand_id == brand.id,
         IntelNews.published_at >= two_weeks_ago,
     ).order_by(desc(IntelNews.published_at)).limit(10).all()
 
-    alerts = db.query(IntelAlert).filter(
+    alerts = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(
         IntelAlert.brand_id == brand.id,
         IntelAlert.status.in_(["pending", "confirmed"]),
     ).order_by(case((IntelAlert.priority=="P0",0),(IntelAlert.priority=="P1",1),else_=2)).all()

@@ -408,6 +408,7 @@ CREATE TABLE intel_alerts (
   weekly_id     INT UNSIGNED    DEFAULT NULL COMMENT '关联周报ID',
   visit_id      INT UNSIGNED    DEFAULT NULL COMMENT '关联拜访ID',
   priority      ENUM('P0','P1','P2','P3') NOT NULL DEFAULT 'P2' COMMENT '优先级',
+  category      ENUM('增长机会','风险预警') DEFAULT NULL COMMENT '情报分类',
   title         VARCHAR(255)    NOT NULL COMMENT '预警标题',
   description   TEXT            DEFAULT NULL COMMENT '预警详情',
   suggestion    TEXT            DEFAULT NULL COMMENT '建议动作',
@@ -455,12 +456,12 @@ INSERT INTO intel_news (brand_id, title, summary, source, sentiment, category, k
 (4, '小熊电器养生壶品类稳居京东第一，领先优势扩大', '小熊电器养生壶京东月GMV突破420万，市占率领先第二名8个百分点。', '电商监测', 'positive', '渠道', '小熊电器,养生壶,市占', '2026-06-03 10:00:00');
 
 -- 预警种子（5条）
-INSERT INTO intel_alerts (brand_id, news_id, priority, title, description, suggestion, status) VALUES
-(1, 1, 'P0', '美的电商总经理岗位变动传闻', '多渠道交叉验证显示王建国可能在Q3调岗。若属实，关键决策链将断裂，需尽早确认并建立新对接人关系。', '建议本周内拜访确认决策链', 'pending'),
-(1, 2, 'P0', '抖音618资源倾斜·美的预算外溢', '抖音获家电主会场头图+搜索品牌专区。京东侧仅为品类楼层第三位，品牌预算向抖音倾斜趋势明显。', '建议48h内与品牌方沟通京东侧资源置换方案', 'pending'),
-(2, 3, 'P0', '九阳K系列抖音热销 · JD谈判停滞', 'JD库存深度不足，抖音侧热卖而JD缺货/缺价并存。', '建议48h内推进K9 Pro包销价与618专区库存锁定', 'pending'),
-(5, 4, 'P1', '摩飞运营总监离职待确认', '猎头渠道显示摩飞正在招聘电商运营总监。建议主动联系确认并评估对已推进合作的影响。', '补全决策链信息后安排拜访', 'pending'),
-(3, 5, 'P1', '苏泊尔Q2线上增速放缓', '线上全渠道增速放缓至5%。可能影响京东业绩压力与广告预算谈判。', '关注广告预算变化，准备应对方案', 'pending');
+INSERT INTO intel_alerts (brand_id, news_id, priority, category, title, description, suggestion, status) VALUES
+(1, 1, 'P0', '风险预警', '美的电商总经理岗位变动传闻', '多渠道交叉验证显示王建国可能在Q3调岗。若属实，关键决策链将断裂，需尽早确认并建立新对接人关系。', '建议本周内拜访确认决策链', 'pending'),
+(1, 2, 'P0', '风险预警', '抖音618资源倾斜·美的预算外溢', '抖音获家电主会场头图+搜索品牌专区。京东侧仅为品类楼层第三位，品牌预算向抖音倾斜趋势明显。', '建议48h内与品牌方沟通京东侧资源置换方案', 'pending'),
+(2, 3, 'P0', '风险预警', '九阳K系列抖音热销 · JD谈判停滞', 'JD库存深度不足，抖音侧热卖而JD缺货/缺价并存。', '建议48h内推进K9 Pro包销价与618专区库存锁定', 'pending'),
+(5, 4, 'P1', '风险预警', '摩飞运营总监离职待确认', '猎头渠道显示摩飞正在招聘电商运营总监。建议主动联系确认并评估对已推进合作的影响。', '补全决策链信息后安排拜访', 'pending'),
+(3, 5, 'P1', '增长机会', '苏泊尔Q2线上增速放缓', '线上全渠道增速放缓至5%。可能影响京东业绩压力与广告预算谈判。', '关注广告预算变化，准备应对方案', 'pending');
 
 -- 恢复外键检查
 SET FOREIGN_KEY_CHECKS = 1;

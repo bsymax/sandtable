@@ -160,6 +160,7 @@ table tr:hover td { background:#f8fafd; }
   <div class="tab-bar" id="visit-tabs">
     <div class="tab-item active" data-vtab="schedule">📝 安排拜访</div>
     <div class="tab-item" data-vtab="record">📋 拜访后记录</div>
+    <div class="tab-item" data-vtab="commitments">✅ 承诺跟踪</div>
     <div class="tab-item" data-vtab="history">📅 拜访日历 &amp; 健康度</div>
   </div>
 
@@ -286,7 +287,19 @@ table tr:hover td { background:#f8fafd; }
     </div>
   </div>
 
-  <!-- ========== Tab 3: 拜访日历 ========== -->
+  <!-- ========== Tab 3: 承诺跟踪 ========== -->
+  <div class="visit-tab-panel" id="vtab-commitments">
+    <div class="card">
+      <div class="card-header"><h3>✅ 承诺跟踪</h3><span class="tag tag-blue">页内可改状态</span></div>
+      <div class="card-body no-padding">
+        <table><thead><tr><th>品牌</th><th>承诺内容</th><th>承诺方</th><th>状态</th><th>截止</th><th>操作</th></tr></thead>
+          <tbody id="commitments-table"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);">加载中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Tab 4: 拜访日历 ========== -->
   <div class="visit-tab-panel" id="vtab-history">
     <div class="card">
       <div class="card-header"><h3>📅 拜访日历</h3><button class="btn-sm-outline" onclick="switchVisitTab('schedule')">+ 安排拜访</button></div>
@@ -343,6 +356,11 @@ var Api = {
     var q = []; for (var k in (p||{})) if (p[k] != null && p[k] !== '') q.push(k + '=' + encodeURIComponent(p[k]));
     return apiReq('/api/todos' + (q.length ? '?' + q.join('&') : ''));
   },
+  listCommitments: function(p) {
+    var q = []; for (var k in (p||{})) if (p[k] != null && p[k] !== '') q.push(k + '=' + encodeURIComponent(p[k]));
+    return apiReq('/api/commitments' + (q.length ? '?' + q.join('&') : ''));
+  },
+  updateCommitment: function(id, d) { return apiReq('/api/commitments/' + id, { method:'PUT', body:d }); },
   health:      function() { return apiReq('/api/health'); },
 };
 </script>
@@ -360,6 +378,7 @@ var gBrandMap = {};      // name_key → brand
   loadScheduledVisits();
   loadCompletedVisitsForRecord();
   loadRecentRecords();
+  loadCommitments();
   loadCalendar();
   loadHealth();
 
@@ -615,6 +634,7 @@ function submitRecord() {
     showMsg('recordConfirm', '✅ 已保存！自动生成 <b>' + todos.length + '条待办</b>，已同步数据库。');
     updateAITodoTable(todos);
     loadRecentRecords();
+    loadCommitments();
     loadCalendar();
     loadHealth();
     loadScheduledVisits();             // 刷新「近期拜访安排」表格
@@ -640,6 +660,53 @@ function updateAITodoTable(todos) {
     return '<tr><td><span class="tag ' + (pClasses[t.priority] || 'tag-gray') + '">' + t.priority + '</span></td>' +
       '<td>' + t.title + '</td><td>' + (t.deadline || '—') + '</td><td>' + (t.assignee || '采销') + '</td></tr>';
   }).join('');
+}
+
+// ===== 承诺跟踪 =====
+function loadCommitments() {
+  Promise.all([Api.listCommitments(), Api.listVisits({})]).then(function(results) {
+    var commitments = results[0];
+    var visitMap = {};
+    results[1].forEach(function(v) { visitMap[v.id] = v; });
+    var tbody = document.getElementById('commitments-table');
+    if (!commitments.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">暂无承诺（保存拜访记录后按行自动生成）</td></tr>';
+      return;
+    }
+    tbody.innerHTML = commitments.map(function(c) {
+      var visit = visitMap[c.visit_id] || {};
+      return '<tr>' +
+        '<td>' + (visit.brand_name || '—') + '</td>' +
+        '<td>' + truncate(c.content, 40) + '</td>' +
+        '<td>' + (c.party === 'bd' ? '我方' : '品牌方') + '</td>' +
+        '<td>' + commitmentStatusTag(c.status) + '</td>' +
+        '<td>' + formatDate(c.deadline) + '</td>' +
+        '<td><select class="form-select" style="width:110px;padding:4px 8px;font-size:12px;" onchange="updateCommitmentStatus(' + c.id + ', this.value)">' +
+          '<option value="pending"' + (c.status === 'pending' ? ' selected' : '') + '>待兑现</option>' +
+          '<option value="fulfilled"' + (c.status === 'fulfilled' ? ' selected' : '') + '>已兑现</option>' +
+          '<option value="broken"' + (c.status === 'broken' ? ' selected' : '') + '>未兑现</option>' +
+        '</select></td></tr>';
+    }).join('');
+  }).catch(function() {
+    document.getElementById('commitments-table').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">加载失败</td></tr>';
+  });
+}
+
+function updateCommitmentStatus(id, status) {
+  Api.updateCommitment(id, { status: status }).then(function() {
+    showToast('承诺状态已更新');
+    loadCommitments();
+  }).catch(function(e) { showToast('更新失败：' + e.message); });
+}
+
+function commitmentStatusTag(s) {
+  var m = {
+    pending: ['tag-amber', '待兑现'],
+    fulfilled: ['tag-green', '已兑现'],
+    broken: ['tag-red', '未兑现'],
+  };
+  var v = m[s] || ['tag-gray', s || '—'];
+  return '<span class="tag ' + v[0] + '">' + v[1] + '</span>';
 }
 
 // ===== 近期拜访记录 =====

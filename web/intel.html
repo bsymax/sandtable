@@ -233,6 +233,11 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
       <option value="P2">P2 · 常规</option>
       <option value="P3">P3 · 资讯</option>
     </select>
+    <select id="filter-category">
+      <option value="">全部分类</option>
+      <option value="增长机会">增长机会</option>
+      <option value="风险预警">风险预警</option>
+    </select>
     <select id="filter-status">
       <option value="">全部状态</option>
       <option value="pending">待处理</option>
@@ -293,6 +298,13 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
       <option value="P0">P0 · 紧急</option>
       <option value="P2">P2 · 常规</option>
       <option value="P3">P3 · 资讯</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">情报分类</label>
+    <select class="form-select" id="alert-form-category">
+      <option value="风险预警">风险预警</option>
+      <option value="增长机会">增长机会</option>
     </select>
   </div>
   <div class="form-group">
@@ -441,17 +453,50 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 
 <script>
 const API = 'http://127.0.0.1:8000';
-let allAlerts = [], allNews = [], brands = [];
+let allAlerts = [], allNews = [], allWeeklies = [], brands = [];
+let urlBrandId = null;
+
+function brandKeyById(id) {
+  const b = brands.find(x => x.id == id);
+  return b ? b.name_key : '';
+}
+
+function applyUrlBrandFilter() {
+  const brandKey = new URLSearchParams(window.location.search).get('brand');
+  if (!brandKey) return;
+  const b = brands.find(x => x.name_key === brandKey);
+  if (b) {
+    urlBrandId = b.id;
+    document.getElementById('filter-brand').value = b.id;
+    applyFilters();
+    renderNews(filterNews(allNews));
+    renderWeeklySummary(filterWeeklies(allWeeklies));
+  }
+}
+
+function filterNews(list) {
+  if (!urlBrandId) return list;
+  return list.filter(n => n.brand_id == urlBrandId);
+}
+
+function filterWeeklies(list) {
+  if (!urlBrandId) return list;
+  return list.filter(w => w.brand_id == urlBrandId);
+}
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('today-date').textContent = new Date().toISOString().slice(0,10) + ' ' + ['日','一','二','三','四','五','六'][new Date().getDay()];
   await loadBrands();
+  applyUrlBrandFilter();
   await loadStats();
   await loadAlerts();
   await loadNews();
   await loadWeeklySummary();
   setupFilters();
+  document.getElementById('alert-form-priority').addEventListener('change', function() {
+    document.getElementById('alert-form-category').value = this.value === 'P0' ? '风险预警' : '增长机会';
+  });
 });
 
 async function loadBrands() {
@@ -498,23 +543,30 @@ function renderAlerts(alerts) {
   }
   container.innerHTML = alerts.map(a => {
     const dotColor = a.priority === 'P0' ? 'red' : (a.priority === 'P1' ? 'amber' : 'blue');
+    const brandKey = a.brand_name_key || brandKeyById(a.brand_id);
+    const catTag = a.category === '增长机会'
+      ? '<span class="tag tag-green">增长机会</span>'
+      : '<span class="tag tag-red">风险预警</span>';
     const statusTag = a.status === 'pending' ? '<span class="tag tag-red">待处理</span>' :
                       a.status === 'confirmed' ? '<span class="tag tag-amber">已确认</span>' :
                       a.status === 'linked' ? '<span class="tag tag-blue">已关联拜访</span>' :
                       '<span class="tag tag-gray">已关闭</span>';
     const levelClass = a.brand_level === 'S' ? 'level-s' : (a.brand_level === 'A' ? 'level-a' : 'level-b');
+    const crossLinks = brandKey
+      ? `· <a href="profile.html?brand=${brandKey}">查看档案 →</a> · <a href="visit.html?brand=${brandKey}">安排拜访 →</a>`
+      : '';
     return `
-    <div class="alert-row" data-brand="${a.brand_id||''}" data-level="${a.priority}" data-status="${a.status}">
+    <div class="alert-row" data-brand="${a.brand_id||''}" data-level="${a.priority}" data-category="${a.category||''}" data-status="${a.status}">
       <div class="alert-dot ${dotColor} ${a.priority==='P0'?'pulse':''}"></div>
       <div class="alert-content">
-        <div class="alert-title">${a.priority} · ${a.title} ${statusTag}</div>
+        <div class="alert-title">${a.priority} · ${a.title} ${catTag} ${statusTag}</div>
         <div class="alert-desc">${a.description||''}</div>
         <div class="alert-meta">
           ${a.brand_name ? `<span class="level-badge ${levelClass}">${a.brand_name}</span>` : ''}
           ${a.suggestion ? `· 建议：${a.suggestion}` : ''}
           ${a.assignee ? `· 负责人：${a.assignee}` : ''}
           · ${a.created_at ? a.created_at.slice(0,10) : ''}
-          ${a.visit_id ? '· <a href="visit.html" target="_blank">查看拜访 →</a>' : ''}
+          ${crossLinks}
         </div>
       </div>
       <div class="alert-actions">
@@ -531,8 +583,9 @@ async function loadNews() {
   try {
     const res = await fetch(`${API}/api/intel/news?limit=30`);
     allNews = await res.json();
-    document.getElementById('news-count').textContent = `共 ${allNews.length} 条`;
-    renderNews(allNews);
+    const shown = filterNews(allNews);
+    document.getElementById('news-count').textContent = `共 ${shown.length} 条`;
+    renderNews(shown);
   } catch(e) {
     container.innerHTML = '<div class="loading">⚠️ 加载失败</div>';
   }
@@ -563,12 +616,20 @@ async function loadWeeklySummary() {
   const container = document.getElementById('weekly-summary');
   try {
     const res = await fetch(`${API}/api/intel/weekly/latest`);
-    const weeklies = await res.json();
-    if (!weeklies.length) {
-      container.innerHTML = '<p style="color:var(--text-muted)">暂无周报数据</p>';
-      return;
-    }
-    container.innerHTML = weeklies.map(w => `
+    allWeeklies = await res.json();
+    renderWeeklySummary(filterWeeklies(allWeeklies));
+  } catch(e) {
+    container.innerHTML = '<p style="color:var(--text-muted)">加载失败</p>';
+  }
+}
+
+function renderWeeklySummary(weeklies) {
+  const container = document.getElementById('weekly-summary');
+  if (!weeklies.length) {
+    container.innerHTML = '<p style="color:var(--text-muted)">暂无周报数据</p>';
+    return;
+  }
+  container.innerHTML = weeklies.map(w => `
       <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
         <strong>${w.brand_name||''}</strong> · ${w.week_label||''} (${w.week_start} ~ ${w.week_end}) · 填报人：${w.reporter||'-'}
         ${w.weekly_gmv ? `· GMV: ¥${w.weekly_gmv}万` : ''}
@@ -578,28 +639,31 @@ async function loadWeeklySummary() {
         ${w.opportunities ? `<br>💡 机会：${w.opportunities}` : ''}
       </div>
     `).join('');
-  } catch(e) {
-    container.innerHTML = '<p style="color:var(--text-muted)">加载失败</p>';
-  }
 }
 
 // ---- Filters ----
 function setupFilters() {
-  ['filter-brand','filter-level','filter-status'].forEach(id => {
+  ['filter-brand','filter-level','filter-category','filter-status'].forEach(id => {
     document.getElementById(id).addEventListener('change', applyFilters);
+  });
+  document.getElementById('filter-brand').addEventListener('change', function() {
+    if (!this.value) urlBrandId = null;
   });
   document.getElementById('filter-search').addEventListener('input', applyFilters);
 }
 
 function applyFilters() {
   const brand = document.getElementById('filter-brand').value;
+  const effectiveBrand = brand || urlBrandId;
   const level = document.getElementById('filter-level').value;
+  const category = document.getElementById('filter-category').value;
   const status = document.getElementById('filter-status').value;
   const search = document.getElementById('filter-search').value.toLowerCase();
 
   const filteredAlerts = allAlerts.filter(a => {
-    if (brand && a.brand_id != brand) return false;
+    if (effectiveBrand && a.brand_id != effectiveBrand) return false;
     if (level && a.priority !== level) return false;
+    if (category && a.category !== category) return false;
     if (status && a.status !== status) return false;
     if (search) {
       const txt = (a.title + a.description + (a.brand_name||'')).toLowerCase();
@@ -609,6 +673,10 @@ function applyFilters() {
   });
   renderAlerts(filteredAlerts);
   document.getElementById('alert-count').textContent = `共 ${filteredAlerts.length} 条`;
+  const filteredNews = allNews.filter(n => !effectiveBrand || n.brand_id == effectiveBrand);
+  document.getElementById('news-count').textContent = `共 ${filteredNews.length} 条`;
+  renderNews(filteredNews);
+  renderWeeklySummary(filterWeeklies(allWeeklies.filter(w => !effectiveBrand || w.brand_id == effectiveBrand)));
 }
 
 // ---- CRUD Actions ----
@@ -628,6 +696,7 @@ async function submitAlert() {
   const payload = {
     brand_id: document.getElementById('alert-form-brand').value || null,
     priority: document.getElementById('alert-form-priority').value,
+    category: document.getElementById('alert-form-category').value,
     title: title,
     description: document.getElementById('alert-form-desc').value.trim(),
     suggestion: document.getElementById('alert-form-suggestion').value.trim(),

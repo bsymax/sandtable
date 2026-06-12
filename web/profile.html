@@ -194,7 +194,7 @@ table tr.jd-row td { background:var(--blue-50); }
 <div class="content">
   <div class="m1-banner">
     <span class="m1-scope-tag">品牌席</span>
-    <strong>经营看板</strong> · <strong>品牌简介</strong> 已接真数据 · <strong>最新情报/历史互动</strong> 为演示预览，S4 由 Max 对接开开情报库 + 培翛拜访 API。
+    <strong>经营看板</strong> · <strong>品牌简介</strong> 已接真数据 · <strong>最新情报</strong> 展示该品牌 **P0 + 分类** 的预警（风险预警 / 增长机会各 TOP）· 新闻不参与。
   </div>
   <div class="page-title">品牌档案</div>
   <div class="page-subtitle">经营数据 + 主数据维护 · 数据来自 MySQL API</div>
@@ -335,7 +335,15 @@ var currentKey = 'midea';
 var currentPTab = 'dashboard';
 var gData = null;
 var gMetricsHistory = [];
+var gBriefing = null;
 var chartStore = {};
+
+window.goVisit = function(key) {
+  window.location.href = 'visit.html?brand=' + (key || currentKey);
+};
+window.goIntel = function(key) {
+  window.location.href = 'intel.html?brand=' + (key || currentKey);
+};
 
 function apiReq(path, opts) {
   opts = opts || {};
@@ -555,14 +563,16 @@ function loadBrand(key) {
   document.getElementById('loading-overlay').classList.remove('hidden');
   return Promise.all([
     apiReq('/api/brands/profile/' + key),
-    apiReq('/api/brands/metrics/' + key + '?limit=12')
+    apiReq('/api/brands/metrics/' + key + '?limit=12'),
+    apiReq('/api/intel/briefing/' + key)
   ]).then(function(results) {
     gData = results[0];
     gMetricsHistory = results[1].slice().reverse();
+    gBriefing = results[2];
     hideError();
     renderBrand(gData);
   }).catch(function(e) {
-    showError('加载失败：' + e.message + '（请确认后端 python3 main.py 在 8001 端口运行）');
+    showError('加载失败：' + e.message + '（请确认后端在 8000 端口运行）');
   }).finally(function() {
     document.getElementById('loading-overlay').classList.add('hidden');
   });
@@ -674,12 +684,37 @@ function renderIntelList(items, cls) {
   }).join('');
 }
 
+function briefingToIntelItem(a) {
+  return {
+    title: (a.priority ? a.priority + ' · ' : '') + a.title,
+    body: a.description || a.suggestion || '',
+    src: '情报预警',
+    time: (a.created_at || '').slice(0, 10),
+    impact: a.priority === 'P0' ? '高' : '中'
+  };
+}
+
 function renderIntelTab(key) {
-  var extra = BRAND_EXTRA[key] || {};
+  var risks = [];
+  var opps = [];
+  var b = gBriefing;
+  if (b && b.active_alerts) {
+    b.active_alerts.forEach(function(a) {
+      if (a.priority !== 'P0') return;
+      var item = briefingToIntelItem(a);
+      if (a.category === '风险预警') {
+        risks.push(item);
+      } else if (a.category === '增长机会') {
+        opps.push(item);
+      }
+    });
+  }
+  risks = risks.slice(0, 3);
+  opps = opps.slice(0, 3);
   return '<div class="profile-intel-split">' +
-    '<div class="profile-intel-col"><h4>🟢 增长机会 TOP3</h4>' + renderIntelList(extra.opps, 'opp') + '</div>' +
-    '<div class="profile-intel-col"><h4>🔴 风险预警 TOP3</h4>' + renderIntelList(extra.risks, 'risk') + '</div></div>' +
-    '<p style="margin-top:14px;font-size:12px"><button class="btn-sm-outline" onclick="showToast(\'S4 合并后跳转品牌情报库\')">查看全部情报 → 品牌情报库</button> <span style="color:var(--text-muted);margin-left:8px;">（演示数据 · S4 接开开 API）</span></p>';
+    '<div class="profile-intel-col"><h4>🟢 增长机会 TOP</h4>' + renderIntelList(opps, 'opp') + '</div>' +
+    '<div class="profile-intel-col"><h4>🔴 风险预警 TOP</h4>' + renderIntelList(risks, 'risk') + '</div></div>' +
+    '<p style="margin-top:14px;font-size:12px"><button class="btn-sm-outline" onclick="goIntel(\'' + key + '\')">查看全部情报 → 品牌情报流</button></p>';
 }
 
 function renderHistoryTab(key, brand) {
@@ -705,7 +740,7 @@ function renderHistoryTab(key, brand) {
     '<div class="card"><div class="card-header"><h3>拜访时间轴</h3></div><div class="card-body"><div class="profile-timeline">' + (tl || '<p style="color:var(--text-muted);font-size:12px;">暂无</p>') + '</div></div></div>' +
     '<div class="card"><div class="card-header"><h3>承诺追踪</h3></div><div class="card-body no-padding" style="padding:0 16px"><table><tr><th>待办项</th><th>状态</th><th>截止</th></tr>' + commits + '</table></div></div></div>' +
     '<div class="visit-suggest-ai"><h4>🤖 AI 下次拜访建议</h4><p style="font-size:13px;margin:0 0 8px">建议 <strong>' + (h.suggest ? h.suggest.days : '—') + '天内</strong> 安排拜访（综合数据异动 + 拜访周期 + 待办未闭环）：</p><ul>' + topics + '</ul></div>' +
-    '<div class="profile-footer-actions"><button class="btn-sm-outline" onclick="showToast(\'S4 合并后跳转培翛拜访模块\')">📝 安排拜访</button><button class="btn-sm-outline" onclick="showToast(\'S4 合并后跳转品牌情报库\')">🔍 情报库</button></div>';
+    '<div class="profile-footer-actions"><button class="btn-sm-outline" onclick="goVisit(\'' + key + '\')">📝 安排拜访</button></div>';
 }
 
 function renderDashboard(data) {
@@ -804,6 +839,9 @@ function renderBrand(data) {
       document.getElementById('pane-' + currentPTab).classList.add('active');
       if (currentPTab === 'dashboard') {
         setTimeout(function() { initCharts(currentKey, gMetricsHistory, data.metrics); }, 0);
+      }
+      if (currentPTab === 'intel') {
+        document.getElementById('pane-intel').innerHTML = renderIntelTab(currentKey);
       }
     };
   });
