@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>品牌沙盘 M1 · 第一期原型</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" crossorigin="anonymous"></script>
+<style>
+
+:root {
+  --bg: #f4f5f9;
+  --card-bg: #ffffff;
+  --text: #1a1f36;
+  --text-secondary: #697386;
+  --text-muted: #a3acba;
+  --border: #e3e8ee;
+  --blue-600: #0066cc;
+  --blue-500: #0d7aff;
+  --blue-50: #e8f2ff;
+  --amber-500: #e6a700;
+  --amber-50: #fff8e6;
+  --red-500: #cd3b32;
+  --red-50: #fdecea;
+  --green-500: #0e7c4b;
+  --green-50: #e8f5ef;
+  --sidebar-w: 256px;
+  --header-h: 56px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04), 0 1px 4px rgba(0,0,0,.06);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:var(--bg); color:var(--text); display:flex; height:100vh; overflow:hidden; }
+
+/* Sidebar */
+#sidebar {
+  width:var(--sidebar-w); background:#0f172a; color:#e2e8f0; display:flex; flex-direction:column;
+  flex-shrink:0; z-index:10;
+}
+.sidebar-header { padding:18px 20px; border-bottom:1px solid rgba(255,255,255,.06); }
+.sidebar-header .product-name { font-size:16px; font-weight:700; letter-spacing:-.2px; }
+.sidebar-header .product-sub { display:flex; flex-direction:column; gap:3px; font-size:13px; color:#cbd5e1; margin-top:6px; letter-spacing:.2px; line-height:1.4; }
+.sidebar-header .product-sub-en { color:#94a3b8; font-size:12px; }
+.sidebar-header .product-sub-org { color:#94a3b8; font-size:12px; font-weight:400; }
+.sidebar-nav { flex:1; overflow-y:auto; padding:8px 0; }
+.nav-section { margin-bottom:4px; }
+.nav-section-title { font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:#475569; padding:12px 20px 6px; font-weight:600; }
+.nav-item {
+  display:flex; align-items:center; gap:10px; padding:10px 20px; cursor:pointer; font-size:13px;
+  color:#94a3b8; transition:all .15s; border-left:3px solid transparent;
+}
+.nav-item:hover { background:rgba(255,255,255,.04); color:#e2e8f0; }
+.nav-item.active { color:#fff; background:rgba(255,255,255,.06); border-left-color:#3b82f6; font-weight:500; }
+.nav-item .nav-icon { width:18px; text-align:center; font-size:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.nav-item .nav-icon svg { display:block; }
+.nav-item .badge { margin-left:auto; font-size:10px; padding:2px 6px; border-radius:8px; font-weight:600; }
+.nav-item .nav-label { flex:1; min-width:0; line-height:1.35; white-space:nowrap; font-size:12px; }
+.nav-item .nav-note { font-size:11px; color:#64748b; font-weight:400; white-space:nowrap; }
+.nav-item.active .nav-note { color:#94a3b8; }
+.badge-red { background:#ef4444; color:#fff; }
+.badge-amber { background:#f59e0b; color:#000; }
+.badge-blue { background:#3b82f6; color:#fff; }
+
+/* Main */
+#main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.topbar {
+  height:var(--header-h); background:#fff; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 28px; gap:20px; flex-shrink:0;
+}
+.topbar .breadcrumb { font-size:13px; color:var(--text-secondary); }
+.topbar .breadcrumb span.current { color:var(--text); font-weight:600; }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:16px; font-size:13px; color:var(--text-secondary); }
+.topbar-right .user-avatar { width:32px; height:32px; border-radius:50%; background:#3b82f6; color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
+
+.content { flex:1; overflow-y:auto; padding:24px 28px; }
+.module { display:none; }
+.module.active { display:block; }
+
+/* Cards */
+.card {
+  background:var(--card-bg); border-radius:8px; border:1px solid var(--border);
+  box-shadow:var(--shadow-sm); margin-bottom:20px;
+}
+.card-header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.card-header h3 { font-size:14px; font-weight:600; }
+.card-header .card-meta { font-size:12px; color:var(--text-muted); margin-left:auto; }
+.card-body { padding:20px; }
+.card-body.no-padding { padding:0; }
+
+/* Dashboard grid */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
+.grid-4 { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; }
+
+/* Stat cards */
+.stat-card { background:#fff; border-radius:8px; border:1px solid var(--border); padding:18px 20px; box-shadow:var(--shadow-sm); }
+.stat-label { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+.stat-value { font-size:28px; font-weight:700; letter-spacing:-.5px; }
+.stat-change { font-size:12px; margin-top:4px; }
+.stat-change.up { color:var(--green-500); }
+.stat-change.down { color:var(--red-500); }
+.stat-change .arrow { font-size:11px; margin-right:2px; }
+
+/* Mini chart */
+.mini-chart { height:40px; margin-top:8px; }
+
+/* Tables */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+table th { text-align:left; padding:10px 16px; background:#f8f9fc; border-bottom:2px solid var(--border); font-weight:600; font-size:12px; color:var(--text-secondary); white-space:nowrap; }
+table td { padding:10px 16px; border-bottom:1px solid var(--border); white-space:nowrap; }
+table tr:hover td { background:#f8fafd; }
+
+/* Alerts */
+.alert-row { display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
+.alert-row:last-child { border-bottom:none; }
+.alert-dot { width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+.alert-dot.red { background:var(--red-500); }
+.alert-dot.amber { background:var(--amber-500); }
+.alert-dot.blue { background:var(--blue-500); }
+.alert-content { flex:1; }
+.alert-title { font-size:13px; font-weight:600; margin-bottom:2px; }
+.alert-desc { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.alert-meta { font-size:11px; color:var(--text-muted); margin-top:4px; }
+
+/* Tags */
+.tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.tag-red { background:var(--red-50); color:var(--red-500); }
+.tag-amber { background:var(--amber-50); color:var(--amber-500); }
+.tag-green { background:var(--green-50); color:var(--green-500); }
+.tag-blue { background:var(--blue-50); color:var(--blue-500); }
+.tag-gray { background:#f0f1f5; color:var(--text-secondary); }
+
+/* Brand level badges */
+.level-badge { display:inline-block; padding:2px 8px; border-radius:3px; font-size:11px; font-weight:700; letter-spacing:.3px; }
+.level-s { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+.level-a { background:#e0e7ff; color:#3730a3; border:1px solid #a5b4fc; }
+.level-b { background:#f0f1f5; color:#4b5563; border:1px solid #d1d5db; }
+.level-c { background:#fafafa; color:#9ca3af; border:1px solid #e5e7eb; }
+
+/* Progress bar */
+.progress-bar { height:6px; background:#eef0f4; border-radius:3px; overflow:hidden; margin-top:6px; }
+.progress-fill { height:100%; border-radius:3px; }
+.progress-fill.green { background:var(--green-500); }
+.progress-fill.blue { background:var(--blue-500); }
+.progress-fill.amber { background:var(--amber-500); }
+.progress-fill.red { background:var(--red-500); }
+
+/* Tab bar */
+.tab-bar { display:flex; gap:0; border-bottom:1px solid var(--border); padding:0 20px; }
+.tab-item { padding:12px 20px; font-size:13px; cursor:pointer; color:var(--text-secondary); border-bottom:2px solid transparent; transition:all .15s; }
+.tab-item:hover { color:var(--text); }
+.tab-item.active { color:var(--blue-600); border-bottom-color:var(--blue-600); font-weight:600; }
+
+/* 品牌档案 / 博弈推演 / 拜访助手：选中 Tab 背景加深，区分可切换项 */
+#profile-tabs,
+#game-tabs,
+#visit-tabs {
+  background: #eef1f6;
+  border-radius: 8px 8px 0 0;
+  padding: 6px 10px 0;
+  gap: 2px;
+}
+#profile-tabs .tab-item,
+#game-tabs .tab-item,
+#visit-tabs .tab-item {
+  border-radius: 6px 6px 0 0;
+  margin-bottom: -1px;
+}
+#profile-tabs .tab-item:hover:not(.active),
+#game-tabs .tab-item:hover:not(.active),
+#visit-tabs .tab-item:hover:not(.active) {
+  background: rgba(255,255,255,.55);
+  color: var(--text);
+}
+#profile-tabs .tab-item.active,
+#game-tabs .tab-item.active,
+#visit-tabs .tab-item.active {
+  background: #d4e2f2;
+  color: var(--blue-600);
+  border-bottom-color: var(--blue-600);
+}
+
+/* Game theory card */
+.theory-block { background:#f8fafd; border-radius:6px; padding:16px; margin-bottom:12px; border-left:3px solid var(--blue-500); }
+.theory-block h4 { font-size:13px; margin-bottom:8px; color:var(--blue-600); }
+.theory-block p { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+.confidence { font-size:11px; margin-top:8px; }
+.confidence.high { color:var(--green-500); }
+.confidence.medium { color:var(--amber-500); }
+.confidence.low { color:var(--red-500); }
+
+/* To-do list */
+.todo-item { display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+.todo-item:last-child { border-bottom:none; }
+.todo-check { width:18px; height:18px; border-radius:50%; border:2px solid #c1c9d2; flex-shrink:0; margin-top:1px; cursor:pointer; transition:all .15s; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; color:#fff; }
+.todo-check:hover { border-color:var(--blue-500); }
+.todo-check.done { background:var(--green-500); border-color:var(--green-500); }
+.todo-check.done::after { content:'✓'; }
+.todo-check.overdue-flag:not(.done) { border-color:var(--red-500); background:var(--red-50); }
+.todo-item.is-done .todo-title { text-decoration:line-through; color:var(--text-muted); }
+.todo-info { flex:1; }
+.todo-title { font-size:13px; font-weight:500; margin-bottom:3px; }
+.todo-meta { font-size:11px; color:var(--text-muted); }
+.todo-priority { font-size:10px; padding:1px 6px; border-radius:3px; font-weight:600; flex-shrink:0; }
+.prio-p0 { background:var(--red-50); color:var(--red-500); }
+.prio-p1 { background:var(--amber-50); color:var(--amber-500); }
+.prio-p2 { background:#f0f1f5; color:var(--text-secondary); }
+
+/* Visit manual */
+.manual-section { margin-bottom:20px; }
+.manual-section h4 { font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-secondary); margin-bottom:8px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+.manual-section p, .manual-section li { font-size:13px; color:var(--text); line-height:1.7; }
+.manual-section ul { padding-left:18px; }
+
+/* Radar placeholder */
+.radar-notice { text-align:center; padding:30px; color:var(--text-muted); font-size:13px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:#c1c9d2; border-radius:3px; }
+
+/* Page title */
+.page-title { font-size:20px; font-weight:700; margin-bottom:4px; letter-spacing:-.3px; }
+.page-subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:20px; }
+
+/* Chart container */
+.chart-container { position:relative; height:260px; }
+.chart-container.tall { height:340px; }
+.chart-container.short { height:200px; }
+
+/* Intelligence feed */
+.intel-card { padding:16px; border:1px solid var(--border); border-radius:6px; margin-bottom:10px; background:#fff; }
+.intel-card.p0 { border-left:3px solid var(--red-500); }
+.intel-card.p1 { border-left:3px solid var(--amber-500); }
+.intel-card.p2 { border-left:3px solid var(--blue-500); }
+.intel-level { font-size:10px; font-weight:700; margin-bottom:6px; }
+.intel-title { font-size:13px; font-weight:600; margin-bottom:4px; }
+.intel-body { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+.intel-meta { font-size:11px; color:var(--text-muted); margin-top:6px; }
+
+/* Toast & intel filters */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:#1a1f36; color:#fff; padding:10px 18px; border-radius:8px; font-size:13px; z-index:9999; opacity:0; transition:all .25s; pointer-events:none; box-shadow:var(--shadow-md); max-width:90vw; text-align:center; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.intel-filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+.intel-filters select, .intel-filters input { padding:8px 12px; border:1px solid var(--border); border-radius:4px; font-size:13px; font-family:var(--font); background:#fff; }
+.intel-filters input { flex:1; min-width:160px; }
+.intel-weekly { background:#f8fafd; border:1px solid var(--border); border-radius:8px; padding:16px 18px; margin-top:16px; }
+.intel-weekly summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--blue-600); list-style:none; }
+.intel-weekly summary::-webkit-details-marker { display:none; }
+.intel-weekly-body { margin-top:12px; font-size:13px; line-height:1.7; color:var(--text-secondary); }
+.workbench-ai-block { background:linear-gradient(135deg, #eff6ff 0%, #f8fafd 55%, #fff 100%); border:1px solid #bfdbfe; border-radius:10px; padding:16px 18px; margin-bottom:20px; }
+.workbench-ai-block .ai-head { font-size:14px; font-weight:700; color:var(--blue-600); margin-bottom:8px; }
+.workbench-ai-block .ai-body { font-size:13px; line-height:1.75; color:var(--text); }
+.workbench-ai-block .ai-body strong { color:var(--blue-600); }
+.cockpit-stat-link { cursor:pointer; transition:box-shadow .15s; }
+.cockpit-stat-link:hover { box-shadow:var(--shadow-md); }
+
+/* Persona row */
+.persona-card { background:#fff; border:1px solid var(--border); border-radius:6px; padding:14px; }
+.persona-card .name { font-size:14px; font-weight:600; }
+.persona-card .role { font-size:12px; color:var(--text-secondary); }
+.persona-card .contact { font-size:11px; color:var(--text-muted); margin-top:4px; }
+
+/* Brand profile enhanced */
+#mod-profile .card { margin-bottom:0; }
+.profile-meta-bar { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin-bottom:16px; }
+.profile-meta-bar .meta-item { font-size:12px; color:var(--text-secondary); }
+.profile-ai-block { background:linear-gradient(135deg, #eff6ff 0%, #f8fafd 55%, #fff 100%); border:1px solid #bfdbfe; border-radius:10px; padding:18px 20px; margin-bottom:20px; }
+.profile-ai-block .ai-head { display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:14px; font-weight:700; color:var(--blue-600); }
+.profile-ai-block .ai-badge { font-size:10px; font-weight:600; padding:2px 8px; background:var(--blue-500); color:#fff; border-radius:4px; }
+.profile-ai-summary { font-size:13px; line-height:1.75; color:var(--text); margin-bottom:16px; }
+.profile-ai-summary strong { color:var(--blue-600); font-weight:600; }
+.profile-ai-strategy { background:#fff; border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+.profile-ai-strategy h4 { font-size:12px; font-weight:700; color:var(--text-secondary); letter-spacing:.3px; margin-bottom:10px; }
+.profile-strategy-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+.profile-strategy-list li { display:flex; gap:10px; font-size:13px; line-height:1.55; align-items:flex-start; }
+.profile-strategy-list .prio { flex-shrink:0; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; margin-top:2px; }
+.profile-strategy-list .prio.p0 { background:var(--red-50); color:var(--red-500); }
+.profile-strategy-list .prio.p1 { background:var(--amber-50); color:var(--amber-500); }
+.profile-strategy-list .prio.p2 { background:var(--blue-50); color:var(--blue-500); }
+.profile-section { margin-bottom:20px; }
+.profile-section-title { font-size:12px; font-weight:600; color:var(--text-secondary); letter-spacing:.4px; margin-bottom:12px; padding-left:2px; }
+.profile-metrics { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:20px; }
+#mod-profile .profile-metrics .stat-card { padding:12px 14px; }
+#mod-profile .profile-metrics .stat-value { font-size:22px; }
+.profile-health-dims { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+@media (max-width:900px) { .profile-health-dims { grid-template-columns:1fr 1fr; } }
+.profile-health-dim { padding:10px 12px; background:#f8fafd; border-radius:6px; border:1px solid var(--border); }
+.profile-health-dim .dim-name { font-size:11px; color:var(--text-secondary); margin-bottom:4px; }
+.profile-health-dim .dim-score { font-size:18px; font-weight:700; }
+.profile-health-dim .dim-trend { font-size:11px; margin-top:2px; }
+.profile-timeline { position:relative; padding-left:20px; }
+.profile-timeline::before { content:''; position:absolute; left:6px; top:4px; bottom:4px; width:2px; background:var(--border); }
+.profile-tl-item { position:relative; padding-bottom:14px; }
+.profile-tl-item:last-child { padding-bottom:0; }
+.profile-tl-item::before { content:''; position:absolute; left:-17px; top:4px; width:8px; height:8px; border-radius:50%; background:var(--blue-500); border:2px solid #fff; box-shadow:0 0 0 1px var(--blue-500); }
+.profile-tl-item.warn::before { background:var(--amber-500); box-shadow:0 0 0 1px var(--amber-500); }
+.profile-tl-item.risk::before { background:var(--red-500); box-shadow:0 0 0 1px var(--red-500); }
+.profile-tl-item.good::before { background:var(--green-500); box-shadow:0 0 0 1px var(--green-500); }
+.profile-tl-item .tl-time { font-size:11px; color:var(--text-muted); }
+.profile-tl-item .tl-title { font-size:13px; font-weight:600; margin:2px 0; }
+.profile-tl-item .tl-desc { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.profile-commit-row { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); font-size:12px; line-height:1.5; }
+.profile-commit-row:last-child { border-bottom:none; }
+.profile-expire-warn { font-size:11px; color:var(--red-500); background:var(--red-50); padding:8px 12px; border-radius:6px; margin-top:10px; line-height:1.5; }
+.profile-comp-item { padding:10px 12px; border:1px solid var(--border); border-radius:6px; font-size:12px; margin-bottom:8px; line-height:1.5; }
+.profile-comp-item:last-child { margin-bottom:0; }
+.profile-comp-item .comp-name { font-weight:600; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; }
+.profile-info-list { font-size:12px; color:var(--text-secondary); line-height:1.65; }
+.profile-info-list li { margin-bottom:6px; }
+.profile-channel-row { margin-bottom:12px; }
+.profile-channel-row:last-child { margin-bottom:0; }
+.profile-channel-head { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; }
+.profile-mini-table td:first-child { color:var(--text-secondary); }
+
+/* 品牌档案 · 四模块结构 */
+#mod-profile .profile-brand-shell { background:#fff; border:1px solid var(--border); border-radius:0 0 8px 8px; overflow:hidden; }
+.profile-top-bar { display:grid; grid-template-columns:auto auto 1fr; gap:16px 20px; align-items:center; padding:18px 20px; background:linear-gradient(135deg,#f8fafd 0%,#fff 60%); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+.profile-top-bar .profile-brand-name { font-size:22px; font-weight:700; margin:0 10px 0 0; display:inline; }
+.profile-top-bar .profile-top-left { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.profile-health-ring { position:relative; width:72px; height:72px; flex-shrink:0; }
+.profile-health-ring svg { transform:rotate(-90deg); }
+.profile-health-ring .ring-score { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:var(--text); }
+.profile-health-ring .ring-label { font-size:10px; font-weight:500; color:var(--text-muted); }
+.profile-ai-oneline { font-size:13px; line-height:1.65; color:var(--text); padding:10px 14px; background:var(--blue-50); border:1px solid #bfdbfe; border-radius:8px; }
+.profile-ai-oneline strong { color:var(--blue-600); }
+.profile-top-meta { grid-column:1/-1; font-size:12px; color:var(--text-secondary); display:flex; gap:16px; flex-wrap:wrap; }
+.profile-inner-tabs { margin:0; border-bottom:1px solid var(--border); background:#fafbfc; padding:0 12px; }
+.profile-inner-tabs .tab-item { padding:12px 16px; font-size:13px; }
+.profile-panels { padding:20px; }
+.profile-pane { display:none; }
+.profile-pane.active { display:block; }
+.profile-kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:20px; }
+@media (max-width:1100px) { .profile-kpi-row { grid-template-columns:repeat(3,1fr); } }
+@media (max-width:640px) { .profile-kpi-row { grid-template-columns:repeat(2,1fr); } .profile-top-bar { grid-template-columns:1fr; } }
+.profile-kpi-card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:14px 16px; box-shadow:var(--shadow-sm); }
+.profile-kpi-card.clickable { cursor:pointer; transition:box-shadow .15s,border-color .15s; }
+.profile-kpi-card.clickable:hover { border-color:var(--blue-500); box-shadow:var(--shadow-md); }
+.profile-kpi-card.gap-alert { border-left:3px solid var(--red-500); }
+.profile-kpi-card .kpi-label { font-size:11px; color:var(--text-secondary); margin-bottom:6px; }
+.profile-kpi-card .kpi-value { font-size:20px; font-weight:700; line-height:1.2; }
+.profile-kpi-card .kpi-sub { font-size:11px; margin-top:6px; display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+.profile-kpi-card .kpi-sub.up { color:var(--green-500); }
+.profile-kpi-card .kpi-sub.down { color:var(--red-500); }
+.profile-chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+@media (max-width:900px) { .profile-chart-grid { grid-template-columns:1fr; } }
+.profile-chart-box { background:#fff; border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+.profile-chart-box h4 { font-size:12px; font-weight:600; color:var(--text-secondary); margin:0 0 12px; }
+.profile-chart-canvas { position:relative; height:220px; }
+.profile-chart-canvas.tall { height:260px; }
+.profile-gap-panel { display:none; margin-bottom:16px; border:1px solid #fecaca; background:var(--red-50); border-radius:8px; overflow:hidden; }
+.profile-gap-panel.open { display:block; }
+.profile-gap-panel .gap-head { padding:10px 14px; font-size:12px; font-weight:600; color:var(--red-500); border-bottom:1px solid #fecaca; }
+.profile-gap-panel table { width:100%; font-size:12px; }
+.profile-gap-panel th, .profile-gap-panel td { padding:10px 14px; border-bottom:1px solid #fecaca; text-align:left; }
+.profile-gap-panel tr:last-child td { border-bottom:none; }
+.profile-cat-table td.warn-cell { background:var(--amber-50); }
+.profile-benchmark-panel { margin-top:16px; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.profile-benchmark-panel summary { padding:12px 16px; font-size:13px; font-weight:600; cursor:pointer; background:#fafbfc; list-style:none; display:flex; align-items:center; gap:8px; }
+.profile-benchmark-panel summary::before { content:'▶'; font-size:10px; color:var(--text-muted); transition:transform .15s; }
+.profile-benchmark-panel[open] summary::before { transform:rotate(90deg); }
+.profile-benchmark-body { padding:14px 16px; border-top:1px solid var(--border); }
+.profile-benchmark-body table { width:100%; font-size:12px; }
+.profile-benchmark-body th, .profile-benchmark-body td { padding:8px 10px; border-bottom:1px solid var(--border); text-align:left; }
+.profile-intro-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:900px) { .profile-intro-grid { grid-template-columns:1fr; } }
+.profile-basic-dl { display:grid; grid-template-columns:88px 1fr; gap:8px 12px; font-size:13px; margin:0; }
+.profile-basic-dl dt { color:var(--text-secondary); }
+.profile-basic-dl dd { margin:0; }
+.person-card-editable { border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:10px; position:relative; background:#fff; }
+.person-card-editable:last-child { margin-bottom:0; }
+.person-card-editable .person-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.person-card-editable .person-name { font-size:14px; font-weight:600; }
+.person-card-editable .person-role { font-size:12px; color:var(--text-secondary); margin-top:2px; }
+.person-card-editable .person-tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+.person-card-editable .person-meta { font-size:11px; color:var(--text-muted); margin-top:8px; }
+.org-chart { display:flex; flex-direction:column; align-items:center; gap:0; padding:16px 0; font-size:12px; }
+.org-node { padding:8px 14px; border:1px solid var(--border); border-radius:6px; background:#f8fafd; text-align:center; min-width:120px; }
+.org-node.lead { background:var(--blue-50); border-color:#bfdbfe; font-weight:600; }
+.org-connector { width:2px; height:14px; background:var(--border); }
+.org-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; position:relative; }
+.org-row::before { content:''; position:absolute; top:0; left:20%; right:20%; height:2px; background:var(--border); }
+.org-row .org-node { margin-top:14px; }
+.profile-rule-item { padding:12px 14px; border:1px solid var(--border); border-radius:8px; margin-bottom:10px; font-size:13px; line-height:1.6; }
+.profile-rule-item:last-child { margin-bottom:0; }
+.profile-rule-item .rule-meta { font-size:11px; color:var(--text-muted); margin-top:8px; }
+.profile-rule-item.stale { border-color:#fecaca; background:#fffbfb; }
+.profile-intel-split { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:800px) { .profile-intel-split { grid-template-columns:1fr; } }
+.profile-intel-col h4 { font-size:13px; font-weight:700; margin:0 0 12px; display:flex; align-items:center; gap:6px; }
+.profile-intel-item { padding:12px 14px; border:1px solid var(--border); border-radius:8px; margin-bottom:10px; font-size:12px; line-height:1.55; background:#fff; }
+.profile-intel-item:last-child { margin-bottom:0; }
+.profile-intel-item .intel-item-title { font-weight:600; font-size:13px; margin-bottom:4px; }
+.profile-intel-item .intel-item-meta { color:var(--text-muted); font-size:11px; margin-top:6px; }
+.profile-intel-item.opp { border-left:3px solid var(--green-500); }
+.profile-intel-item.risk { border-left:3px solid var(--red-500); }
+.history-status-bar { display:flex; flex-wrap:wrap; gap:12px 20px; padding:14px 16px; background:#f8fafd; border:1px solid var(--border); border-radius:8px; margin-bottom:16px; font-size:13px; }
+.history-status-bar .status-warn { color:var(--red-500); font-weight:600; }
+.history-status-bar .status-ok { color:var(--green-500); font-weight:600; }
+.profile-tl-details { margin-top:6px; }
+.profile-tl-details summary { font-size:11px; color:var(--blue-500); cursor:pointer; }
+.profile-tl-details .tl-full { font-size:12px; color:var(--text-secondary); margin-top:6px; line-height:1.6; padding:8px 10px; background:#f8fafd; border-radius:6px; }
+.commit-table { width:100%; font-size:12px; }
+.commit-table th, .commit-table td { padding:10px 12px; border-bottom:1px solid var(--border); text-align:left; }
+.visit-suggest-ai { margin-top:16px; padding:16px 18px; background:linear-gradient(135deg,#eff6ff,#fff); border:1px solid #bfdbfe; border-radius:10px; }
+.visit-suggest-ai h4 { font-size:13px; font-weight:700; color:var(--blue-600); margin:0 0 10px; }
+.visit-suggest-ai ul { margin:0; padding-left:18px; font-size:13px; line-height:1.7; }
+.profile-footer-actions { margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; }
+
+/* Pulse animation */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.pulse { animation:pulse 2s infinite; }
+
+/* Game engine (peixiao layout, index theme) */
+.scenario-card { border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:12px; cursor:pointer; transition:all .15s; background:#fff; }
+.scenario-card:hover { border-color:var(--blue-500); box-shadow:var(--shadow-sm); }
+.scenario-card.selected { border-color:var(--blue-500); background:var(--blue-50); }
+.scenario-card b { font-size:13px; }
+.scenario-card .scenario-desc { font-size:12px; color:var(--text-muted); margin-top:4px; line-height:1.5; }
+.decision-node { border:1px solid var(--border); border-radius:8px; padding:14px; font-size:13px; }
+.decision-node .prob { font-size:12px; color:var(--text-secondary); margin-top:6px; line-height:1.5; }
+.decision-node.best { border-color:var(--green-500); background:var(--green-50); }
+.btn-primary { padding:8px 16px; background:var(--blue-500); color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; transition:background .15s; }
+.btn-primary:hover { background:var(--blue-600); }
+.form-label { font-size:13px; font-weight:600; display:block; margin-bottom:4px; }
+.form-select { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:4px; font-size:13px; font-family:var(--font); background:#fff; }
+.form-tags { display:flex; gap:8px; margin-top:4px; flex-wrap:wrap; }
+.tag-clickable { cursor:pointer; }
+.game-result-meta { display:flex; gap:8px; margin-top:12px; font-size:12px; color:var(--text-muted); align-items:center; }
+.game-result-meta a { color:var(--blue-500); text-decoration:none; }
+.game-result-meta a:hover { text-decoration:underline; }
+.game-strategy-table { background:#f8fafd; border-radius:6px; padding:16px; }
+.game-strategy-table h4 { font-size:14px; margin-bottom:8px; font-weight:600; }
+.game-tab-panel { display:none; }
+.game-tab-panel.active { display:block; }
+.brand-pair-grid { display:grid; grid-template-columns:1fr auto 1fr; gap:12px; align-items:center; margin-bottom:16px; }
+.brand-pick { border:1px solid var(--border); border-radius:8px; padding:14px; text-align:center; cursor:pointer; transition:all .15s; background:#fff; }
+.brand-pick:hover { border-color:var(--blue-500); }
+.brand-pick.selected { border-color:var(--blue-500); background:var(--blue-50); }
+.brand-pick .pick-name { font-size:14px; font-weight:600; }
+.brand-pick .pick-meta { font-size:11px; color:var(--text-muted); margin-top:4px; }
+.brand-pick-vs { font-size:18px; color:var(--text-muted); font-weight:700; }
+.inter-scenario { border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:10px; cursor:pointer; transition:all .15s; }
+.inter-scenario:hover { border-color:var(--blue-500); }
+.inter-scenario.selected { border-color:var(--blue-500); background:var(--blue-50); }
+.inter-scenario b { font-size:13px; }
+.inter-scenario p { font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.5; }
+.leverage-block { background:linear-gradient(135deg, var(--blue-50), #fff); border:1px solid var(--border); border-left:3px solid var(--blue-500); border-radius:6px; padding:16px; margin-bottom:12px; }
+.leverage-block h4 { font-size:13px; color:var(--blue-600); margin-bottom:8px; }
+.leverage-block p { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+.actor-card { border:1px solid var(--border); border-radius:8px; padding:14px; }
+.actor-card .actor-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.actor-card .actor-name { font-size:14px; font-weight:600; }
+.actor-card ul { font-size:12px; color:var(--text-secondary); line-height:1.7; padding-left:16px; }
+.history-filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+.history-filters select { padding:6px 10px; border:1px solid var(--border); border-radius:4px; font-size:12px; font-family:var(--font); background:#fff; }
+.history-item { padding:14px 0; border-bottom:1px solid var(--border); }
+.history-item:last-child { border-bottom:none; }
+.history-item-head { display:flex; align-items:flex-start; gap:10px; margin-bottom:6px; }
+.history-item-title { font-size:13px; font-weight:600; flex:1; }
+.history-item-desc { font-size:12px; color:var(--text-secondary); line-height:1.6; margin-bottom:6px; }
+.history-item-meta { font-size:11px; color:var(--text-muted); display:flex; gap:12px; flex-wrap:wrap; }
+.history-item-actions { display:flex; gap:6px; margin-top:8px; }
+.btn-sm-outline { padding:4px 10px; font-size:11px; background:#fff; border:1px solid var(--border); border-radius:4px; cursor:pointer; }
+.btn-sm-outline:hover { border-color:var(--blue-500); color:var(--blue-600); }
+
+/* Visit assistant (peixiao layout, index theme) */
+.visit-tab-panel { display:none; }
+.visit-tab-panel.active { display:block; }
+.visit-form { display:flex; flex-direction:column; gap:14px; }
+.visit-field { display:flex; flex-direction:column; }
+.form-required { color:var(--red-500); }
+.form-input { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:4px; font-size:13px; font-family:var(--font); background:#fff; }
+.form-textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:4px; font-size:13px; resize:vertical; font-family:var(--font); line-height:1.6; }
+.radio-group { display:flex; gap:10px; flex-wrap:wrap; font-size:13px; }
+.radio-group label { cursor:pointer; display:flex; align-items:center; gap:4px; }
+.btn-outline { padding:8px 16px; background:#fff; border:1px solid var(--border); border-radius:4px; cursor:pointer; font-size:13px; font-family:var(--font); }
+.btn-outline:hover { border-color:var(--blue-500); color:var(--blue-600); }
+.btn-link { padding:8px 12px; background:none; border:none; color:var(--blue-500); cursor:pointer; font-size:13px; font-family:var(--font); }
+.btn-link:hover { text-decoration:underline; }
+.visit-alert-banner { background:linear-gradient(135deg, var(--amber-50), #fff); border:1px solid #fcd34d; border-radius:8px; padding:12px 16px; margin-bottom:12px; display:flex; align-items:flex-start; gap:12px; }
+.visit-confirm { display:none; padding:10px 14px; background:var(--green-50); border:1px solid #86efac; border-radius:6px; font-size:13px; color:var(--green-500); }
+.visit-brief-notice { margin-bottom:16px; padding:10px 14px; background:var(--amber-50); border:1px solid #fcd34d; border-radius:6px; font-size:13px; color:var(--amber-500); }
+
+/* Cockpit dashboard (kaikai layout, index theme) */
+#mod-cockpit .card { margin-bottom:0; }
+.cockpit-page-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+.cockpit-page-head .page-subtitle { margin-bottom:0; }
+.cockpit-update-badge { font-size:12px; color:var(--text-secondary); background:#f8fafd; border:1px solid var(--border); padding:6px 14px; border-radius:20px; white-space:nowrap; flex-shrink:0; }
+.cockpit-metrics { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:14px; margin-bottom:20px; }
+#mod-cockpit .stat-card { padding:14px 16px; }
+#mod-cockpit .stat-value { font-size:24px; }
+#mod-cockpit .stat-change { font-size:11px; line-height:1.45; }
+.stat-card.accent-blue { border-left:3px solid var(--blue-500); }
+.stat-card.accent-amber { border-left:3px solid var(--amber-500); }
+.stat-card.accent-green { border-left:3px solid var(--green-500); }
+.stat-card.accent-red { border-left:3px solid var(--red-500); }
+.cockpit-section { margin-bottom:20px; }
+.cockpit-section-title { font-size:12px; font-weight:600; color:var(--text-secondary); letter-spacing:.4px; margin-bottom:12px; padding-left:2px; }
+.cockpit-grid .card { height:100%; display:flex; flex-direction:column; }
+.cockpit-grid .card-body { flex:1; }
+.cockpit-alert-list { display:flex; flex-direction:column; gap:10px; }
+.cockpit-alert-item { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:8px; background:#fff; border:1px solid var(--border); border-left:3px solid var(--amber-500); }
+.cockpit-alert-item.danger { border-left-color:var(--red-500); background:linear-gradient(90deg, var(--red-50) 0%, #fff 55%); }
+.cockpit-alert-item .severity { font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; white-space:nowrap; flex-shrink:0; }
+.cockpit-alert-item .severity.p0 { background:var(--red-500); color:#fff; }
+.cockpit-alert-item .content { flex:1; min-width:0; font-size:13px; line-height:1.5; }
+.cockpit-alert-item .content strong { display:block; margin-bottom:2px; }
+.cockpit-alert-item .content .meta { font-size:11px; color:var(--text-muted); }
+.cockpit-alert-item .btn-sm-outline { flex-shrink:0; }
+.cockpit-matrix { position:relative; height:260px; background:linear-gradient(135deg, #f8fafd 0%, #fff 100%); border-radius:8px; border:1px solid var(--border); overflow:hidden; }
+.cockpit-matrix::before, .cockpit-matrix::after { content:''; position:absolute; background:#e2e8f0; z-index:0; }
+.cockpit-matrix::before { left:50%; top:28px; bottom:28px; width:1px; transform:translateX(-50%); }
+.cockpit-matrix::after { top:50%; left:28px; right:28px; height:1px; transform:translateY(-50%); }
+.cockpit-matrix .quadrant { position:absolute; font-size:10px; color:var(--text-muted); font-weight:500; z-index:1; }
+.cockpit-matrix .axis-label { position:absolute; font-size:11px; color:var(--text-muted); z-index:1; }
+.cockpit-matrix .x-label { bottom:10px; left:50%; transform:translateX(-50%); }
+.cockpit-matrix .y-label { top:50%; left:10px; transform:translateY(-50%) rotate(-90deg); transform-origin:center; }
+.cockpit-bubble { position:absolute; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#fff; text-align:center; line-height:1.3; box-shadow:var(--shadow-sm); cursor:pointer; transition:transform .15s; z-index:2; }
+.cockpit-bubble:hover { transform:scale(1.08); z-index:3; }
+.cockpit-bubble.b1 { background:rgba(0,102,204,.88); }
+.cockpit-bubble.b2 { background:rgba(14,124,75,.88); }
+.cockpit-bubble.b3 { background:rgba(230,167,0,.92); }
+.cockpit-bubble.b4 { background:rgba(148,163,184,.92); }
+.cockpit-intel-head { display:flex; align-items:center; gap:16px; margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+.cockpit-intel-score-ring { width:64px; height:64px; border-radius:50%; background:conic-gradient(var(--blue-500) 0deg 295deg, #eef0f4 295deg 360deg); display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; }
+.cockpit-intel-score-ring::before { content:''; position:absolute; inset:6px; background:#fff; border-radius:50%; }
+.cockpit-intel-score-ring .score { position:relative; font-size:20px; font-weight:700; color:var(--blue-600); }
+.cockpit-intel-score-meta { flex:1; min-width:0; }
+.cockpit-intel-score-meta .score-label { font-size:13px; font-weight:600; margin-bottom:4px; }
+.cockpit-intel-score-meta .score-desc { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.cockpit-intel-dims { display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; }
+@media (max-width:900px) { .cockpit-intel-dims { grid-template-columns:1fr; } }
+.cockpit-intel-dim { margin-bottom:0; }
+.cockpit-intel-dim-head { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; }
+.cockpit-intel-dim-head span:last-child { color:var(--text-secondary); font-weight:600; }
+.cockpit-intel-top3 { margin-top:14px; padding:10px 12px; background:#f8fafd; border-radius:6px; font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.cockpit-intel-feed-scroll { max-height:300px; overflow-y:auto; padding-right:2px; }
+.cockpit-intel-feed { display:flex; flex-direction:column; gap:10px; }
+.cockpit-intel-feed-item { padding:12px 14px; border:1px solid var(--border); border-radius:8px; background:#fafbfd; transition:background .15s; }
+.cockpit-intel-feed-item:hover { background:#fff; }
+.cockpit-intel-feed-item .feed-head { display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; }
+.cockpit-intel-feed-item .feed-title { font-size:13px; font-weight:600; line-height:1.4; flex:1; }
+.cockpit-intel-feed-item .feed-desc { font-size:12px; color:var(--text-secondary); line-height:1.55; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.cockpit-intel-feed-item .feed-meta { font-size:11px; color:var(--text-muted); margin-top:6px; }
+.cockpit-card-foot { margin-top:auto; padding-top:12px; text-align:right; border-top:1px solid var(--border); }
+
+/* Responsive layout */
+@media (max-width: 1200px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  #mod-cockpit .cockpit-metrics { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 960px) {
+  .grid-2, .grid-3, .grid-2.cockpit-grid, .cockpit-grid { grid-template-columns: 1fr; }
+  .grid-4 { grid-template-columns: 1fr; }
+  #mod-cockpit .cockpit-metrics { grid-template-columns: repeat(2, 1fr); }
+  .content { padding: 16px 18px; }
+  .topbar { padding: 0 16px; flex-wrap: wrap; height: auto; min-height: var(--header-h); padding-top: 10px; padding-bottom: 10px; }
+  .cockpit-page-head { flex-direction: column; align-items: flex-start; }
+  .page-title { font-size: 18px; }
+  .chart-container.tall { height: 280px; }
+}
+@media (max-width: 720px) {
+  body { overflow: auto; height: auto; min-height: 100vh; flex-direction: column; }
+  #sidebar { width: 100%; max-height: none; }
+  #main { overflow: visible; min-height: 0; }
+  .content { overflow: visible; padding: 14px; }
+  .sidebar-nav { display: flex; flex-wrap: wrap; gap: 0; padding: 6px 8px 10px; }
+  .nav-section { display: contents; }
+  .nav-section-title { display: none; }
+  .nav-item { padding: 7px 10px; border-left: none; border-radius: 6px; margin: 2px; }
+  .nav-item.active { border-left: none; background: rgba(59,130,246,.25); }
+  .sidebar-header { padding: 12px 14px; }
+  .topbar-right > span:first-child { display: none; }
+  .table-wrap { margin: 0 -4px; }
+  table th, table td { padding: 8px 10px; font-size: 12px; }
+  .tab-bar { overflow-x: auto; flex-wrap: nowrap; padding: 0 12px; }
+  .tab-item { padding: 10px 14px; white-space: nowrap; }
+}
+.battle-radar-head { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+.battle-radar-head h3 { flex-shrink: 0; }
+.battle-radar-select { width:auto; min-width:110px; margin-left:auto; font-size:12px; padding:5px 10px; border:1px solid var(--border); border-radius:4px; font-family:var(--font); background:#fff; }
+
+
+.m1-banner { background:linear-gradient(90deg,#0f172a,#1e3a5f); color:#e2e8f0; padding:10px 16px; border-radius:8px; font-size:12px; margin-bottom:16px; line-height:1.6; }
+.m1-banner strong { color:#93c5fd; }
+.m1-scope-tag { display:inline-block; background:#3b82f6; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-right:8px; vertical-align:middle; }
+
+#profile-tabs, #visit-tabs {
+  background: #eef1f6;
+  border-radius: 8px 8px 0 0;
+  padding: 6px 10px 0;
+  gap: 2px;
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+<div class="sidebar-header">
+  <div class="product-name">品牌沙盘 <span style="font-size:11px;font-weight:500;color:#64748b;">M1</span></div>
+  <div class="product-sub">
+    <span class="product-sub-en">Brand Sandtable · Phase 1</span>
+    <span class="product-sub-org">并行集成模式 · 第一期可开发范围</span>
+  </div>
+</div>
+<div class="sidebar-nav">
+  <div class="nav-section">
+    <div class="nav-section-title">入口</div>
+    <div class="nav-item active" data-module="workbench" data-nav-label="今日工作台">
+      <span class="nav-icon">📋</span><span class="nav-label">今日工作台</span>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">核心业务 · 三模块席</div>
+    <div class="nav-item" data-module="profile" data-nav-label="品牌档案">
+      <span class="nav-icon">🏢</span><span class="nav-label">品牌档案</span>
+      <span class="badge badge-blue" style="background:#0e7c4b;color:#fff;">已接真库</span>
+    </div>
+    <div class="nav-item" data-module="visit" data-nav-label="智能拜访助手">
+      <span class="nav-icon">🎯</span><span class="nav-label">智能拜访助手</span>
+      <span class="badge badge-blue" style="background:#0e7c4b;color:#fff;">已接真库</span>
+    </div>
+    <div class="nav-item" data-module="intelligence" data-nav-label="品牌情报流">
+      <span class="nav-icon">🔍</span><span class="nav-label">品牌情报流</span>
+      <span class="badge badge-blue" style="background:#0e7c4b;color:#fff;">已接真库</span>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="main">
+<div class="topbar">
+  <div class="breadcrumb">品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current" id="breadcrumb-current">今日工作台</span></div>
+  <div class="topbar-right">
+    <span>2026-06-08 周一</span>
+    <span style="color:var(--text-muted);">|</span>
+    <span>厨小事业部 · 采销二组</span>
+    <div class="user-avatar">周</div>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- 工作台 I6 -->
+<div class="module active" id="mod-workbench">
+  <div class="m1-banner">
+    <span class="m1-scope-tag">M1 范围</span>
+    第一期：<strong>工作台聚合</strong> + <strong>品牌档案（简）</strong> + <strong>拜访记录</strong> + <strong>情报收集</strong>。
+    不含：驾驶舱、预警中心、博弈推演、战局视图、BI 指标、作战手册 PDF。
+    开发对照 <code>docs/AI开发手册-并行集成模式.md</code> 关口 I0～I7。
+  </div>
+  <div class="page-title">今日工作台</div>
+  <div class="page-subtitle">待办与情报聚合 · 集成主编实现（I6）</div>
+
+  <div class="grid-4" style="margin-bottom:20px;">
+    <div class="stat-card"><div class="stat-label">今日待办</div><div class="stat-value" id="stat-todo-count">—</div><div class="stat-change down" id="stat-todo-overdue"><span class="arrow">↑</span>加载中</div></div>
+    <div class="stat-card"><div class="stat-label">待跟进承诺</div><div class="stat-value">6</div><div class="stat-change">来自拜访记录</div></div>
+    <div class="stat-card"><div class="stat-label">P0/P1 情报</div><div class="stat-value" style="color:var(--red-500);">5</div><div class="stat-change"><a href="#" style="color:var(--blue-500);" onclick="switchModule('intelligence');return false;">查看 →</a></div></div>
+    <div class="stat-card"><div class="stat-label">待拜访</div><div class="stat-value">2</div><div class="stat-change">本周计划</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><h3>⏰ 今日待办</h3><span class="card-meta">来源：拜访模块 · /api/todos（勾选同步数据库）</span></div>
+      <div class="card-body no-padding" style="padding:0 20px;" id="todo-list">
+        <p style="padding:16px;color:var(--text-muted);font-size:13px;">加载待办...</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>📡 近期情报</h3><span class="card-meta"><a href="#" style="color:var(--blue-500);" onclick="switchModule('intelligence');return false;">情报流 →</a></span></div>
+      <div class="card-body no-padding" style="padding:0 20px;">
+        <div class="alert-row"><div class="alert-dot red pulse"></div><div class="alert-content"><div class="alert-title">P0 · 美的电商总经理岗位变动传闻</div><div class="alert-desc">行业情报交叉验证，建议本周拜访确认决策链。</div><div class="alert-meta">06-07 · <a href="#" onclick="switchModule('profile',{brand:'midea'});return false;">美的档案</a></div></div></div>
+        <div class="alert-row"><div class="alert-dot red"></div><div class="alert-content"><div class="alert-title">P0 · 九阳K系列抖音月销+45%</div><div class="alert-desc">JD侧K9 Pro谈判中，建议48h内推进包销。</div><div class="alert-meta">06-07 · <a href="#" onclick="switchModule('visit');return false;">安排拜访</a></div></div></div>
+        <div class="alert-row"><div class="alert-dot amber"></div><div class="alert-content"><div class="alert-title">P1 · 摩飞运营总监离职待确认</div><div class="alert-desc">档案人员信息过期，建议补全后拜访。</div><div class="alert-meta">06-06 · <a href="#" onclick="switchModule('profile',{brand:'morphy'});return false;">摩飞档案</a></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header"><h3>📞 建议联系</h3><span class="card-meta">拜访节奏 + 情报 + 待办</span></div>
+    <div class="card-body">
+      <table>
+        <tr><th>品牌</th><th>级别</th><th>上次拜访</th><th>建议动作</th><th>操作</th></tr>
+        <tr><td><strong>美的</strong></td><td><span class="level-badge level-s">S</span></td><td>6/5</td><td>本周拜访 · 决策链确认</td><td><button class="btn-sm-outline" onclick="switchModule('visit')">安排</button></td></tr>
+        <tr><td><strong>九阳</strong></td><td><span class="level-badge level-a">A</span></td><td>5/20</td><td>K9 Pro 包销谈判</td><td><button class="btn-sm-outline" onclick="switchModule('visit')">安排</button></td></tr>
+        <tr><td><strong>摩飞</strong></td><td><span class="level-badge level-b">B</span></td><td>38天前</td><td>补档案 + 拜访</td><td><button class="btn-sm-outline" onclick="switchModule('profile',{brand:'morphy'})">档案</button></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 品牌档案 品牌席 · 四模块结构 -->
+<div class="module" id="mod-profile">
+  <div class="m1-banner"><span class="m1-scope-tag">品牌席</span>四 Tab：<strong>经营看板</strong> · <strong>品牌简介</strong> · <strong>最新情报</strong> · <strong>历史互动</strong>。顶部固定栏含健康分 + AI 一句话；品类对标收在折叠面板。</div>
+  <div class="page-title">品牌档案</div>
+  <div class="page-subtitle">经营数据 + 主数据维护 + 情报聚合 + 拜访闭环</div>
+
+  <div class="tab-bar" id="profile-tabs">
+    <div class="tab-item active" data-brand="midea">美的</div>
+    <div class="tab-item" data-brand="joyoung">九阳</div>
+    <div class="tab-item" data-brand="supor">苏泊尔</div>
+    <div class="tab-item" data-brand="bear">小熊电器</div>
+    <div class="tab-item" data-brand="morphy">摩飞</div>
+  </div>
+
+  <div id="profile-mount" class="profile-brand-shell"></div>
+</div>
+
+<!-- 情报 情报席 P1-P3 -->
+<div class="module" id="mod-intelligence">
+  <div class="m1-banner"><span class="m1-scope-tag">情报席</span>手工录入 · 分级 P0/P1/P2 · 筛选搜索 · 周报摘要（I6 后可选 AI）。<strong>第一期不含</strong>自动爬虫、企微推送。</div>
+  <div class="page-title">品牌情报流</div>
+  <div class="page-subtitle">情报收集与分析 · 手工录入为主</div>
+
+  <div class="intel-filters">
+    <select id="intelFilterBrand"><option value="">全部品牌</option><option>美的</option><option>九阳</option><option>苏泊尔</option><option>摩飞</option><option>小熊电器</option></select>
+    <select id="intelFilterLevel"><option value="">全部级别</option><option value="p0">P0-紧急</option><option value="p1">P1-重要</option><option value="p2">P2-常规</option></select>
+    <input type="search" id="intelSearch" placeholder="搜索情报摘要…">
+    <button class="btn-primary" style="margin-left:auto;" onclick="mockAction('情报录入表单（第一期开发）')">+ 录入情报</button>
+  </div>
+
+  <div class="grid-4" style="margin-bottom:20px;">
+    <div class="stat-card"><div class="stat-label">本周情报总量</div><div class="stat-value">47</div></div>
+    <div class="stat-card"><div class="stat-label">P0 紧急</div><div class="stat-value" style="color:var(--red-500);">3</div></div>
+    <div class="stat-card"><div class="stat-label">P1 重要</div><div class="stat-value" style="color:var(--amber-500);">12</div></div>
+    <div class="stat-card"><div class="stat-label">P2 常规</div><div class="stat-value" style="color:var(--blue-500);">32</div></div>
+  </div>
+
+  <div id="intelFeedList">
+  <div class="intel-card p0" data-brand="美的" data-level="p0">
+    <div class="intel-level" style="color:var(--red-500);">P0-紧急 · 48小时内响应</div>
+    <div class="intel-title">美的品牌方电商事业部总经理王建国近期可能岗位变动</div>
+    <div class="intel-body">多渠道交叉验证显示王建国可能在Q3调岗。若属实，关键决策链将断裂，需尽早确认并建立新对接人关系。</div>
+    <div class="intel-meta">来源：行业情报 · 置信度：中 · 2026-06-07 · <a href="#" style="color:var(--blue-500);" onclick="switchModule('profile',{brand:'midea'});return false;">查看档案</a> · <a href="#" style="color:var(--blue-500);" onclick="switchModule('visit');return false;">安排拜访</a></div>
+  </div>
+
+  <div class="intel-card p0" data-brand="美的" data-level="p0">
+    <div class="intel-level" style="color:var(--red-500);">P0-紧急</div>
+    <div class="intel-title">抖音618家电专场：美的拿下主会场核心资源位</div>
+    <div class="intel-body">抖音获家电主会场头图+搜索品牌专区。京东侧仅为品类楼层第三位，品牌预算向抖音倾斜趋势明显。</div>
+    <div class="intel-meta">来源：竞对监测 · 置信度：高 · 2026-06-07 · <button class="btn-sm-outline" onclick="mockAction('AI 摘要（I7 演示）')">生成摘要</button></div>
+  </div>
+
+  <div class="intel-card p0" data-brand="九阳" data-level="p0">
+    <div class="intel-level" style="color:var(--red-500);">P0-紧急</div>
+    <div class="intel-title">九阳K系列抖音月销+45%，JD侧K9 Pro谈判停滞</div>
+    <div class="intel-body">JD库存深度不足，抖音侧热卖而JD缺货/缺价并存。建议48h内推进包销价与618专区库存锁定。</div>
+    <div class="intel-meta">来源：手工录入+外部信息 · 2026-06-07 · <a href="#" style="color:var(--blue-500);" onclick="switchModule('visit');return false;">安排拜访</a></div>
+  </div>
+
+  <div class="intel-card p1" data-brand="摩飞" data-level="p1">
+    <div class="intel-level" style="color:var(--amber-500);">P1-重要</div>
+    <div class="intel-title">摩飞品牌方运营总监刘洋离职传闻确认中</div>
+    <div class="intel-body">猎头渠道显示摩飞正在招聘电商运营总监。建议主动联系确认并评估对已推进合作的影响。</div>
+    <div class="intel-meta">来源：外部情报 · 2026-06-06 · <a href="#" style="color:var(--blue-500);" onclick="switchModule('profile',{brand:'morphy'});return false;">查看摩飞档案</a></div>
+  </div>
+
+  <div class="intel-card p1" data-brand="苏泊尔" data-level="p1">
+    <div class="intel-level" style="color:var(--amber-500);">P1-重要</div>
+    <div class="intel-title">苏泊尔Q2财报预告：线上渠道增速放缓至5%</div>
+    <div class="intel-body">线上全渠道增速放缓。可能影响京东业绩压力与广告预算谈判。</div>
+    <div class="intel-meta">来源：行业情报 · 2026-06-05 · <a href="#" style="color:var(--blue-500);" onclick="switchModule('profile',{brand:'supor'});return false;">查看苏泊尔档案</a></div>
+  </div>
+  </div>
+
+  <details class="intel-weekly" open>
+    <summary>📄 本周情报周报 W23 · 点击收起/展开（I7 AI 自动生成）</summary>
+    <div class="intel-weekly-body">
+      <p><b>一句话总结：</b>618 前核心矛盾是「抖音分流 + 谈判窗口」——美的资源外溢、九阳 K 系列谈判、摩飞档案滞后需优先补全。</p>
+      <p style="margin-top:8px;"><b>建议动作：</b>① 拜访美的王建国 ② 推进九阳 K9 Pro 包销 ③ 摩飞档案补全+拜访。</p>
+    </div>
+  </details>
+</div>
+
+<!-- 拜访 拜访席 P1-P3 -->
+<div class="module" id="mod-visit">
+  <div class="m1-banner"><span class="m1-scope-tag">拜访席</span>安排拜访 · 拜访后记录 · 承诺跟踪 · 拜访日历 · 频率健康度。<strong>第一期不含</strong>作战手册 PDF、博弈推演联动、语音转写、GMV效果追踪。</div>
+  <div class="page-title">智能拜访助手</div>
+  <div class="page-subtitle">拜访全链路记录 · M7 待办抽取在记录页演示</div>
+
+  <div class="tab-bar" id="visit-tabs" style="margin-bottom:20px;">
+    <div class="tab-item active" data-vtab="schedule">📝 安排拜访</div>
+    <div class="tab-item" data-vtab="record">📋 拜访后记录</div>
+    <div class="tab-item" data-vtab="history">📅 拜访日历</div>
+  </div>
+
+  <div class="visit-tab-panel active" id="vtab-schedule">
+    <div class="grid-2">
+      <div class="card"><div class="card-header"><h3>🆕 新建拜访安排</h3></div><div class="card-body"><div class="visit-form">
+        <div class="visit-field"><label class="form-label">拜访品牌 <span class="form-required">*</span></label>
+          <select class="form-select" id="visit-brand-select">
+            <option value="midea" selected>美的（S）</option><option value="joyoung">九阳（A）</option><option value="supor">苏泊尔（A）</option><option value="bear">小熊（A）</option><option value="morphy">摩飞（B）</option>
+          </select></div>
+        <div class="grid-2" style="gap:12px;"><div class="visit-field"><label class="form-label">日期 *</label><input type="date" class="form-input" value="2026-06-10"></div>
+        <div class="visit-field"><label class="form-label">时间</label><input type="time" class="form-input" value="14:00"></div></div>
+        <div class="visit-field"><label class="form-label">拜访类型 *</label><div class="radio-group">
+          <label><input type="radio" name="visitType" checked> 紧急</label><label><input type="radio" name="visitType"> 定期</label><label><input type="radio" name="visitType"> 续约</label></div></div>
+        <div class="visit-field"><label class="form-label">拜访目的 *</label><textarea class="form-textarea" rows="3">对齐618联合投放与新品排期；确认王建国岗位变动。</textarea></div>
+        <div class="visit-field"><label class="form-label">拜访对象</label><div class="form-tags">
+          <span class="tag tag-red">王建国</span><span class="tag tag-amber">李敏</span></div></div>
+        <div style="display:flex;gap:8px;"><button class="btn-primary" onclick="confirmSchedule()">✅ 确认安排</button><button class="btn-outline" onclick="mockAction('草稿已保存')">💾 草稿</button></div>
+        <div id="scheduleConfirm" class="visit-confirm">✅ 拜访已安排！待办已创建：<b>6月10日美的拜访准备</b>。</div>
+      </div></div></div>
+      <div class="card"><div class="card-header"><h3>📌 拜访前提醒</h3><span class="tag tag-blue">档案+情报</span></div><div class="card-body" style="font-size:13px;line-height:1.85;color:var(--text-secondary);">
+        <div class="visit-alert-banner"><span style="font-size:18px;">📋</span><div><b style="color:var(--text);">来自品牌档案：</b>上次拜访 6/5；承诺「3款首发」仅兑现 1/3；张磊 24 天未建联。</div></div>
+        <p><b style="color:var(--text);">来自情报流 P0：</b>抖音618资源倾斜；王建国岗位变动传闻。</p>
+        <p style="margin-top:8px;"><button class="btn-sm-outline" onclick="switchModule('profile',{brand:'midea'})">查看美的档案</button>
+        <button class="btn-sm-outline" onclick="switchModule('intelligence')">相关情报</button></p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="visit-tab-panel" id="vtab-record">
+    <div class="grid-2">
+      <div class="card"><div class="card-header"><h3>📋 拜访后记录</h3></div><div class="card-body"><div class="visit-form">
+        <div class="visit-field"><label class="form-label">选择拜访</label><select class="form-select"><option selected>6/10 · 美的 · 紧急拜访</option><option>6/5 · 美的 · 季度</option></select></div>
+        <div class="visit-field"><label class="form-label">参与人员</label><input class="form-input" value="周采销；王建国、李敏"></div>
+        <div class="visit-field"><label class="form-label">会谈议题</label><textarea class="form-textarea" rows="3">联合投放谈判；新品排期；岗位变动传闻。</textarea></div>
+        <div class="visit-field"><label class="form-label">✅ 承诺事项 *</label><textarea class="form-textarea" rows="5">【品牌方承诺】
+- 6/12前确认600万联合投放
+- 6/15前确认空气炸锅Pro排期
+- 6月底前确认王建国岗位变动</textarea></div>
+        <div class="visit-field"><label class="form-label">未达成</label><textarea class="form-textarea" rows="2">第3款新品仍待定。</textarea></div>
+        <div class="visit-field"><label class="form-label">关系温度</label><div class="radio-group"><label><input type="radio" checked> 升温</label><label><input type="radio"> 持平</label><label><input type="radio"> 降温</label></div></div>
+        <button class="btn-primary" onclick="confirmRecord()">💾 保存 & 生成待办</button>
+        <div id="recordConfirm" class="visit-confirm">✅ 已保存！自动生成 <b>4条待办</b>，已同步档案与情报备注。</div>
+      </div></div></div>
+      <div class="card"><div class="card-header"><h3>🤖 AI 提取待办（M7 演示）</h3><span class="tag tag-green">保存后创建</span></div><div class="card-body">
+        <table><tr><th>优先级</th><th>待办</th><th>截止</th></tr>
+          <tr><td><span class="tag tag-red">P0</span></td><td>跟进600万投放方案确认</td><td>06-12</td></tr>
+          <tr><td><span class="tag tag-red">P0</span></td><td>跟进空气炸锅Pro排期</td><td>06-15</td></tr>
+          <tr><td><span class="tag tag-amber">P1</span></td><td>确认王建国岗位变动</td><td>06-20</td></tr>
+          <tr><td><span class="tag tag-blue">P2</span></td><td>6/24下次拜访准备</td><td>06-22</td></tr>
+        </table>
+        <p style="margin-top:12px;font-size:12px;color:var(--text-muted);">第一期：待办写入工作台；不含 GMV 自动追踪。</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="visit-tab-panel" id="vtab-history">
+    <div class="card"><div class="card-header"><h3>📅 拜访日历 · 2026年6月</h3><button class="btn-sm-outline" onclick="switchVisitTab('schedule')">+ 安排</button></div>
+      <div class="card-body no-padding" style="padding:0 20px;"><table>
+        <tr><th>日期</th><th>品牌</th><th>类型</th><th>目的</th><th>状态</th><th>操作</th></tr>
+        <tr><td>6/10</td><td>美的</td><td><span class="tag tag-red">紧急</span></td><td>618投放+新品</td><td>待拜访</td><td><button class="btn-sm-outline" onclick="switchVisitTab('record')">记录</button></td></tr>
+        <tr><td>6/5</td><td>美的</td><td><span class="tag tag-green">完成</span></td><td>季度对齐</td><td>已完成</td><td><button class="btn-sm-outline">查看</button></td></tr>
+        <tr><td>5/20</td><td>九阳</td><td><span class="tag tag-green">完成</span></td><td>季度复盘</td><td>已完成</td><td><button class="btn-sm-outline">查看</button></td></tr>
+        <tr><td>6/18</td><td>九阳</td><td><span class="tag tag-blue">定期</span></td><td>例行拜访</td><td>已排期</td><td><button class="btn-sm-outline" onclick="switchModule('profile',{brand:'joyoung'})">档案</button></td></tr>
+      </table></div></div>
+    <div class="card" style="margin-top:20px;"><div class="card-header"><h3>📊 拜访频率健康度</h3></div><div class="card-body no-padding" style="padding:0 20px;"><table>
+      <tr><th>品牌</th><th>等级</th><th>基线</th><th>近90天</th><th>状态</th></tr>
+      <tr><td>美的</td><td><span class="level-badge level-s">S</span></td><td>2-4周/次</td><td>2次</td><td><span class="tag tag-amber">偏低</span></td></tr>
+      <tr><td>九阳</td><td><span class="level-badge level-a">A</span></td><td>季度/次</td><td>1次</td><td><span class="tag tag-green">达标</span></td></tr>
+      <tr><td>苏泊尔</td><td><span class="level-badge level-a">A</span></td><td>季度/次</td><td>0次</td><td><span class="tag tag-red">偏低</span></td></tr>
+      <tr><td>小熊电器</td><td><span class="level-badge level-b">B</span></td><td>季度/次</td><td>0次</td><td><span class="tag tag-red">严重偏低</span></td></tr>
+      <tr><td>摩飞</td><td><span class="level-badge level-b">B</span></td><td>季度/次</td><td>0次</td><td><span class="tag tag-red">严重偏低</span></td></tr>
+    </table></div></div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+/* 品牌档案 · 四模块渲染（sandtableM1） */
+(function () {
+  var WEEKS = ['W12','W13','W14','W15','W16','W17','W18','W19','W20','W21','W22','W23'];
+  var chartStore = {};
+  var currentBrand = 'midea';
+  var currentPTab = 'dashboard';
+  var profileTabsBound = false;
+
+  var BRAND_INTEL_LABEL = {
+    midea: '美的', joyoung: '九阳', supor: '苏泊尔', bear: '小熊电器', morphy: '摩飞'
+  };
+
+  var BRANDS = {
+    midea: {
+      id: 'midea', name: '美的', level: 's', levelLabel: 'S-战略级', health: 88,
+      buyer: '周采销', updated: '06-08',
+      ai: '份额领先但<strong>增长承压</strong>：JD月GMV ¥8,420万仍居#1，但连续下滑-16.3%；核心矛盾是抖音618资源倾斜，需在48h内拜访王建国对齐。',
+      kpi: { gmv: '¥8,420万', gmvYoy: -8.1, gmvMom: -16.3, gmvGrowth: -16.3, orders: '48.2万', orderGrowth: -12, sku: 428, gapP0: 3 },
+      gmvTrend: [1050,1080,1120,1090,1100,1070,1040,1000,960,920,880,842],
+      anomalyFrom: 8,
+      channelShare: { JD: 31.2, TM: 24.8, DY: 28.5, PDD: 8.2 },
+      channelGrowth: { JD: -16.3, TM: -5.2, DY: 22, PDD: 8.1 },
+      categories: [
+        { name: '空气炸锅', share: 22, jdShare: 28, avg: 22 },
+        { name: '电饭煲', share: 17, jdShare: 31, avg: 24 },
+        { name: '破壁机', share: 12, jdShare: 18, avg: 20 },
+        { name: '电热水壶', share: 9, jdShare: 15, avg: 18 },
+        { name: '微波炉', share: 7, jdShare: 19, avg: 16 }
+      ],
+      benchmark: { margin: { val: 22.4, top: 24.8, rank: 8 }, cvr: { val: 4.2, top: 5.6, rank: 12 }, adRate: { val: 5.0, top: 4.2, rank: 15 } },
+      gaps: [
+        { sku: '空气炸锅 Pro 5L', platform: '抖音', compSales: '¥820万/月', prio: 'P0' },
+        { sku: '电热水壶 1.7L 恒温', platform: '天猫', compSales: '¥310万/月', prio: 'P0' },
+        { sku: '破壁机静音款', platform: '拼多多', compSales: '¥180万/月', prio: 'P1' }
+      ],
+      intro: { founded: '1968年', hq: '广东佛山', pos: '全屋智能厨电龙头，全渠道布局，抖音内容电商增速显著。' },
+      people: [
+        { name: '王建国', role: '电商事业部总经理', tag: '批预算', tagCls: 'tag-blue', contact: '6/5', change: '' },
+        { name: '李敏', role: '京东渠道运营总监', tag: '日常对接', tagCls: 'tag-gray', contact: '6/5', change: '' },
+        { name: '张磊', role: '产品总监', tag: '需加强', tagCls: 'tag-amber', contact: '5/15', change: '职务信息24天未更新' }
+      ],
+      org: { root: '美的集团', lead: '电商事业部', nodes: ['王建国 · 总经理', '李敏 · 渠道', '张磊 · 产品'] },
+      rules: [
+        { text: '王总不喜欢饭局谈正事，建议工作日早上10点前约短会。', by: '周采销', time: '2026-05-20', stale: false },
+        { text: '合同谈判偏好：先邮件沟通条款，再面谈拍板。', by: '周采销', time: '2026-04-10', stale: false }
+      ],
+      opps: [
+        { title: '618联合投放窗口', body: '品牌方审批中，JD可对赌首周GMV换资源位。', src: '拜访纪要', time: '06-05', impact: '高' },
+        { title: '空气炸锅Pro JD同发机会', body: '产品总监口头认可，待书面确认排期。', src: '情报库', time: '05-15', impact: '中' },
+        { title: '品类#1地位可换毛利', body: '市占31.2%仍领先，可谈保量换点位。', src: '经营数据', time: '06-07', impact: '中' }
+      ],
+      risks: [
+        { title: 'GMV连续2周下滑超15%', body: '天猫叠券+抖音分流+部分SKU缺货。', src: '经营异动', time: '05-28', impact: '高' },
+        { title: '电商总经理岗位变动传闻', body: '多渠道交叉验证，决策链或断裂。', src: '情报库', time: '06-07', impact: '高' },
+        { title: '3款新品首发仅兑现1/3', body: '5/17承诺未闭环，关系温度下行。', src: '承诺追踪', time: '06-01', impact: '中' }
+      ],
+      history: {
+        days: 5, cycle: 14, overdue: false, temp: 72, tempTrend: 'down',
+        timeline: [
+          { date: '2026-06-05', type: 'good', title: '季度拜访 · 美的总部', brief: '王建国、李敏参会', full: '议题：618目标¥1.2亿、联合投放600万、3款新品首发。结论：投放方案品牌方内部审批中。' },
+          { date: '2026-06-07', type: 'warn', title: '情报入库：抖音618资源倾斜', brief: 'P0情报触发', full: '竞对监测显示抖音获主会场头图，建议本周紧急拜访对齐。' },
+          { date: '2026-05-15', type: '', title: '产品沟通 · 空气炸锅Pro', brief: '张磊参会', full: '口头考虑JD同发，需书面确认排期与价格机制。' }
+        ],
+        commits: [
+          { item: '1款空气炸锅JD首发', status: 'done', due: '05-30' },
+          { item: '3款新品JD首发（仅1/3）', status: 'fail', due: '05-30' },
+          { item: '联合投放预算600万', status: 'doing', due: '06-12' }
+        ],
+        suggest: { days: 3, topics: ['确认王建国岗位变动及新对接人', '推进联合投放方案书面确认', '锁定空气炸锅Pro JD首发排期'] }
+      }
+    },
+    joyoung: {
+      id: 'joyoung', name: '九阳', level: 'a', levelLabel: 'A-核心级', health: 85,
+      buyer: '吴采销', updated: '06-06',
+      ai: '增长稳健但<strong>K系列供给博弈</strong>关键：抖音月销+45%而JD K9 Pro谈判停滞，存在全网热卖、JD缺货/缺价风险。',
+      kpi: { gmv: '¥3,150万', gmvYoy: 6.2, gmvMom: 3.2, gmvGrowth: 3.2, orders: '22.8万', orderGrowth: 4.5, sku: 186, gapP0: 2 },
+      gmvTrend: [280,285,290,292,295,298,300,302,305,308,312,315],
+      anomalyFrom: -1,
+      channelShare: { JD: 18.5, TM: 28, DY: 32, PDD: 12 },
+      channelGrowth: { JD: 3.2, TM: 2.1, DY: 45, PDD: 10 },
+      categories: [
+        { name: '破壁机', share: 24, jdShare: 22, avg: 20 },
+        { name: '豆浆机', share: 18, jdShare: 25, avg: 21 },
+        { name: '电饭煲', share: 15, jdShare: 16, avg: 19 },
+        { name: '养生壶', share: 12, jdShare: 14, avg: 15 }
+      ],
+      benchmark: { margin: { val: 26.8, top: 24.8, rank: 4 }, cvr: { val: 5.1, top: 5.6, rank: 6 }, adRate: { val: 3.8, top: 4.2, rank: 7 } },
+      gaps: [
+        { sku: 'K9 Pro 破壁机', platform: '抖音', compSales: '¥620万/月', prio: 'P0' },
+        { sku: 'K系列豆浆机', platform: '抖音', compSales: '¥280万/月', prio: 'P0' }
+      ],
+      intro: { founded: '1994年', hq: '山东济南', pos: '厨房小电核心品牌，豆浆机/破壁机品类优势明显。' },
+      people: [
+        { name: '陈志远', role: '电商VP', tag: '批预算', tagCls: 'tag-blue', contact: '5/20', change: '沟通频次下降' },
+        { name: '赵雪', role: '京东渠道经理', tag: '日常对接', tagCls: 'tag-gray', contact: '5/28', change: '' }
+      ],
+      org: { root: '九阳股份', lead: '电商中心', nodes: ['陈志远 · VP', '赵雪 · JD渠道', '供应链 · 待补'] },
+      rules: [
+        { text: 'VP层级会议需提前3天邮件预约，附带JD数据简报。', by: '吴采销', time: '2026-03-12', stale: false }
+      ],
+      opps: [
+        { title: 'K系列抖音爆发可反推JD包销', body: '全网热卖证明需求，可谈48h锁价+618专区。', src: '全网商品', time: '06-07', impact: '高' },
+        { title: '破壁机L18增速+12%', body: '可追加库存深度争取类目楼层。', src: '经营数据', time: '06-05', impact: '中' },
+        { title: '关系温度85°高位', body: '适合推进KPI双计与流量对赌条款。', src: '拜访记录', time: '05-20', impact: '中' }
+      ],
+      risks: [
+        { title: 'K9 Pro谈判停滞', body: 'JD库存深度0.7周，大促断货风险。', src: '供给监测', time: '06-07', impact: '高' },
+        { title: '电商VP沟通间隔拉长', body: '上次拜访后21天无高层互动。', src: '拜访周期', time: '06-06', impact: '中' },
+        { title: '抖音价低于JD', body: '部分SKU价差>8%，影响转化。', src: '价盘监测', time: '06-04', impact: '中' }
+      ],
+      history: {
+        days: 21, cycle: 90, overdue: false, temp: 85, tempTrend: 'up',
+        timeline: [
+          { date: '2026-05-20', type: 'good', title: '季度复盘拜访', brief: '陈志远、赵雪', full: '复盘Q1 GMV达成102%，讨论K9 Pro包销价机制。' }
+        ],
+        commits: [
+          { item: 'K9 Pro包销价确认', status: 'done', due: '06-01' },
+          { item: '618专区库存锁定', status: 'doing', due: '06-10' }
+        ],
+        suggest: { days: 7, topics: ['48h内推进K9 Pro同价协议', '附带618流量对赌条款', '重建与陈志远高层沟通节奏'] }
+      }
+    },
+    supor: {
+      id: 'supor', name: '苏泊尔', level: 'a', levelLabel: 'A-核心级', health: 78,
+      buyer: '陈采销', updated: '05-28',
+      ai: 'Q2线上增速仅<strong>+5%</strong>，预算收紧信号明显；关系温度68°偏低，当前是防守型谈判窗口，宜保毛利换资源。',
+      kpi: { gmv: '¥2,410万', gmvYoy: 4.2, gmvMom: 5.0, gmvGrowth: 5.0, orders: '16.5万', orderGrowth: 3.8, sku: 152, gapP0: 1 },
+      gmvTrend: [220,222,225,228,230,232,234,236,238,240,242,241],
+      anomalyFrom: -1,
+      channelShare: { JD: 14.2, TM: 32, DY: 22, PDD: 14 },
+      channelGrowth: { JD: 5, TM: 3, DY: 8, PDD: 6 },
+      categories: [
+        { name: '电饭煲', share: 28, jdShare: 16, avg: 22 },
+        { name: '破壁机', share: 20, jdShare: 14, avg: 20 },
+        { name: '炒锅', share: 15, jdShare: 18, avg: 17 }
+      ],
+      benchmark: { margin: { val: 24.1, top: 24.8, rank: 9 }, cvr: { val: 4.6, top: 5.6, rank: 14 }, adRate: { val: 7.5, top: 4.2, rank: 18 } },
+      gaps: [{ sku: '破壁机专供款', platform: '—', compSales: '承诺未落地', prio: 'P0' }],
+      intro: { founded: '1994年', hq: '浙江玉环', pos: '炊具+厨房电器双轮驱动，线上增速放缓，注重ROI。' },
+      people: [
+        { name: '待补全', role: '电商总监', tag: '可能过期', tagCls: 'tag-red', contact: '42天前', change: '联系方式未更新' }
+      ],
+      org: { root: '苏泊尔集团', lead: '电商部', nodes: ['总监 · 待核实', '京东组 · 待补'] },
+      rules: [
+        { text: '品牌方当前更关注ROI，大规模要量易被拒，建议带数据方案。', by: '陈采销', time: '2026-02-18', stale: true }
+      ],
+      opps: [
+        { title: '线上增速放缓或利好谈判', body: '品牌业绩压力增大，可争取更优返利条款。', src: '财报情报', time: '06-05', impact: '中' },
+        { title: '破壁机专供款缺口', body: '若落地可填补价格带空白。', src: '承诺追踪', time: '05-10', impact: '中' },
+        { title: '电饭煲类目 JD 市占低于均值', body: '可谈专供款换类目楼层曝光。', src: '经营看板', time: '06-07', impact: '中' }
+      ],
+      risks: [
+        { title: '决策链信息过期42天', body: '电商总监联系方式未更新。', src: '档案巡检', time: '06-06', impact: '高' },
+        { title: '广告预算砍投12%', body: '618联合投放谈判或受阻。', src: '经营数据', time: '06-01', impact: '中' },
+        { title: '破壁机专供款未落地', body: '上次拜访核心承诺未兑现。', src: '承诺追踪', time: '05-28', impact: '中' }
+      ],
+      history: {
+        days: null, cycle: 90, overdue: true, temp: 68, tempTrend: 'down',
+        timeline: [],
+        commits: [],
+        suggest: { days: 5, topics: ['补全电商总监决策链', '确认破壁机专供款落地时间', '用保毛利方案重谈618资源'] }
+      }
+    },
+    bear: {
+      id: 'bear', name: '小熊电器', level: 'b', levelLabel: 'B-成长级', health: 81,
+      buyer: '李采销', updated: '06-04',
+      ai: '品类<strong>增速明星</strong>（+15%），养生壶JD #1；策略重心从保合作转向抢增量，推进联名款独家首发。',
+      kpi: { gmv: '¥1,280万', gmvYoy: 18, gmvMom: 15, gmvGrowth: 15, orders: '11.2万', orderGrowth: 18, sku: 96, gapP0: 0 },
+      gmvTrend: [95,98,100,102,105,108,110,112,115,118,122,128],
+      anomalyFrom: -1,
+      channelShare: { JD: 38, TM: 22, DY: 28, PDD: 8 },
+      channelGrowth: { JD: 15, TM: 8, DY: 35, PDD: 12 },
+      categories: [
+        { name: '养生壶', share: 33, jdShare: 42, avg: 18 },
+        { name: '电饭煲mini', share: 24, jdShare: 35, avg: 15 },
+        { name: '空气炸锅', share: 22, jdShare: 28, avg: 20 }
+      ],
+      benchmark: { margin: { val: 28.5, top: 24.8, rank: 2 }, cvr: { val: 5.8, top: 5.6, rank: 3 }, adRate: { val: 3.2, top: 4.2, rank: 4 } },
+      gaps: [],
+      intro: { founded: '2006年', hq: '广东佛山', pos: '创意小电品牌，年轻化定位，养生壶等细分品类领先。' },
+      people: [
+        { name: '孙悦', role: '电商经理', tag: '日常对接', tagCls: 'tag-gray', contact: '6/1', change: '' }
+      ],
+      org: { root: '小熊电器', lead: '电商部', nodes: ['孙悦 · 电商经理', '产品 · 待补', '市场 · 联名'] },
+      rules: [
+        { text: '品牌方对联名款创意敏感，需带视觉草案再谈，避免空口承诺。', by: '李采销', time: '2026-05-18', stale: false }
+      ],
+      opps: [
+        { title: '618联名款独家首发', body: '品牌方初步认可，可绑定站外回流对赌。', src: '拜访纪要', time: '06-04', impact: '高' },
+        { title: '养生壶品类JD #1', body: '可申请成长品牌专项流量包。', src: '经营数据', time: '06-01', impact: '高' },
+        { title: '毛利率品类TOP3', body: '议价空间充足，可争取更好点位。', src: '品类对标', time: '06-07', impact: '中' }
+      ],
+      risks: [
+        { title: '抖音自营+35%分流', body: '可能稀释JD新客，需独家款绑定。', src: '渠道监测', time: '06-03', impact: '中' },
+        { title: '体量仍小市占8.5%', body: '资源争取需用增速故事打动品牌。', src: '经营数据', time: '06-07', impact: '低' },
+        { title: '联名款视觉稿未定', body: '若拖延或错过618排期窗口。', src: '承诺追踪', time: '06-06', impact: '中' }
+      ],
+      history: {
+        days: null, cycle: 90, overdue: true, temp: 88, tempTrend: 'up',
+        timeline: [],
+        commits: [],
+        suggest: { days: 14, topics: ['推进联名款视觉定稿', '申请成长品牌流量包', '绑定站外回流数据对赌'] }
+      }
+    },
+    morphy: {
+      id: 'morphy', name: '摩飞', level: 'b', levelLabel: 'B-成长级', health: 71,
+      buyer: '王采销', updated: '05-01',
+      ai: '档案健康度<strong>71分</strong>团队最低；行业增速+22%与JD+8%背离，38天未拜访，策略以补档案+抢供给为主。',
+      kpi: { gmv: '¥780万', gmvYoy: 10, gmvMom: 8, gmvGrowth: 8, orders: '6.8万', orderGrowth: 6, sku: 64, gapP0: 4 },
+      gmvTrend: [68,70,71,72,73,74,75,76,77,78,79,78],
+      anomalyFrom: -1,
+      channelShare: { JD: 18.5, TM: 20, DY: 45, PDD: 10 },
+      channelGrowth: { JD: 8, TM: 5, DY: 38, PDD: 15 },
+      categories: [
+        { name: '多功能锅', share: 35, jdShare: 12, avg: 22 },
+        { name: '榨汁机', share: 22, jdShare: 10, avg: 18 },
+        { name: '电水壶', share: 15, jdShare: 14, avg: 16 }
+      ],
+      benchmark: { margin: { val: 32.1, top: 24.8, rank: 1 }, cvr: { val: 3.8, top: 5.6, rank: 17 }, adRate: { val: 2.1, top: 4.2, rank: 3 } },
+      gaps: [
+        { sku: '多功能锅 MR9088', platform: '抖音', compSales: '¥420万/月', prio: 'P0' },
+        { sku: '榨汁机便携款', platform: '抖音', compSales: '¥180万/月', prio: 'P0' },
+        { sku: '电水壶复古款', platform: '天猫', compSales: '¥95万/月', prio: 'P1' },
+        { sku: '早餐机套装', platform: '拼多多', compSales: '¥72万/月', prio: 'P1' }
+      ],
+      intro: { founded: '1936年', hq: '英国（中国运营）', pos: '设计溢价小电，私域/抖音强于JD，渠道边缘化风险需关注。' },
+      people: [
+        { name: '刘洋', role: '运营总监', tag: '待确认', tagCls: 'tag-red', contact: '未知', change: '离职传闻确认中' }
+      ],
+      org: { root: '摩飞中国', lead: '电商运营', nodes: ['总监 · 待补', '私域 · 待补', '产品 · 待补'] },
+      rules: [
+        { text: '（待补全）决策人偏好与拜访禁忌尚未录入。', by: '—', time: '—', stale: true }
+      ],
+      opps: [
+        { title: '行业增速+22% JD仅+8%', body: '若争取同价同发可快速起量。', src: '经营对比', time: '06-07', impact: '高' },
+        { title: '设计溢价适合JD礼盒场景', body: '618礼品频道匹配度高。', src: '品类分析', time: '06-02', impact: '中' },
+        { title: '多功能锅抖音热卖', body: '可谈 JD 同价引入 MR9088 系列。', src: '供给缺口', time: '06-07', impact: '高' }
+      ],
+      risks: [
+        { title: '运营总监离职传闻', body: '决策链断裂风险，档案完整度低。', src: '情报库', time: '06-06', impact: '高' },
+        { title: '38天未拜访', body: '超B级品牌季度基线。', src: '拜访周期', time: '06-08', impact: '高' },
+        { title: '抖音占比估45%', body: '渠道数据待核实，JD或边缘化。', src: '档案缺口', time: '06-01', impact: '中' }
+      ],
+      history: {
+        days: null, cycle: 90, overdue: true, temp: 65, tempTrend: 'down',
+        timeline: [],
+        commits: [],
+        suggest: { days: 3, topics: ['本周内补全决策链+渠道占比', '拜访确认618多功能锅/榨汁机货盘', '核实运营总监去留'] }
+      }
+    }
+  };
+
+  function arrow(v, suffix) {
+    suffix = suffix || '%';
+    if (v > 0) return '<span class="kpi-sub up">↑ 同比 +' + v + suffix + '</span>';
+    if (v < 0) return '<span class="kpi-sub down">↓ 同比 ' + v + suffix + '</span>';
+    return '<span class="kpi-sub">同比持平</span>';
+  }
+
+  function trendArrow(v) {
+    if (v > 0) return '<span class="kpi-sub up">↑ +' + v + '%</span>';
+    if (v < 0) return '<span class="kpi-sub down">↓ ' + v + '%</span>';
+    return '<span class="kpi-sub">持平</span>';
+  }
+
+  function healthRing(score) {
+    var r = 30, c = 2 * Math.PI * r, off = c * (1 - score / 100);
+    var color = score >= 80 ? 'var(--green-500)' : score >= 75 ? 'var(--amber-500)' : 'var(--red-500)';
+    return '<div class="profile-health-ring"><svg width="72" height="72" viewBox="0 0 72 72">' +
+      '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="#e3e8ee" stroke-width="6"/>' +
+      '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="6" stroke-dasharray="' + c + '" stroke-dashoffset="' + off + '" stroke-linecap="round"/>' +
+      '</svg><div class="ring-score">' + score + '<span class="ring-label">健康分</span></div></div>';
+  }
+
+  function p0Gaps(b) {
+    return (b.gaps || []).filter(function (g) { return g.prio === 'P0'; });
+  }
+
+  function renderKpiRow(b) {
+    var k = b.kpi;
+    var p0 = p0Gaps(b);
+    var p0Count = p0.length;
+    var gapClick = p0Count > 0 ? ' clickable" onclick="toggleGapPanel(\'' + b.id + '\')"' : '"';
+    return '<div class="profile-kpi-row">' +
+      '<div class="profile-kpi-card"><div class="kpi-label">GMV（本期）</div><div class="kpi-value">' + k.gmv + '</div>' + arrow(k.gmvYoy) + '<span class="kpi-sub ' + (k.gmvMom < 0 ? 'down' : 'up') + '">环比 ' + (k.gmvMom > 0 ? '+' : '') + k.gmvMom + '%</span></div>' +
+      '<div class="profile-kpi-card"><div class="kpi-label">GMV增速</div><div class="kpi-value">' + (k.gmvGrowth > 0 ? '+' : '') + k.gmvGrowth + '%</div>' + trendArrow(k.gmvGrowth) + '</div>' +
+      '<div class="profile-kpi-card"><div class="kpi-label">成交（订单）</div><div class="kpi-value">' + k.orders + '</div><span class="kpi-sub">本期订单数</span></div>' +
+      '<div class="profile-kpi-card"><div class="kpi-label">成交增速</div><div class="kpi-value">' + (k.orderGrowth > 0 ? '+' : '') + k.orderGrowth + '%</div>' + trendArrow(k.orderGrowth) + '</div>' +
+      '<div class="profile-kpi-card"><div class="kpi-label">在售SKU</div><div class="kpi-value">' + k.sku + '</div><span class="kpi-sub">本期在售</span></div>' +
+      '<div class="profile-kpi-card gap-alert' + gapClick + '><div class="kpi-label">P0供给缺口</div><div class="kpi-value" style="color:' + (p0Count ? 'var(--red-500)' : 'var(--text-secondary)') + '">' + p0Count + '</div><span class="kpi-sub">' + (p0Count ? '点击查看缺口列表 →' : '暂无 P0 缺口') + '</span></div>' +
+      '</div>';
+  }
+
+  function renderGapPanel(b) {
+    var p0 = p0Gaps(b);
+    if (!p0.length) return '<div class="profile-gap-panel" id="gap-panel-' + b.id + '"><div class="gap-head">暂无 P0 供给缺口</div></div>';
+    var rows = p0.map(function (g) {
+      return '<tr><td>' + g.sku + '</td><td>' + g.platform + '</td><td>' + g.compSales + '</td><td><span class="tag tag-red">' + g.prio + '</span></td></tr>';
+    }).join('');
+    return '<div class="profile-gap-panel" id="gap-panel-' + b.id + '"><div class="gap-head">P0 SKU 供给缺口 · 建议引入优先级</div><table><tr><th>SKU</th><th>竞对平台</th><th>竞对月销</th><th>优先级</th></tr>' + rows + '</table></div>';
+  }
+
+  function renderDashboard(b) {
+    var catRows = b.categories.map(function (c) {
+      var warn = c.jdShare < c.avg ? ' class="warn-cell"' : '';
+      return '<tr' + warn + '><td>' + c.name + '</td><td>' + c.share + '%</td><td>' + c.jdShare + '%</td><td>' + c.avg + '%</td><td>' + (c.jdShare < c.avg ? '<span class="tag tag-amber">低于均值</span>' : '<span class="tag tag-green">正常</span>') + '</td></tr>';
+    }).join('');
+    var bm = b.benchmark;
+    return renderKpiRow(b) + renderGapPanel(b) +
+      '<div class="profile-chart-grid">' +
+      '<div class="profile-chart-box"><h4>GMV 趋势 · 近12周（异常段标红）</h4><div class="profile-chart-canvas"><canvas id="chart-gmv-' + b.id + '"></canvas></div></div>' +
+      '<div class="profile-chart-box"><h4>渠道 GMV 占比 · JD / TM / DY / PDD</h4><div class="profile-chart-canvas"><canvas id="chart-share-' + b.id + '"></canvas></div></div>' +
+      '</div>' +
+      '<div class="profile-chart-grid">' +
+      '<div class="profile-chart-box"><h4>渠道增速对比</h4><div class="profile-chart-canvas"><canvas id="chart-growth-' + b.id + '"></canvas></div></div>' +
+      '<div class="profile-chart-box"><h4>三级类目 GMV 占比</h4><div class="profile-chart-canvas"><canvas id="chart-cat-' + b.id + '"></canvas></div></div>' +
+      '</div>' +
+      '<div class="card" style="margin-bottom:16px"><div class="card-header"><h3>类目维度市占</h3><span class="card-meta">低于品类均值标黄 · 找机会点</span></div><div class="card-body no-padding" style="padding:0 16px"><table class="profile-cat-table"><tr><th>三级类目</th><th>品牌GMV占比</th><th>JD市占</th><th>品类均值</th><th>判断</th></tr>' + catRows + '</table></div></div>' +
+      '<details class="profile-benchmark-panel"><summary>📊 品类对标（毛利率 / 转化率 / 广告费率 vs TOP20）</summary><div class="profile-benchmark-body"><table><tr><th>指标</th><th>本品牌</th><th>品类TOP20均值</th><th>排名</th><th>解读</th></tr>' +
+      '<tr><td>毛利率</td><td>' + bm.margin.val + '%</td><td>' + bm.margin.top + '%</td><td>#' + bm.margin.rank + '</td><td>' + (bm.margin.rank <= 8 ? '议价空间较好' : '低于头部') + '</td></tr>' +
+      '<tr><td>UV转化率</td><td>' + bm.cvr.val + '%</td><td>' + bm.cvr.top + '%</td><td>#' + bm.cvr.rank + '</td><td>' + (bm.cvr.rank <= 8 ? '转化效率领先' : '投放效率偏低') + '</td></tr>' +
+      '<tr><td>广告费率</td><td>' + bm.adRate.val + '%</td><td>' + bm.adRate.top + '%</td><td>#' + bm.adRate.rank + '</td><td>' + (bm.adRate.rank <= 8 ? '费率健康' : '费率偏高') + '</td></tr>' +
+      '</table><p style="font-size:12px;color:var(--text-muted);margin-top:10px">帮助判断议价空间与投放效率 · 数据可手工导入或 BI 对接</p></div></details>';
+  }
+
+  function renderPeople(b) {
+    return b.people.map(function (p) {
+      var ch = p.change ? '<div class="profile-expire-warn" style="margin-top:8px">⚠️ ' + p.change + '</div>' : '';
+      return '<div class="person-card-editable"><div class="person-head"><div><div class="person-name">' + p.name + '</div><div class="person-role">' + p.role + '</div></div><button class="btn-sm-outline" onclick="mockAction(\'编辑关键人（第一期开发）\')">编辑</button></div>' +
+        '<div class="person-tags"><span class="tag ' + p.tagCls + '">' + p.tag + '</span><span class="tag tag-gray">最近建联 ' + p.contact + '</span></div>' + ch + '</div>';
+    }).join('');
+  }
+
+  function renderOrg(b) {
+    var nodes = b.org.nodes.map(function (n) { return '<div class="org-node">' + n + '</div>'; }).join('');
+    return '<div class="org-chart"><div class="org-node">' + b.org.root + '</div><div class="org-connector"></div><div class="org-node lead">' + b.org.lead + '</div><div class="org-connector"></div><div class="org-row">' + nodes + '</div></div>';
+  }
+
+  function renderIntro(b) {
+    var rules = b.rules.map(function (r) {
+      return '<div class="profile-rule-item' + (r.stale ? ' stale' : '') + '">' + r.text + '<div class="rule-meta">最后更新：' + r.by + ' · ' + r.time + (r.stale ? ' · <span style="color:var(--red-500)">可能过期</span>' : '') + '</div></div>';
+    }).join('');
+    return '<div class="profile-intro-grid">' +
+      '<div class="card"><div class="card-header"><h3>基础信息</h3></div><div class="card-body"><dl class="profile-basic-dl"><dt>成立时间</dt><dd>' + b.intro.founded + '</dd><dt>总部</dt><dd>' + b.intro.hq + '</dd><dt>品牌定位</dt><dd>' + b.intro.pos + '</dd><dt>负责采销</dt><dd>' + b.buyer + '</dd></dl></div></div>' +
+      '<div class="card"><div class="card-header"><h3>关键人物</h3><span class="card-meta">可编辑 · AI候选→采销确认</span></div><div class="card-body">' + renderPeople(b) + '</div></div>' +
+      '</div><div class="grid-2" style="margin-top:16px">' +
+      '<div class="card"><div class="card-header"><h3>组织架构简图</h3></div><div class="card-body">' + renderOrg(b) + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>品牌潜规则</h3><span class="card-meta">拜访禁忌 · 决策偏好</span></div><div class="card-body">' + rules + '</div></div></div>';
+  }
+
+  function renderIntelList(items, cls) {
+    return items.map(function (it) {
+      return '<div class="profile-intel-item ' + cls + '"><div class="intel-item-title">' + it.title + '</div><div>' + it.body + '</div><div class="intel-item-meta">' + it.src + ' · ' + it.time + ' · 影响 <span class="tag tag-' + (it.impact === '高' ? 'red' : it.impact === '中' ? 'amber' : 'blue') + '">' + it.impact + '</span></div></div>';
+    }).join('');
+  }
+
+  function renderIntelTab(b) {
+    return '<div class="profile-intel-split">' +
+      '<div class="profile-intel-col"><h4>🟢 增长机会 TOP3</h4>' + renderIntelList(b.opps, 'opp') + '</div>' +
+      '<div class="profile-intel-col"><h4>🔴 风险预警 TOP3</h4>' + renderIntelList(b.risks, 'risk') + '</div></div>' +
+      '<p style="margin-top:14px;font-size:12px"><button class="btn-sm-outline" onclick="openBrandIntelFeed(\'' + b.id + '\')">查看全部情报 → 品牌情报库</button></p>';
+  }
+
+  function commitIcon(s) {
+    if (s === 'done') return '<span class="tag tag-green">已兑现 ✓</span>';
+    if (s === 'fail') return '<span class="tag tag-red">未兑现 ✗</span>';
+    return '<span class="tag tag-amber">进行中 ●</span>';
+  }
+
+  function renderHistory(b) {
+    var h = b.history;
+    var statusCls = h.overdue ? 'status-warn' : 'status-ok';
+    var statusText;
+    if (h.days == null) {
+      statusText = '<strong>暂无拜访记录</strong>（超约定周期 ' + h.cycle + '天 · 标红）';
+    } else {
+      statusText = h.overdue ? '距上次拜访 <strong>' + h.days + '天</strong>（超约定周期 ' + h.cycle + '天 · 标红）' : '距上次拜访 <strong>' + h.days + '天</strong>（周期内）';
+    }
+    var tl = h.timeline.map(function (t) {
+      var cls = t.type ? ' ' + t.type : '';
+      return '<div class="profile-tl-item' + cls + '"><div class="tl-time">' + t.date + '</div><div class="tl-title">' + t.title + '</div><div class="tl-desc">' + t.brief + '</div>' +
+        (t.full ? '<details class="profile-tl-details"><summary>展开完整纪要</summary><div class="tl-full">' + t.full + '</div></details>' : '') + '</div>';
+    }).join('');
+    if (!tl) tl = '<div style="font-size:13px;color:var(--text-muted);padding:8px 0;">暂无拜访记录，建议尽快安排首次拜访。</div>';
+    var commits = h.commits.map(function (c) {
+      return '<tr><td>' + c.item + '</td><td>' + commitIcon(c.status) + '</td><td>' + c.due + '</td></tr>';
+    }).join('');
+    if (!commits) commits = '<tr><td colspan="3" style="color:var(--text-muted);text-align:center;">暂无承诺事项</td></tr>';
+    var topics = h.suggest.topics.map(function (t) { return '<li>' + t + '</li>'; }).join('');
+    return '<div class="history-status-bar"><span class="' + statusCls + '">' + statusText + '</span><span>关系温度 <strong>' + h.temp + '°</strong> · 趋势 ' + (h.tempTrend === 'up' ? '↑' : h.tempTrend === 'down' ? '↓' : '→') + '</span></div>' +
+      '<div class="grid-2"><div class="card"><div class="card-header"><h3>拜访时间轴</h3></div><div class="card-body"><div class="profile-timeline">' + tl + '</div></div></div>' +
+      '<div class="card"><div class="card-header"><h3>承诺追踪</h3></div><div class="card-body no-padding" style="padding:0 16px"><table class="commit-table"><tr><th>待办项</th><th>状态</th><th>截止</th></tr>' + commits + '</table></div></div></div>' +
+      '<div class="visit-suggest-ai"><h4>🤖 AI 下次拜访建议</h4><p style="font-size:13px;margin:0 0 8px">建议 <strong>' + h.suggest.days + '天内</strong> 安排拜访（综合数据异动 + 拜访周期 + 待办未闭环）：</p><ul>' + topics + '</ul></div>' +
+      '<div class="profile-footer-actions"><button class="btn-sm-outline" onclick="switchModule(\'visit\')">📝 安排拜访</button><button class="btn-sm-outline" onclick="switchModule(\'intelligence\')">🔍 情报库</button></div>';
+  }
+
+  function isProfileModuleVisible() {
+    var mod = document.getElementById('mod-profile');
+    return mod && mod.classList.contains('active');
+  }
+
+  function renderBrand(brandId) {
+    var b = BRANDS[brandId];
+    if (!b) return;
+    destroyCharts(currentBrand);
+    if (brandId !== currentBrand) destroyCharts(brandId);
+    currentBrand = brandId;
+    var mount = document.getElementById('profile-mount');
+    if (!mount) return;
+    mount.innerHTML =
+      '<div class="profile-top-bar">' +
+      '<div class="profile-top-left"><h2 class="profile-brand-name">' + b.name + '</h2><span class="level-badge level-' + b.level + '">' + b.levelLabel + '</span></div>' +
+      healthRing(b.health) +
+      '<div class="profile-ai-oneline">🤖 ' + b.ai + '</div>' +
+      '<div class="profile-top-meta"><span>负责采销：' + b.buyer + '</span><span>档案更新：' + b.updated + '</span><span>数据说明：JD口径 · 近12周</span></div></div>' +
+      '<div class="tab-bar profile-inner-tabs" id="profile-inner-tabs">' +
+      '<div class="tab-item' + (currentPTab === 'dashboard' ? ' active' : '') + '" data-ptab="dashboard">📊 经营看板</div>' +
+      '<div class="tab-item' + (currentPTab === 'intro' ? ' active' : '') + '" data-ptab="intro">🏢 品牌简介</div>' +
+      '<div class="tab-item' + (currentPTab === 'intel' ? ' active' : '') + '" data-ptab="intel">📡 最新情报</div>' +
+      '<div class="tab-item' + (currentPTab === 'history' ? ' active' : '') + '" data-ptab="history">🤝 历史互动</div></div>' +
+      '<div class="profile-panels">' +
+      '<div class="profile-pane' + (currentPTab === 'dashboard' ? ' active' : '') + '" data-ptab="dashboard">' + renderDashboard(b) + '</div>' +
+      '<div class="profile-pane' + (currentPTab === 'intro' ? ' active' : '') + '" data-ptab="intro">' + renderIntro(b) + '</div>' +
+      '<div class="profile-pane' + (currentPTab === 'intel' ? ' active' : '') + '" data-ptab="intel">' + renderIntelTab(b) + '</div>' +
+      '<div class="profile-pane' + (currentPTab === 'history' ? ' active' : '') + '" data-ptab="history">' + renderHistory(b) + '</div></div>';
+
+    bindInnerTabs();
+    scheduleProfileCharts();
+  }
+
+  function scheduleProfileCharts() {
+    setTimeout(function () {
+      if (currentPTab !== 'dashboard' || !isProfileModuleVisible()) return;
+      initProfileCharts(currentBrand);
+    }, 100);
+  }
+
+  function bindInnerTabs() {
+    document.querySelectorAll('#profile-inner-tabs .tab-item').forEach(function (tab) {
+      tab.onclick = function () {
+        currentPTab = this.dataset.ptab;
+        document.querySelectorAll('#profile-inner-tabs .tab-item').forEach(function (t) { t.classList.remove('active'); });
+        this.classList.add('active');
+        document.querySelectorAll('.profile-pane').forEach(function (p) {
+          p.classList.toggle('active', p.dataset.ptab === currentPTab);
+        });
+        scheduleProfileCharts();
+      };
+    });
+  }
+
+  function destroyCharts(id) {
+    if (!id) return;
+    ['gmv', 'share', 'growth', 'cat'].forEach(function (k) {
+      var key = id + '-' + k;
+      if (chartStore[key]) { chartStore[key].destroy(); delete chartStore[key]; }
+    });
+  }
+
+  function buildGmvLineDatasets(trend, anomalyFrom) {
+    var n = trend.length;
+    var base = { fill: true, tension: 0.3, pointBorderColor: '#fff', pointBorderWidth: 1, spanGaps: false };
+    if (anomalyFrom < 0 || anomalyFrom >= n) {
+      return [{
+        label: '周GMV(万)', data: trend, borderColor: '#0066cc', backgroundColor: 'rgba(0,102,204,0.08)',
+        borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#0066cc'
+      }];
+    }
+    return [
+      Object.assign({}, base, {
+        label: '周GMV(万)', data: trend.map(function (v, i) { return i <= anomalyFrom ? v : null; }),
+        borderColor: '#0066cc', backgroundColor: 'rgba(0,102,204,0.08)', borderWidth: 2,
+        pointRadius: trend.map(function (_, i) { return i <= anomalyFrom ? 4 : 0; }),
+        pointBackgroundColor: trend.map(function (_, i) { return i <= anomalyFrom ? '#0066cc' : 'transparent'; })
+      }),
+      Object.assign({}, base, {
+        label: '异常下滑', data: trend.map(function (v, i) { return i >= anomalyFrom ? v : null; }),
+        borderColor: '#cd3b32', backgroundColor: 'rgba(205,59,50,0.12)', borderWidth: 2.5,
+        pointRadius: trend.map(function (_, i) { return i >= anomalyFrom ? 4 : 0; }),
+        pointBackgroundColor: trend.map(function (_, i) { return i >= anomalyFrom ? '#cd3b32' : 'transparent'; })
+      })
+    ];
+  }
+
+  function initProfileCharts(id) {
+    if (typeof Chart === 'undefined') return;
+    var b = BRANDS[id];
+    if (!b) return;
+    destroyCharts(id);
+
+    var gmvCtx = document.getElementById('chart-gmv-' + id);
+    if (gmvCtx) {
+      chartStore[id + '-gmv'] = new Chart(gmvCtx, {
+        type: 'line',
+        data: { labels: WEEKS, datasets: buildGmvLineDatasets(b.gmvTrend, b.anomalyFrom) },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: function (v) { return v + '万'; } } } } }
+      });
+    }
+
+    var labels = ['JD', 'TM', 'DY', 'PDD'];
+    var shareCtx = document.getElementById('chart-share-' + id);
+    if (shareCtx) {
+      chartStore[id + '-share'] = new Chart(shareCtx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{ label: '市占%', data: [b.channelShare.JD, b.channelShare.TM, b.channelShare.DY, b.channelShare.PDD], backgroundColor: ['#0066cc', '#e6a700', '#1a1a1a', '#cd3b32'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: function (v) { return v + '%'; } } } } }
+      });
+    }
+
+    var growthCtx = document.getElementById('chart-growth-' + id);
+    if (growthCtx) {
+      chartStore[id + '-growth'] = new Chart(growthCtx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{ label: '增速%', data: [b.channelGrowth.JD, b.channelGrowth.TM, b.channelGrowth.DY, b.channelGrowth.PDD],
+            backgroundColor: [b.channelGrowth.JD, b.channelGrowth.TM, b.channelGrowth.DY, b.channelGrowth.PDD].map(function (v) { return v >= 0 ? '#0e7c4b' : '#cd3b32'; })
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: function (v) { return v + '%'; } } } } }
+      });
+    }
+
+    var catCtx = document.getElementById('chart-cat-' + id);
+    if (catCtx) {
+      chartStore[id + '-cat'] = new Chart(catCtx, {
+        type: 'bar',
+        data: {
+          labels: b.categories.map(function (c) { return c.name; }),
+          datasets: [{ label: 'GMV占比%', data: b.categories.map(function (c) { return c.share; }), backgroundColor: '#0066cc' }],
+          indexAxis: 'y'
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { callback: function (v) { return v + '%'; } } } } }
+      });
+    }
+  }
+
+  window.toggleGapPanel = function (id) {
+    var b = BRANDS[id];
+    if (!b || !p0Gaps(b).length) return;
+    var el = document.getElementById('gap-panel-' + id);
+    if (el) el.classList.toggle('open');
+  };
+
+  window.openBrandIntelFeed = function (brandId) {
+    var label = BRAND_INTEL_LABEL[brandId] || '';
+    if (typeof switchModule === 'function') switchModule('intelligence');
+    var sel = document.getElementById('intelFilterBrand');
+    if (sel && label) {
+      sel.value = label;
+      if (typeof filterIntelFeed === 'function') filterIntelFeed();
+    }
+  };
+
+  window.refreshProfileCharts = function () {
+    scheduleProfileCharts();
+  };
+
+  window.renderProfileBrand = function (brandId, ptab) {
+    if (ptab) currentPTab = ptab;
+    renderBrand(brandId || 'midea');
+  };
+
+  window.initBrandProfiles = function () {
+    renderBrand('midea');
+    if (profileTabsBound) return;
+    profileTabsBound = true;
+    document.querySelectorAll('#profile-tabs .tab-item').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        document.querySelectorAll('#profile-tabs .tab-item').forEach(function (t) { t.classList.remove('active'); });
+        this.classList.add('active');
+        currentPTab = 'dashboard';
+        renderBrand(this.dataset.brand);
+      });
+    });
+  };
+
+  function bootProfiles() {
+    if (document.getElementById('profile-mount')) initBrandProfiles();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootProfiles);
+  else bootProfiles();
+})();
+
+</script>
+<script>
+function getNavLabel(item) {
+  if (!item) return '';
+  if (item.dataset.navLabel) return item.dataset.navLabel;
+  const labelEl = item.querySelector('.nav-label');
+  return labelEl ? labelEl.textContent.trim() : '';
+}
+
+// 已接真库的模块 → 跳转独立页（2026-06-11 起：拜访 / 品牌档案 / 情报流）
+var LIVE_MODULE_PAGES = { visit: 'visit.html', profile: 'profile.html', intelligence: 'intel.html' };
+var WB_API = (window.location.protocol === 'file:') ? 'http://127.0.0.1:8000' : '';
+
+function wbApi(path, opts) {
+  opts = opts || {};
+  var fetchOpts = { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json' } };
+  if (opts.body && fetchOpts.method !== 'GET') fetchOpts.body = JSON.stringify(opts.body);
+  return fetch(WB_API + path, fetchOpts).then(function(r) {
+    return r.json().then(function(data) {
+      if (!r.ok) throw new Error(data.detail || '请求失败');
+      return data;
+    });
+  });
+}
+
+function wbEscapeHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function wbFormatDeadline(d) {
+  if (!d) return '—';
+  return String(d).slice(5).replace('-', '/');
+}
+
+function wbIsOverdue(t) {
+  if (t.status === 'done') return false;
+  if (t.status === 'overdue') return true;
+  if (!t.deadline) return false;
+  var today = new Date().toISOString().slice(0, 10);
+  return String(t.deadline) < today;
+}
+
+function renderWorkbenchTodos(todos) {
+  var list = document.getElementById('todo-list');
+  if (!list) return;
+  var pending = todos.filter(function(t) { return t.status !== 'done'; });
+  var overdueN = pending.filter(wbIsOverdue).length;
+  var countEl = document.getElementById('stat-todo-count');
+  if (countEl) countEl.textContent = String(pending.length);
+  var overdueEl = document.getElementById('stat-todo-overdue');
+  if (overdueEl) {
+    overdueEl.innerHTML = overdueN
+      ? '<span class="arrow">↑</span>' + overdueN + '项已逾期'
+      : '无逾期';
+  }
+  if (!pending.length) {
+    list.innerHTML = '<p style="padding:16px;color:var(--text-muted);font-size:13px;">🎉 暂无未完成待办</p>';
+    return;
+  }
+  list.innerHTML = pending.map(function(t) {
+    var pri = t.priority || 'P2';
+    var priCls = pri === 'P0' ? 'prio-p0' : (pri === 'P1' ? 'prio-p1' : 'prio-p2');
+    var od = wbIsOverdue(t);
+    var checkCls = 'todo-check' + (od ? ' overdue-flag' : '');
+    var titleStyle = od ? ' style="color:var(--red-500);"' : '';
+    var priTag = od
+      ? '<span class="todo-priority prio-p0" style="background:var(--red-500);color:#fff;">超期</span>'
+      : '<span class="todo-priority ' + priCls + '">' + pri + '</span>';
+    return '<div class="todo-item" data-id="' + t.id + '">' +
+      '<div class="' + checkCls + '" role="button" tabindex="0" title="标记完成"></div>' +
+      '<div class="todo-info"><div class="todo-title"' + titleStyle + '>' + wbEscapeHtml(t.title) + '</div>' +
+      '<div class="todo-meta">负责人：' + wbEscapeHtml(t.assignee || '采销') + ' · 截止：' + wbFormatDeadline(t.deadline) + '</div></div>' +
+      priTag + '</div>';
+  }).join('');
+}
+
+function loadWorkbenchTodos() {
+  return wbApi('/api/todos').then(renderWorkbenchTodos).catch(function(e) {
+    var list = document.getElementById('todo-list');
+    if (list) list.innerHTML = '<p style="padding:16px;color:var(--red-500);font-size:13px;">待办加载失败：' + wbEscapeHtml(e.message) + '</p>';
+  });
+}
+
+function toggleWorkbenchTodo(id) {
+  wbApi('/api/todos/' + id, { method: 'PUT', body: { status: 'done' } })
+    .then(function() {
+      showToast('待办已完成（已同步数据库）');
+      return loadWorkbenchTodos();
+    })
+    .catch(function(e) { showToast('更新失败：' + e.message); });
+}
+
+(function bindWorkbenchTodos() {
+  var list = document.getElementById('todo-list');
+  if (!list) return;
+  list.addEventListener('click', function(e) {
+    var check = e.target.closest('.todo-check');
+    if (!check || check.classList.contains('done')) return;
+    var item = check.closest('.todo-item');
+    if (!item || !item.dataset.id) return;
+    toggleWorkbenchTodo(item.dataset.id);
+  });
+  loadWorkbenchTodos();
+})();
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function() {
+    if (LIVE_MODULE_PAGES[this.dataset.module]) { window.location.href = LIVE_MODULE_PAGES[this.dataset.module]; return; }
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    this.classList.add('active');
+    document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+    const el = document.getElementById('mod-' + this.dataset.module);
+    if (el) el.classList.add('active');
+    document.getElementById('breadcrumb-current').textContent = getNavLabel(this);
+    if (this.dataset.module === 'profile' && typeof refreshProfileCharts === 'function') {
+      setTimeout(refreshProfileCharts, 120);
+    }
+  });
+});
+
+function switchModule(name, opts) {
+  opts = opts || {};
+  // 已接真库的模块跳转独立页，支持 ?brand= 直达品牌
+  if (LIVE_MODULE_PAGES[name]) {
+    var q = opts.brand ? ('?brand=' + encodeURIComponent(opts.brand)) : '';
+    window.location.href = LIVE_MODULE_PAGES[name] + q;
+    return;
+  }
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  const navItem = document.querySelector('[data-module="' + name + '"]');
+  if (navItem) navItem.classList.add('active');
+  document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+  const modEl = document.getElementById('mod-' + name);
+  if (modEl) modEl.classList.add('active');
+  document.getElementById('breadcrumb-current').textContent = getNavLabel(navItem);
+  if (opts.brand && name === 'profile') switchProfileBrand(opts.brand);
+  if (opts.brand && name === 'visit') {
+    const sel = document.getElementById('visit-brand-select');
+    if (sel) sel.value = opts.brand;
+  }
+  if (opts.vtab && name === 'visit') switchVisitTab(opts.vtab);
+  if (name === 'profile' && typeof refreshProfileCharts === 'function') {
+    setTimeout(refreshProfileCharts, 120);
+  }
+}
+
+function switchProfileBrand(brand) {
+  const tab = document.querySelector('#profile-tabs .tab-item[data-brand="' + brand + '"]');
+  if (tab) {
+    document.querySelectorAll('#profile-tabs .tab-item').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  }
+  if (typeof renderProfileBrand === 'function') renderProfileBrand(brand, 'dashboard');
+}
+
+function showToast(msg) {
+  let t = document.getElementById('appToast');
+  if (!t) { t = document.createElement('div'); t.id = 'appToast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(function() { t.classList.remove('show'); }, 2800);
+}
+
+function mockAction(msg) { showToast(msg || '操作已记录（演示）'); }
+
+function filterIntelFeed() {
+  const brand = document.getElementById('intelFilterBrand')?.value || '';
+  const level = document.getElementById('intelFilterLevel')?.value || '';
+  const q = (document.getElementById('intelSearch')?.value || '').toLowerCase();
+  document.querySelectorAll('#intelFeedList .intel-card').forEach(function(card) {
+    const matchBrand = !brand || card.dataset.brand === brand;
+    const matchLevel = !level || card.dataset.level === level;
+    const matchQ = !q || card.textContent.toLowerCase().includes(q);
+    card.style.display = matchBrand && matchLevel && matchQ ? '' : 'none';
+  });
+}
+
+['intelFilterBrand', 'intelFilterLevel'].forEach(function(id) {
+  document.getElementById(id)?.addEventListener('change', filterIntelFeed);
+});
+document.getElementById('intelSearch')?.addEventListener('input', filterIntelFeed);
+
+function switchVisitTab(vtab) {
+  document.querySelectorAll('#visit-tabs .tab-item').forEach(t => t.classList.toggle('active', t.dataset.vtab === vtab));
+  document.querySelectorAll('.visit-tab-panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('vtab-' + vtab);
+  if (panel) panel.classList.add('active');
+}
+
+document.querySelectorAll('#visit-tabs .tab-item').forEach(tab => {
+  tab.addEventListener('click', function() { switchVisitTab(this.dataset.vtab); });
+});
+
+function confirmSchedule() {
+  const el = document.getElementById('scheduleConfirm');
+  if (el) { el.style.display = 'block'; showToast('拜访已安排'); setTimeout(() => el.style.display = 'none', 5000); }
+}
+
+function confirmRecord() {
+  const el = document.getElementById('recordConfirm');
+  if (el) { el.style.display = 'block'; showToast('记录已保存，待办已生成'); setTimeout(() => el.style.display = 'none', 6000); }
+}
+</script>
+</body>
+</html>

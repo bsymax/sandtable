@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>品牌情报流 · 智能拜访助手</title>
+<style>
+:root {
+  --bg: #f4f5f9;
+  --card-bg: #ffffff;
+  --text: #1a1f36;
+  --text-secondary: #697386;
+  --text-muted: #a3acba;
+  --border: #e3e8ee;
+  --blue-600: #0066cc;
+  --blue-500: #0d7aff;
+  --blue-50: #e8f2ff;
+  --amber-500: #e6a700;
+  --amber-50: #fff8e6;
+  --red-500: #cd3b32;
+  --red-50: #fdecea;
+  --green-500: #0e7c4b;
+  --green-50: #e8f5ef;
+  --sidebar-w: 256px;
+  --header-h: 56px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04), 0 1px 4px rgba(0,0,0,.06);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:var(--bg); color:var(--text); display:flex; height:100vh; overflow:hidden; }
+
+/* Sidebar */
+#sidebar {
+  width:var(--sidebar-w); background:#0f172a; color:#e2e8f0; display:flex; flex-direction:column;
+  flex-shrink:0; z-index:10;
+}
+.sidebar-header { padding:18px 20px; border-bottom:1px solid rgba(255,255,255,.06); }
+.sidebar-header .product-name { font-size:16px; font-weight:700; letter-spacing:-.2px; }
+.sidebar-header .product-sub { font-size:12px; color:#94a3b8; margin-top:6px; line-height:1.4; }
+.sidebar-nav { flex:1; overflow-y:auto; padding:8px 0; }
+.nav-section-title { font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:#475569; padding:12px 20px 6px; font-weight:600; }
+.nav-item {
+  display:flex; align-items:center; gap:10px; padding:10px 20px; cursor:pointer; font-size:13px;
+  color:#94a3b8; transition:all .15s; border-left:3px solid transparent; text-decoration:none;
+}
+.nav-item:hover { background:rgba(255,255,255,.04); color:#e2e8f0; }
+.nav-item.active { color:#fff; background:rgba(255,255,255,.06); border-left-color:#3b82f6; font-weight:500; }
+.nav-item .nav-icon { width:18px; text-align:center; font-size:15px; flex-shrink:0; }
+.nav-item .badge { margin-left:auto; font-size:10px; padding:2px 6px; border-radius:8px; font-weight:600; }
+.badge-red { background:#ef4444; color:#fff; }
+.badge-amber { background:#f59e0b; color:#000; }
+
+/* Main */
+#main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.topbar {
+  height:var(--header-h); background:#fff; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 28px; gap:20px; flex-shrink:0;
+}
+.breadcrumb { font-size:13px; color:var(--text-secondary); }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:16px; font-size:13px; color:var(--text-secondary); }
+.content { flex:1; overflow-y:auto; padding:24px 28px; }
+
+/* Cards */
+.card {
+  background:var(--card-bg); border-radius:8px; border:1px solid var(--border);
+  box-shadow:var(--shadow-sm); margin-bottom:20px;
+}
+.card-header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.card-header h3 { font-size:14px; font-weight:600; }
+.card-meta { font-size:12px; color:var(--text-muted); margin-left:auto; }
+.card-body { padding:20px; }
+
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.grid-4 { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; }
+
+/* Page */
+.page-title { font-size:20px; font-weight:700; margin-bottom:4px; letter-spacing:-.3px; }
+.page-subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:20px; }
+
+/* Stat cards */
+.stat-card { background:#fff; border-radius:8px; border:1px solid var(--border); padding:18px 20px; box-shadow:var(--shadow-sm); }
+.stat-label { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+.stat-value { font-size:28px; font-weight:700; letter-spacing:-.5px; }
+
+/* Tags */
+.tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.tag-red { background:var(--red-50); color:var(--red-500); }
+.tag-amber { background:var(--amber-50); color:var(--amber-500); }
+.tag-green { background:var(--green-50); color:var(--green-500); }
+.tag-blue { background:var(--blue-50); color:var(--blue-500); }
+.tag-gray { background:#f0f1f5; color:var(--text-secondary); }
+
+/* Level badges */
+.level-badge { display:inline-block; padding:2px 8px; border-radius:3px; font-size:11px; font-weight:700; }
+.level-s { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+.level-a { background:#e0e7ff; color:#3730a3; border:1px solid #a5b4fc; }
+.level-b { background:#f0f1f5; color:#4b5563; border:1px solid #d1d5db; }
+
+/* Intel filters */
+.intel-filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+.intel-filters select, .intel-filters input {
+  padding:8px 12px; border:1px solid var(--border); border-radius:4px;
+  font-size:13px; font-family:var(--font); background:#fff;
+}
+.intel-filters input { flex:1; min-width:160px; }
+
+/* Intel cards */
+.intel-card { padding:16px; border:1px solid var(--border); border-radius:6px; margin-bottom:10px; background:#fff; cursor:default; transition:box-shadow .15s; }
+.intel-card:hover { box-shadow:var(--shadow-sm); }
+.intel-card.p0 { border-left:3px solid var(--red-500); }
+.intel-card.p1 { border-left:3px solid var(--amber-500); }
+.intel-card.p2 { border-left:3px solid var(--blue-500); }
+.intel-level { font-size:10px; font-weight:700; margin-bottom:6px; text-transform:uppercase; }
+.intel-title { font-size:13px; font-weight:600; margin-bottom:4px; }
+.intel-body { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+.intel-meta { font-size:11px; color:var(--text-muted); margin-top:6px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.intel-meta a { color:var(--blue-500); text-decoration:none; cursor:pointer; }
+.intel-meta a:hover { text-decoration:underline; }
+
+/* Buttons */
+.btn-primary { padding:8px 16px; background:var(--blue-500); color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-family:var(--font); transition:background .15s; }
+.btn-primary:hover { background:var(--blue-600); }
+.btn-sm-outline { padding:4px 10px; font-size:11px; background:#fff; border:1px solid var(--border); border-radius:4px; cursor:pointer; font-family:var(--font); }
+.btn-sm-outline:hover { border-color:var(--blue-500); color:var(--blue-600); }
+.btn-outline { padding:8px 16px; background:#fff; border:1px solid var(--border); border-radius:4px; cursor:pointer; font-size:13px; font-family:var(--font); }
+.btn-outline:hover { border-color:var(--blue-500); color:var(--blue-600); }
+
+/* Modal */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:100; justify-content:center; align-items:center; }
+.modal-overlay.show { display:flex; }
+.modal-box { background:#fff; border-radius:12px; width:520px; max-height:80vh; overflow-y:auto; padding:24px; box-shadow:var(--shadow-md); }
+.modal-box h3 { font-size:16px; margin-bottom:16px; }
+.form-group { margin-bottom:14px; }
+.form-label { font-size:13px; font-weight:600; display:block; margin-bottom:4px; }
+.form-input, .form-select, .form-textarea { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:4px; font-size:13px; font-family:var(--font); }
+.form-textarea { resize:vertical; min-height:80px; line-height:1.6; }
+.form-row { display:flex; gap:10px; }
+.form-row > * { flex:1; }
+.form-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+
+/* Weekly report */
+.intel-weekly { background:#f8fafd; border:1px solid var(--border); border-radius:8px; padding:16px 18px; margin-top:16px; }
+.intel-weekly summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--blue-600); list-style:none; }
+.intel-weekly summary::-webkit-details-marker { display:none; }
+.intel-weekly-body { margin-top:12px; font-size:13px; line-height:1.7; color:var(--text-secondary); }
+
+/* Toast */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:#1a1f36; color:#fff; padding:10px 18px; border-radius:8px; font-size:13px; z-index:9999; opacity:0; transition:all .25s; pointer-events:none; box-shadow:var(--shadow-md); }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* Pulse */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.pulse { animation:pulse 2s infinite; }
+
+/* Loading / empty */
+.loading { text-align:center; padding:40px; color:var(--text-muted); font-size:14px; }
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-muted); }
+.empty-state .icon { font-size:48px; margin-bottom:12px; }
+
+/* Responsive */
+@media (max-width: 960px) {
+  .grid-2, .grid-4 { grid-template-columns:1fr; }
+  .content { padding:16px 18px; }
+}
+
+.m1-banner { background:linear-gradient(90deg,#0f172a,#1e3a5f); color:#e2e8f0; padding:10px 16px; border-radius:8px; font-size:12px; margin-bottom:16px; line-height:1.6; }
+.m1-banner strong { color:#93c5fd; }
+.m1-scope-tag { display:inline-block; background:#3b82f6; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-right:8px; vertical-align:middle; }
+
+.news-card { padding:14px; border:1px solid var(--border); border-radius:6px; margin-bottom:8px; background:#fafbfd; transition:background .15s; }
+.news-card:hover { background:#fff; }
+.news-card.negative { border-left:3px solid var(--red-500); }
+.news-card.positive { border-left:3px solid var(--green-500); }
+.news-card.neutral { border-left:3px solid var(--blue-500); }
+.news-title { font-size:13px; font-weight:600; margin-bottom:4px; }
+.news-summary { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.news-meta { font-size:11px; color:var(--text-muted); margin-top:4px; }
+
+.alert-row { display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
+.alert-row:last-child { border-bottom:none; }
+.alert-dot { width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+.alert-dot.red { background:var(--red-500); }
+.alert-dot.amber { background:var(--amber-500); }
+.alert-dot.blue { background:var(--blue-500); }
+.alert-content { flex:1; }
+.alert-title { font-size:13px; font-weight:600; margin-bottom:2px; }
+.alert-desc { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.alert-meta { font-size:11px; color:var(--text-muted); margin-top:4px; }
+.alert-actions { display:flex; gap:6px; flex-shrink:0; }
+</style>
+</head>
+<body>
+
+<!-- 侧栏由 js/shell.js 统一注入（2026-06-11，原页内侧栏已移除） -->
+<span id="active-alert-count" style="display:none;">-</span>
+
+<div id="main">
+<div class="topbar">
+  <div class="breadcrumb"><a href="index.html" style="color:var(--blue-500,#2f6fed);text-decoration:none;">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <strong>品牌情报流</strong></div>
+  <div class="topbar-right">
+    <span id="today-date"></span>
+    <span style="color:var(--text-muted);">|</span>
+    <span>厨小事业部 · 采销二组</span>
+  </div>
+</div>
+
+<div class="content">
+  <div class="m1-banner">
+    <span class="m1-scope-tag">情报席</span>
+    外部新闻抓取 + 内部周报 + <strong>AI预警建议</strong> · 与拜访助手联动。
+    支持手工录入与自动抓取，分级 P0/P1/P2/P3。
+  </div>
+
+  <div class="page-title">品牌情报流</div>
+  <div class="page-subtitle">外部情报 + 内部周报 · 交叉分析预警</div>
+
+  <!-- 统计卡片 -->
+  <div class="grid-4" style="margin-bottom:20px;" id="stats-row">
+    <div class="stat-card"><div class="stat-label">本周情报总量</div><div class="stat-value" id="stat-total-news">-</div></div>
+    <div class="stat-card"><div class="stat-label">P0 紧急</div><div class="stat-value" style="color:var(--red-500);" id="stat-p0">-</div></div>
+    <div class="stat-card"><div class="stat-label">P1 重要</div><div class="stat-value" style="color:var(--amber-500);" id="stat-p1">-</div></div>
+    <div class="stat-card"><div class="stat-label">P2/P3 常规</div><div class="stat-value" style="color:var(--blue-500);" id="stat-p2">-</div></div>
+  </div>
+
+  <!-- 筛选栏 -->
+  <div class="intel-filters">
+    <select id="filter-brand"><option value="">全部品牌</option></select>
+    <select id="filter-level">
+      <option value="">全部级别</option>
+      <option value="P0">P0 · 紧急</option>
+      <option value="P1">P1 · 重要</option>
+      <option value="P2">P2 · 常规</option>
+      <option value="P3">P3 · 资讯</option>
+    </select>
+    <select id="filter-category">
+      <option value="">全部分类</option>
+      <option value="增长机会">增长机会</option>
+      <option value="风险预警">风险预警</option>
+    </select>
+    <select id="filter-status">
+      <option value="">全部状态</option>
+      <option value="pending">待处理</option>
+      <option value="confirmed">已确认</option>
+      <option value="linked">已关联拜访</option>
+      <option value="closed">已关闭</option>
+    </select>
+    <input type="search" id="filter-search" placeholder="搜索情报标题/内容…">
+    <button class="btn-primary" onclick="openAlertForm()">+ 录入情报</button>
+    <button class="btn-outline" onclick="openNewsForm()">📰 录入新闻</button>
+    <button class="btn-outline" onclick="openWeeklyForm()">📝 写周报</button>
+  </div>
+
+  <!-- 预警列表 -->
+  <div class="card">
+    <div class="card-header">
+      <h3>⚠️ 情报预警</h3>
+      <span class="card-meta" id="alert-count">-</span>
+    </div>
+    <div class="card-body no-padding" style="padding:0 20px;" id="alerts-container">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+
+  <!-- 新闻列表 -->
+  <div class="card">
+    <div class="card-header">
+      <h3>📰 最新品牌新闻</h3>
+      <span class="card-meta" id="news-count">-</span>
+    </div>
+    <div class="card-body no-padding" style="padding:0 20px;" id="news-container">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+
+  <!-- 周报摘要 -->
+  <details class="intel-weekly" open id="weekly-summary-block">
+    <summary>📄 各品牌最新周报摘要 · 点击展开/收起</summary>
+    <div class="intel-weekly-body" id="weekly-summary">
+      <div class="loading">加载中...</div>
+    </div>
+  </details>
+</div>
+</div>
+
+<!-- 录入情报 Modal -->
+<div class="modal-overlay" id="modal-alert">
+<div class="modal-box">
+  <h3 id="modal-alert-title">✏️ 录入情报预警</h3>
+  <input type="hidden" id="alert-form-id" value="">
+  <div class="form-group">
+    <label class="form-label">品牌</label>
+    <select class="form-select" id="alert-form-brand"></select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">优先级</label>
+    <select class="form-select" id="alert-form-priority">
+      <option value="P1">P1 · 重要</option>
+      <option value="P0">P0 · 紧急</option>
+      <option value="P2">P2 · 常规</option>
+      <option value="P3">P3 · 资讯</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">情报分类</label>
+    <select class="form-select" id="alert-form-category">
+      <option value="风险预警">风险预警</option>
+      <option value="增长机会">增长机会</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">标题 <span style="color:var(--red-500);">*</span></label>
+    <input class="form-input" id="alert-form-title" placeholder="预警标题">
+  </div>
+  <div class="form-group">
+    <label class="form-label">详细描述</label>
+    <textarea class="form-textarea" id="alert-form-desc" rows="3" placeholder="情报详情..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label">建议动作</label>
+    <input class="form-input" id="alert-form-suggestion" placeholder="如：建议48h内安排拜访">
+  </div>
+  <div class="form-group">
+    <label class="form-label">负责人</label>
+    <input class="form-input" id="alert-form-assignee" placeholder="采销人员姓名">
+  </div>
+  <div class="form-actions">
+    <button class="btn-outline" onclick="closeModal('modal-alert')">取消</button>
+    <button class="btn-primary" onclick="submitAlert()">✅ 提交</button>
+  </div>
+</div>
+</div>
+
+<!-- 录入新闻 Modal -->
+<div class="modal-overlay" id="modal-news">
+<div class="modal-box">
+  <h3 id="modal-news-title">📰 录入新闻资讯</h3>
+  <input type="hidden" id="news-form-id" value="">
+  <div class="form-group">
+    <label class="form-label">品牌</label>
+    <select class="form-select" id="news-form-brand"></select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">标题 <span style="color:var(--red-500);">*</span></label>
+    <input class="form-input" id="news-form-title" placeholder="新闻标题">
+  </div>
+  <div class="form-group">
+    <label class="form-label">摘要</label>
+    <textarea class="form-textarea" id="news-form-summary" rows="3" placeholder="新闻摘要..."></textarea>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">来源</label>
+      <input class="form-input" id="news-form-source" placeholder="如：行业情报">
+    </div>
+    <div class="form-group">
+      <label class="form-label">分类</label>
+      <select class="form-select" id="news-form-category">
+        <option value="">选择分类</option>
+        <option value="新品">新品</option>
+        <option value="促销">促销</option>
+        <option value="质量">质量</option>
+        <option value="召回">召回</option>
+        <option value="合作">合作</option>
+        <option value="行业">行业</option>
+        <option value="竞品">竞品</option>
+        <option value="人事">人事</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">情感</label>
+      <select class="form-select" id="news-form-sentiment">
+        <option value="neutral">中性</option>
+        <option value="negative">负面</option>
+        <option value="positive">正面</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">URL（可选，用于去重）</label>
+    <input class="form-input" id="news-form-url" placeholder="https://...">
+  </div>
+  <div class="form-actions">
+    <button class="btn-outline" onclick="closeModal('modal-news')">取消</button>
+    <button class="btn-primary" onclick="submitNews()">✅ 提交</button>
+  </div>
+</div>
+</div>
+
+<!-- 周报 Modal -->
+<div class="modal-overlay" id="modal-weekly">
+<div class="modal-box">
+  <h3 id="modal-weekly-title">📝 提交周报</h3>
+  <input type="hidden" id="weekly-form-id" value="">
+  <div class="form-group">
+    <label class="form-label">品牌 <span style="color:var(--red-500);">*</span></label>
+    <select class="form-select" id="weekly-form-brand"></select>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">周开始日期</label>
+      <input type="date" class="form-input" id="weekly-form-start">
+    </div>
+    <div class="form-group">
+      <label class="form-label">周结束日期</label>
+      <input type="date" class="form-input" id="weekly-form-end">
+    </div>
+    <div class="form-group">
+      <label class="form-label">周标签</label>
+      <input class="form-input" id="weekly-form-label" placeholder="如 W24">
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">本周GMV（万元）</label>
+      <input type="number" class="form-input" id="weekly-form-gmv" placeholder="如 8420">
+    </div>
+    <div class="form-group">
+      <label class="form-label">环比变化（%）</label>
+      <input type="number" class="form-input" id="weekly-form-gmv-change" placeholder="如 -16">
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">竞品动态</label>
+    <textarea class="form-textarea" id="weekly-form-comp" rows="2" placeholder="竞品近期动向..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label">库存状况</label>
+    <textarea class="form-textarea" id="weekly-form-inventory" rows="2" placeholder="库存风险..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label">风险点</label>
+    <textarea class="form-textarea" id="weekly-form-risk" rows="2" placeholder="识别的风险..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label">机会点</label>
+    <textarea class="form-textarea" id="weekly-form-opp" rows="2" placeholder="发现的机会..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label">下周计划</label>
+    <textarea class="form-textarea" id="weekly-form-plan" rows="2" placeholder="下周重点工作..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label">填报人</label>
+    <input class="form-input" id="weekly-form-reporter" placeholder="姓名">
+  </div>
+  <div class="form-actions">
+    <button class="btn-outline" onclick="closeModal('modal-weekly')">取消</button>
+    <button class="btn-primary" onclick="submitWeekly()">✅ 提交</button>
+  </div>
+</div>
+</div>
+
+<div id="appToast" class="toast"></div>
+
+<script>
+const API = '';
+let allAlerts = [], allNews = [], allWeeklies = [], brands = [];
+let urlBrandId = null;
+
+function brandKeyById(id) {
+  const b = brands.find(x => x.id == id);
+  return b ? b.name_key : '';
+}
+
+function parseUrlBrand() {
+  const brandKey = new URLSearchParams(window.location.search).get('brand');
+  if (!brandKey) return;
+  const b = brands.find(x => x.name_key === brandKey);
+  if (b) {
+    urlBrandId = b.id;
+    document.getElementById('filter-brand').value = b.id;
+  }
+}
+
+// ---- Init ----
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('today-date').textContent = new Date().toISOString().slice(0,10) + ' ' + ['日','一','二','三','四','五','六'][new Date().getDay()];
+  await loadBrands();
+  parseUrlBrand();
+  setupFilters();
+  await Promise.all([loadStats(), loadAlerts(), loadNews(), loadWeeklySummary()]);
+  applyFilters();
+  document.getElementById('alert-form-priority').addEventListener('change', function() {
+    document.getElementById('alert-form-category').value = this.value === 'P0' ? '风险预警' : '增长机会';
+  });
+});
+
+async function loadBrands() {
+  try {
+    const res = await fetch(`${API}/api/brands`);
+    brands = await res.json();
+    ['filter-brand','alert-form-brand','news-form-brand','weekly-form-brand'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = '<option value="">全部品牌</option>' + brands.map(b => `<option value="${b.id}">${b.name} (${b.level})</option>`).join('');
+    });
+  } catch(e) { console.error('loadBrands:', e); }
+}
+
+async function loadStats() {
+  try {
+    const res = await fetch(`${API}/api/intel/stats`);
+    const s = await res.json();
+    document.getElementById('stat-total-news').textContent = s.total_news_week;
+    document.getElementById('stat-p0').textContent = s.p0_count;
+    document.getElementById('stat-p1').textContent = s.p1_count;
+    document.getElementById('stat-p2').textContent = s.p2_count + s.p3_count;
+    document.getElementById('active-alert-count').textContent = s.total_alerts;
+  } catch(e) { console.error('loadStats:', e); }
+}
+
+async function loadAlerts() {
+  const container = document.getElementById('alerts-container');
+  try {
+    const res = await fetch(`${API}/api/intel/alerts?limit=50`);
+    allAlerts = await res.json();
+  } catch(e) {
+    allAlerts = [];
+    container.innerHTML = '<div class="loading">⚠️ 加载失败，请确认后端已启动</div>';
+  }
+}
+
+function renderAlerts(alerts) {
+  const container = document.getElementById('alerts-container');
+  if (!alerts.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>暂无预警</p></div>';
+    return;
+  }
+  container.innerHTML = alerts.map(a => {
+    const dotColor = a.priority === 'P0' ? 'red' : (a.priority === 'P1' ? 'amber' : 'blue');
+    const brandKey = a.brand_name_key || brandKeyById(a.brand_id);
+    const catTag = a.category === '增长机会'
+      ? '<span class="tag tag-green">增长机会</span>'
+      : '<span class="tag tag-red">风险预警</span>';
+    const statusTag = a.status === 'pending' ? '<span class="tag tag-red">待处理</span>' :
+                      a.status === 'confirmed' ? '<span class="tag tag-amber">已确认</span>' :
+                      a.status === 'linked' ? '<span class="tag tag-blue">已关联拜访</span>' :
+                      '<span class="tag tag-gray">已关闭</span>';
+    const levelClass = a.brand_level === 'S' ? 'level-s' : (a.brand_level === 'A' ? 'level-a' : 'level-b');
+    const crossLinks = brandKey
+      ? `· <a href="profile.html?brand=${brandKey}">查看档案 →</a> · <a href="visit.html?brand=${brandKey}">安排拜访 →</a>`
+      : '';
+    return `
+    <div class="alert-row" data-brand="${a.brand_id||''}" data-level="${a.priority}" data-category="${a.category||''}" data-status="${a.status}">
+      <div class="alert-dot ${dotColor} ${a.priority==='P0'?'pulse':''}"></div>
+      <div class="alert-content">
+        <div class="alert-title">${a.priority} · ${a.title} ${catTag} ${statusTag}</div>
+        <div class="alert-desc">${a.description||''}</div>
+        <div class="alert-meta">
+          ${a.brand_name ? `<span class="level-badge ${levelClass}">${a.brand_name}</span>` : ''}
+          ${a.suggestion ? `· 建议：${a.suggestion}` : ''}
+          ${a.assignee ? `· 负责人：${a.assignee}` : ''}
+          · ${a.created_at ? a.created_at.slice(0,10) : ''}
+          ${crossLinks}
+        </div>
+      </div>
+      <div class="alert-actions">
+        <button class="btn-sm-outline" onclick="editAlert(${a.id})">✏️编辑</button>
+        ${a.status === 'pending' ? `<button class="btn-sm-outline" onclick="updateAlertStatus(${a.id},'confirmed')">✓确认</button>` : ''}
+        ${(a.status === 'pending' || a.status === 'confirmed') && a.brand_id ? `<button class="btn-sm-outline" onclick="createVisitFromAlert(${a.id})">📝一键拜访</button>` : ''}
+        ${a.status !== 'closed' ? `<button class="btn-sm-outline" onclick="updateAlertStatus(${a.id},'closed')">✕关闭</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadNews() {
+  const container = document.getElementById('news-container');
+  try {
+    const res = await fetch(`${API}/api/intel/news?limit=30`);
+    allNews = await res.json();
+  } catch(e) {
+    allNews = [];
+    container.innerHTML = '<div class="loading">⚠️ 加载失败</div>';
+  }
+}
+
+function renderNews(news) {
+  const container = document.getElementById('news-container');
+  if (!news.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📰</div><p>暂无新闻</p></div>';
+    return;
+  }
+  container.innerHTML = news.map(n => `
+    <div class="news-card ${n.sentiment||'neutral'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div class="news-title">${n.title}</div>
+        <button class="btn-sm-outline" onclick="editNews(${n.id})">✏️编辑</button>
+      </div>
+      <div class="news-summary">${n.summary||''}</div>
+      <div class="news-meta">
+        ${n.brand_name ? `<strong>${n.brand_name}</strong> · ` : ''}
+        ${n.source||''} · ${n.category||''} ·
+        <span style="color:${n.sentiment==='negative'?'var(--red-500)':n.sentiment==='positive'?'var(--green-500)':'var(--text-muted)'}">${n.sentiment==='negative'?'负面':n.sentiment==='positive'?'正面':'中性'}</span>
+        · ${n.published_at?n.published_at.slice(0,10):''}
+        ${n.url ? `· <a href="${n.url}" target="_blank">原文 →</a>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadWeeklySummary() {
+  const container = document.getElementById('weekly-summary');
+  try {
+    const res = await fetch(`${API}/api/intel/weekly/latest`);
+    allWeeklies = await res.json();
+  } catch(e) {
+    allWeeklies = [];
+    container.innerHTML = '<p style="color:var(--text-muted)">加载失败</p>';
+  }
+}
+
+function renderWeeklySummary(weeklies) {
+  const container = document.getElementById('weekly-summary');
+  if (!weeklies.length) {
+    container.innerHTML = '<p style="color:var(--text-muted)">暂无周报数据</p>';
+    return;
+  }
+  container.innerHTML = weeklies.map(w => `
+      <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div>
+            <strong>${w.brand_name||''}</strong> · ${w.week_label||''} (${w.week_start} ~ ${w.week_end}) · 填报人：${w.reporter||'-'}
+            ${w.weekly_gmv ? `· GMV: ¥${w.weekly_gmv}万` : ''}
+            ${w.gmv_change ? `· 环比: ${w.gmv_change>0?'+':''}${w.gmv_change}%` : ''}
+            ${w.competitor_moves ? `<br>📊 竞品：${w.competitor_moves}` : ''}
+            ${w.risk_points ? `<br>⚠️ 风险：${w.risk_points}` : ''}
+            ${w.opportunities ? `<br>💡 机会：${w.opportunities}` : ''}
+            ${w.next_week_plan ? `<br>📅 下周：${w.next_week_plan}` : ''}
+          </div>
+          <button class="btn-sm-outline" onclick="editWeekly(${w.id})">✏️编辑</button>
+        </div>
+      </div>
+    `).join('');
+}
+
+// ---- Filters ----
+function setupFilters() {
+  ['filter-brand','filter-level','filter-category','filter-status'].forEach(id => {
+    document.getElementById(id).addEventListener('change', applyFilters);
+  });
+  document.getElementById('filter-brand').addEventListener('change', function() {
+    if (!this.value) urlBrandId = null;
+  });
+  document.getElementById('filter-search').addEventListener('input', applyFilters);
+}
+
+function applyFilters() {
+  const brand = document.getElementById('filter-brand').value;
+  const effectiveBrand = brand || urlBrandId;
+  const level = document.getElementById('filter-level').value;
+  const category = document.getElementById('filter-category').value;
+  const status = document.getElementById('filter-status').value;
+  const search = document.getElementById('filter-search').value.toLowerCase();
+
+  const filteredAlerts = allAlerts.filter(a => {
+    if (effectiveBrand && a.brand_id != effectiveBrand) return false;
+    if (level && a.priority !== level) return false;
+    if (category && a.category !== category) return false;
+    if (status && a.status !== status) return false;
+    if (search) {
+      const txt = (a.title + a.description + (a.brand_name||'')).toLowerCase();
+      if (!txt.includes(search)) return false;
+    }
+    return true;
+  });
+  renderAlerts(filteredAlerts);
+  document.getElementById('alert-count').textContent = `共 ${filteredAlerts.length} 条`;
+  const filteredNews = allNews.filter(n => !effectiveBrand || n.brand_id == effectiveBrand);
+  document.getElementById('news-count').textContent = `共 ${filteredNews.length} 条`;
+  renderNews(filteredNews);
+  renderWeeklySummary(allWeeklies.filter(w => !effectiveBrand || w.brand_id == effectiveBrand));
+}
+
+// ---- CRUD Actions ----
+function resetAlertForm() {
+  document.getElementById('alert-form-id').value = '';
+  document.getElementById('modal-alert-title').textContent = '✏️ 录入情报预警';
+  document.getElementById('alert-form-brand').value = '';
+  document.getElementById('alert-form-priority').value = 'P1';
+  document.getElementById('alert-form-category').value = '增长机会';
+  document.getElementById('alert-form-title').value = '';
+  document.getElementById('alert-form-desc').value = '';
+  document.getElementById('alert-form-suggestion').value = '';
+  document.getElementById('alert-form-assignee').value = '';
+}
+
+function openAlertForm() {
+  resetAlertForm();
+  document.getElementById('modal-alert').classList.add('show');
+}
+
+function editAlert(id) {
+  const a = allAlerts.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('alert-form-id').value = a.id;
+  document.getElementById('modal-alert-title').textContent = '✏️ 编辑情报预警';
+  document.getElementById('alert-form-brand').value = a.brand_id || '';
+  document.getElementById('alert-form-priority').value = a.priority;
+  document.getElementById('alert-form-category').value = a.category || (a.priority === 'P0' ? '风险预警' : '增长机会');
+  document.getElementById('alert-form-title').value = a.title || '';
+  document.getElementById('alert-form-desc').value = a.description || '';
+  document.getElementById('alert-form-suggestion').value = a.suggestion || '';
+  document.getElementById('alert-form-assignee').value = a.assignee || '';
+  document.getElementById('modal-alert').classList.add('show');
+}
+
+function resetNewsForm() {
+  document.getElementById('news-form-id').value = '';
+  document.getElementById('modal-news-title').textContent = '📰 录入新闻资讯';
+  document.getElementById('news-form-brand').value = '';
+  document.getElementById('news-form-title').value = '';
+  document.getElementById('news-form-summary').value = '';
+  document.getElementById('news-form-source').value = '';
+  document.getElementById('news-form-category').value = '';
+  document.getElementById('news-form-sentiment').value = 'neutral';
+  document.getElementById('news-form-url').value = '';
+}
+
+function openNewsForm() {
+  resetNewsForm();
+  document.getElementById('modal-news').classList.add('show');
+}
+
+function editNews(id) {
+  const n = allNews.find(x => x.id === id);
+  if (!n) return;
+  document.getElementById('news-form-id').value = n.id;
+  document.getElementById('modal-news-title').textContent = '📰 编辑新闻资讯';
+  document.getElementById('news-form-brand').value = n.brand_id || '';
+  document.getElementById('news-form-title').value = n.title || '';
+  document.getElementById('news-form-summary').value = n.summary || '';
+  document.getElementById('news-form-source').value = n.source || '';
+  document.getElementById('news-form-category').value = n.category || '';
+  document.getElementById('news-form-sentiment').value = n.sentiment || 'neutral';
+  document.getElementById('news-form-url').value = n.url || '';
+  document.getElementById('modal-news').classList.add('show');
+}
+
+function resetWeeklyForm() {
+  document.getElementById('weekly-form-id').value = '';
+  document.getElementById('modal-weekly-title').textContent = '📝 提交周报';
+  document.getElementById('weekly-form-brand').value = '';
+  document.getElementById('weekly-form-start').value = '';
+  document.getElementById('weekly-form-end').value = '';
+  document.getElementById('weekly-form-label').value = '';
+  document.getElementById('weekly-form-gmv').value = '';
+  document.getElementById('weekly-form-gmv-change').value = '';
+  document.getElementById('weekly-form-comp').value = '';
+  document.getElementById('weekly-form-inventory').value = '';
+  document.getElementById('weekly-form-risk').value = '';
+  document.getElementById('weekly-form-opp').value = '';
+  document.getElementById('weekly-form-plan').value = '';
+  document.getElementById('weekly-form-reporter').value = '';
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+async function submitAlert() {
+  const title = document.getElementById('alert-form-title').value.trim();
+  if (!title) { showToast('请输入标题'); return; }
+  const brandVal = document.getElementById('alert-form-brand').value;
+  const payload = {
+    brand_id: brandVal ? parseInt(brandVal) : null,
+    priority: document.getElementById('alert-form-priority').value,
+    category: document.getElementById('alert-form-category').value,
+    title: title,
+    description: document.getElementById('alert-form-desc').value.trim(),
+    suggestion: document.getElementById('alert-form-suggestion').value.trim(),
+    assignee: document.getElementById('alert-form-assignee').value.trim(),
+  };
+  const id = document.getElementById('alert-form-id').value;
+  try {
+    const res = await fetch(`${API}/api/intel/alerts${id ? '/' + id : ''}`, {
+      method: id ? 'PUT' : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    closeModal('modal-alert');
+    showToast(id ? '预警已更新 ✅' : '情报已录入 ✅');
+    await loadAlerts();
+    await loadStats();
+    applyFilters();
+  } catch(e) { showToast('错误：' + e.message); }
+}
+
+async function submitNews() {
+  const title = document.getElementById('news-form-title').value.trim();
+  if (!title) { showToast('请输入标题'); return; }
+  const brandVal = document.getElementById('news-form-brand').value;
+  const payload = {
+    brand_id: brandVal ? parseInt(brandVal) : null,
+    title: title,
+    summary: document.getElementById('news-form-summary').value.trim(),
+    source: document.getElementById('news-form-source').value.trim(),
+    sentiment: document.getElementById('news-form-sentiment').value,
+    category: document.getElementById('news-form-category').value,
+    url: document.getElementById('news-form-url').value.trim(),
+  };
+  const id = document.getElementById('news-form-id').value;
+  if (!id) payload.published_at = new Date().toISOString();
+  try {
+    const res = await fetch(`${API}/api/intel/news${id ? '/' + id : ''}`, {
+      method: id ? 'PUT' : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    closeModal('modal-news');
+    showToast(id ? '新闻已更新 ✅' : '新闻已录入 ✅');
+    await loadNews();
+    await loadStats();
+    applyFilters();
+  } catch(e) { showToast('错误：' + e.message); }
+}
+
+function openWeeklyForm() {
+  resetWeeklyForm();
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now); monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  document.getElementById('weekly-form-start').value = monday.toISOString().slice(0,10);
+  document.getElementById('weekly-form-end').value = sunday.toISOString().slice(0,10);
+  document.getElementById('modal-weekly').classList.add('show');
+}
+
+function editWeekly(id) {
+  const w = allWeeklies.find(x => x.id === id);
+  if (!w) return;
+  document.getElementById('weekly-form-id').value = w.id;
+  document.getElementById('modal-weekly-title').textContent = '📝 编辑周报';
+  document.getElementById('weekly-form-brand').value = w.brand_id;
+  document.getElementById('weekly-form-start').value = w.week_start;
+  document.getElementById('weekly-form-end').value = w.week_end;
+  document.getElementById('weekly-form-label').value = w.week_label || '';
+  document.getElementById('weekly-form-gmv').value = w.weekly_gmv != null ? w.weekly_gmv : '';
+  document.getElementById('weekly-form-gmv-change').value = w.gmv_change != null ? w.gmv_change : '';
+  document.getElementById('weekly-form-comp').value = w.competitor_moves || '';
+  document.getElementById('weekly-form-inventory').value = w.inventory_status || '';
+  document.getElementById('weekly-form-risk').value = w.risk_points || '';
+  document.getElementById('weekly-form-opp').value = w.opportunities || '';
+  document.getElementById('weekly-form-plan').value = w.next_week_plan || '';
+  document.getElementById('weekly-form-reporter').value = w.reporter || '';
+  document.getElementById('modal-weekly').classList.add('show');
+}
+
+async function submitWeekly() {
+  const brand_id = document.getElementById('weekly-form-brand').value;
+  if (!brand_id) { showToast('请选择品牌'); return; }
+  const payload = {
+    brand_id: parseInt(brand_id),
+    week_start: document.getElementById('weekly-form-start').value,
+    week_end: document.getElementById('weekly-form-end').value,
+    week_label: document.getElementById('weekly-form-label').value.trim(),
+    weekly_gmv: parseInt(document.getElementById('weekly-form-gmv').value) || null,
+    gmv_change: parseInt(document.getElementById('weekly-form-gmv-change').value) || null,
+    competitor_moves: document.getElementById('weekly-form-comp').value.trim(),
+    inventory_status: document.getElementById('weekly-form-inventory').value.trim(),
+    risk_points: document.getElementById('weekly-form-risk').value.trim(),
+    opportunities: document.getElementById('weekly-form-opp').value.trim(),
+    next_week_plan: document.getElementById('weekly-form-plan').value.trim(),
+    reporter: document.getElementById('weekly-form-reporter').value.trim(),
+  };
+  const id = document.getElementById('weekly-form-id').value;
+  try {
+    const res = await fetch(`${API}/api/intel/weekly${id ? '/' + id : ''}`, {
+      method: id ? 'PUT' : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    closeModal('modal-weekly');
+    showToast(id ? '周报已更新 ✅' : '周报已提交 ✅');
+    await loadWeeklySummary();
+    applyFilters();
+  } catch(e) { showToast('错误：' + e.message); }
+}
+
+async function updateAlertStatus(id, status) {
+  try {
+    await fetch(`${API}/api/intel/alerts/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({status}),
+    });
+    showToast(status === 'confirmed' ? '预警已确认' : '预警已关闭');
+    await loadAlerts();
+    await loadStats();
+    applyFilters();
+  } catch(e) { showToast('更新失败'); }
+}
+
+async function createVisitFromAlert(alertId) {
+  try {
+    const res = await fetch(`${API}/api/intel/alerts/${alertId}/create-visit`, {method:'POST'});
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    const visit = await res.json();
+    showToast(`✅ 紧急拜访已创建！日期：${visit.visit_date}，品牌：${visit.brand_name}`);
+    await loadAlerts();
+    await loadStats();
+    applyFilters();
+  } catch(e) { showToast('创建失败：' + e.message); }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('appToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._tt);
+  window._tt = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// 点击模态框外部关闭
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+});
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

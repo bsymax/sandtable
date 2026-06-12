@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>品牌档案 · 品牌沙盘 M1</title>
+<style>
+:root {
+  --bg:#f4f5f9; --card-bg:#fff; --text:#1a1f36; --text-secondary:#697386; --text-muted:#a3acba;
+  --border:#e3e8ee; --blue-600:#0066cc; --blue-500:#0d7aff; --blue-50:#e8f2ff;
+  --amber-500:#e6a700; --amber-50:#fff8e6; --red-500:#cd3b32; --red-50:#fdecea;
+  --green-500:#0e7c4b; --green-50:#e8f5ef; --header-h:56px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.04),0 1px 4px rgba(0,0,0,.06);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100vh; }
+#loading-overlay { position:fixed; inset:0; background:rgba(255,255,255,.85); display:flex; align-items:center; justify-content:center; z-index:9998; flex-direction:column; gap:12px; }
+#loading-overlay.hidden { display:none; }
+.loading-spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--blue-500); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.topbar { height:var(--header-h); background:#fff; border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 28px; position:sticky; top:0; z-index:10; }
+.breadcrumb { font-size:13px; color:var(--text-secondary); }
+.breadcrumb .current { color:var(--text); font-weight:600; }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:16px; font-size:13px; color:var(--text-secondary); }
+.user-avatar { width:32px; height:32px; border-radius:50%; background:#3b82f6; color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
+.content { max-width:1200px; margin:0 auto; padding:24px 28px; }
+.m1-banner { background:linear-gradient(90deg,#0f172a,#1e3a5f); color:#e2e8f0; padding:10px 16px; border-radius:8px; font-size:12px; margin-bottom:16px; line-height:1.6; }
+.m1-banner strong { color:#93c5fd; }
+.m1-scope-tag { display:inline-block; background:#3b82f6; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-right:8px; }
+.page-title { font-size:20px; font-weight:700; margin-bottom:4px; }
+.page-subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:20px; }
+.tab-bar { display:flex; gap:0; border-bottom:1px solid var(--border); }
+.tab-item { padding:12px 20px; font-size:13px; cursor:pointer; color:var(--text-secondary); border-bottom:2px solid transparent; transition:all .15s; }
+.tab-item:hover { color:var(--text); }
+.tab-item.active { color:var(--blue-600); border-bottom-color:var(--blue-600); font-weight:600; }
+#profile-tabs { background:#eef1f6; border-radius:8px 8px 0 0; padding:6px 10px 0; gap:2px; margin-bottom:0; }
+#profile-tabs .tab-item { border-radius:6px 6px 0 0; margin-bottom:-1px; border-bottom:none; }
+#profile-tabs .tab-item:hover:not(.active) { background:rgba(255,255,255,.55); }
+#profile-tabs .tab-item.active { background:#d4e2f2; border-bottom-color:var(--blue-600); }
+.profile-brand-shell { background:#fff; border:1px solid var(--border); border-radius:0 0 8px 8px; overflow:hidden; }
+.profile-top-bar { display:grid; grid-template-columns:auto 72px 1fr; gap:12px 20px; align-items:center; padding:18px 20px; background:linear-gradient(135deg,#f8fafd,#fff 60%); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+@media (max-width:900px) { .profile-top-bar { grid-template-columns:1fr; } }
+.profile-brand-name { font-size:22px; font-weight:700; margin-right:10px; display:inline; }
+.profile-top-left { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.profile-top-meta { grid-column:1/-1; font-size:12px; color:var(--text-secondary); display:flex; gap:16px; flex-wrap:wrap; }
+.level-badge { display:inline-block; padding:2px 8px; border-radius:3px; font-size:11px; font-weight:700; }
+.level-s { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+.level-a { background:#e0e7ff; color:#3730a3; border:1px solid #a5b4fc; }
+.level-b { background:#f0f1f5; color:#4b5563; border:1px solid #d1d5db; }
+.profile-inner-tabs { margin:0; border-bottom:1px solid var(--border); background:#fafbfc; padding:0 12px; }
+.profile-inner-tabs .tab-item { padding:12px 16px; }
+.profile-panels { padding:20px; }
+.profile-pane { display:none; }
+.profile-pane.active { display:block; }
+.profile-kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:20px; }
+@media (max-width:1100px) { .profile-kpi-row { grid-template-columns:repeat(3,1fr); } }
+@media (max-width:640px) { .profile-kpi-row { grid-template-columns:repeat(2,1fr); } }
+.profile-kpi-card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:14px 16px; box-shadow:var(--shadow-sm); }
+.profile-kpi-card.clickable { cursor:pointer; transition:box-shadow .15s,border-color .15s; }
+.profile-kpi-card.clickable:hover { border-color:var(--blue-500); box-shadow:0 4px 12px rgba(0,0,0,.08); }
+.profile-kpi-card.gap-alert { border-left:3px solid var(--red-500); }
+.kpi-label { font-size:10px; color:var(--text-secondary); margin-bottom:6px; }
+.kpi-value { font-size:26px; font-weight:700; line-height:1.2; }
+.kpi-sub { font-size:11px; margin-top:6px; display:block; }
+.kpi-sub.up { color:var(--green-500); }
+.kpi-sub.down { color:var(--red-500); }
+.card { background:var(--card-bg); border-radius:8px; border:1px solid var(--border); box-shadow:var(--shadow-sm); margin-bottom:16px; }
+.card-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.card-header h3 { font-size:14px; font-weight:600; }
+.card-header .card-meta { font-size:11px; color:var(--text-muted); margin-left:auto; }
+.card-body { padding:18px; }
+.card-body.no-padding { padding:0; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+table th { text-align:left; padding:10px 16px; background:#f8f9fc; border-bottom:2px solid var(--border); font-weight:600; font-size:12px; color:var(--text-secondary); }
+table td { padding:10px 16px; border-bottom:1px solid var(--border); }
+table tr:hover td { background:#f8fafd; }
+table td.warn-cell { background:var(--amber-50); }
+table td.bad-cell { color:var(--red-500); font-weight:600; }
+table tr.jd-row td { background:var(--blue-50); }
+.tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.tag-red { background:var(--red-50); color:var(--red-500); }
+.tag-amber { background:var(--amber-50); color:var(--amber-500); }
+.tag-green { background:var(--green-50); color:var(--green-500); }
+.tag-blue { background:var(--blue-50); color:var(--blue-500); }
+.tag-gray { background:#f0f1f5; color:#4b5563; }
+.profile-intro-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:900px) { .profile-intro-grid { grid-template-columns:1fr; } }
+.profile-basic-dl { display:grid; grid-template-columns:88px 1fr; gap:8px 12px; font-size:13px; }
+.profile-basic-dl dt { color:var(--text-secondary); }
+.profile-basic-dl dd { margin:0; }
+.person-card, .person-card-editable { border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:10px; background:#fff; }
+.person-card:last-child, .person-card-editable:last-child { margin-bottom:0; }
+.profile-expire-warn { font-size:11px; color:var(--red-500); background:var(--red-50); padding:8px 12px; border-radius:6px; margin-top:8px; line-height:1.5; }
+.person-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.person-name { font-size:14px; font-weight:600; }
+.person-role { font-size:12px; color:var(--text-secondary); margin-top:2px; }
+.person-tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+.person-edit-fields { display:none; margin-top:10px; }
+.person-card.editing .person-view { display:none; }
+.person-card.editing .person-edit-fields { display:block; }
+.form-input, .form-select, .form-textarea { width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:4px; font-size:13px; font-family:var(--font); margin-bottom:8px; }
+.form-textarea { resize:vertical; line-height:1.6; min-height:80px; }
+.form-label { font-size:12px; font-weight:600; margin-bottom:4px; display:block; }
+.org-chart { display:flex; flex-direction:column; align-items:center; padding:16px 0; font-size:12px; }
+.org-node { padding:8px 14px; border:1px solid var(--border); border-radius:6px; background:#f8fafd; min-width:120px; text-align:center; margin:4px; }
+.org-node.lead { background:var(--blue-50); border-color:#bfdbfe; font-weight:600; }
+.org-connector { width:2px; height:14px; background:var(--border); }
+.org-row { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; position:relative; }
+.org-row::before { content:''; position:absolute; top:0; left:20%; right:20%; height:2px; background:var(--border); }
+.org-row .org-node { margin-top:14px; }
+.profile-rule-item { border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:10px; font-size:13px; line-height:1.65; }
+.profile-rule-item.stale { border-left:3px solid var(--amber-500); background:var(--amber-50); }
+.profile-rule-item .rule-meta { font-size:11px; color:var(--text-muted); margin-top:8px; }
+.profile-rule-box { border:1px solid var(--border); border-radius:8px; padding:14px; font-size:13px; line-height:1.65; }
+.profile-rule-box .rule-meta { font-size:11px; color:var(--text-muted); margin-top:10px; }
+.profile-rule-box.editing .rule-view { display:none; }
+.profile-rule-box.editing .rule-edit { display:block; }
+.profile-rule-box .rule-edit { display:none; }
+.profile-benchmark-panel { border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.profile-benchmark-panel summary { padding:12px 16px; font-size:13px; font-weight:600; cursor:pointer; background:#fafbfc; list-style:none; }
+.profile-benchmark-panel summary::before { content:'▶ '; font-size:10px; color:var(--text-muted); }
+.profile-benchmark-panel[open] summary::before { content:'▼ '; }
+.profile-benchmark-body { padding:14px 16px; border-top:1px solid var(--border); }
+.profile-health-ring { position:relative; width:72px; height:72px; flex-shrink:0; }
+.profile-health-ring svg { transform:rotate(-90deg); }
+.profile-health-ring .ring-score { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:var(--text); }
+.profile-health-ring .ring-label { font-size:10px; font-weight:500; color:var(--text-muted); }
+.profile-chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+@media (max-width:900px) { .profile-chart-grid { grid-template-columns:1fr; } }
+.profile-chart-box { background:#fff; border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+.profile-chart-box h4 { font-size:12px; font-weight:600; color:var(--text-secondary); margin:0 0 12px; }
+.profile-chart-canvas { position:relative; height:220px; }
+.profile-ai-oneline { font-size:13px; line-height:1.65; padding:10px 14px; background:var(--blue-50); border:1px solid #bfdbfe; border-radius:8px; }
+.profile-ai-oneline strong { color:var(--blue-600); }
+.profile-gap-panel { display:none; margin-bottom:16px; border:1px solid #fecaca; background:var(--red-50); border-radius:8px; overflow:hidden; }
+.profile-gap-panel.open { display:block; }
+.profile-gap-panel .gap-head { padding:10px 14px; font-size:12px; font-weight:600; color:var(--red-500); border-bottom:1px solid #fecaca; }
+.profile-gap-panel table { width:100%; font-size:12px; }
+.profile-gap-panel th, .profile-gap-panel td { padding:10px 14px; border-bottom:1px solid #fecaca; text-align:left; }
+.profile-gap-panel tr:last-child td { border-bottom:none; }
+.s4-placeholder-banner { background:var(--amber-50); border:1px solid #fcd34d; border-radius:8px; padding:12px 16px; font-size:13px; color:#92400e; margin-bottom:16px; line-height:1.6; }
+.profile-intel-split { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:800px) { .profile-intel-split { grid-template-columns:1fr; } }
+.profile-intel-col h4 { font-size:13px; font-weight:700; margin:0 0 12px; }
+.profile-intel-item { padding:12px 14px; border:1px solid var(--border); border-radius:8px; margin-bottom:10px; font-size:12px; line-height:1.55; background:#fff; }
+.profile-intel-item.opp { border-left:3px solid var(--green-500); }
+.profile-intel-item.risk { border-left:3px solid var(--red-500); }
+.profile-intel-item .intel-item-title { font-weight:600; font-size:13px; margin-bottom:4px; }
+.profile-intel-item .intel-item-meta { color:var(--text-muted); font-size:11px; margin-top:6px; }
+.history-status-bar { display:flex; flex-wrap:wrap; gap:12px 20px; padding:14px 16px; background:#f8fafd; border:1px solid var(--border); border-radius:8px; margin-bottom:16px; font-size:13px; }
+.history-status-bar .status-warn { color:var(--red-500); font-weight:600; }
+.history-status-bar .status-ok { color:var(--green-500); font-weight:600; }
+.visit-alert-banner { background:linear-gradient(135deg,var(--amber-50,#fff8e6),#fff); border:1px solid #fcd34d; border-radius:8px; padding:12px 16px; margin-bottom:12px; display:flex; align-items:flex-start; gap:12px; }
+.profile-timeline { position:relative; padding-left:20px; }
+.profile-timeline::before { content:''; position:absolute; left:6px; top:4px; bottom:4px; width:2px; background:var(--border); }
+.profile-tl-item { position:relative; padding-bottom:14px; }
+.profile-tl-item:last-child { padding-bottom:0; }
+.profile-tl-item::before { content:''; position:absolute; left:-17px; top:4px; width:8px; height:8px; border-radius:50%; background:var(--blue-500); border:2px solid #fff; box-shadow:0 0 0 1px var(--blue-500); }
+.profile-tl-item.warn::before { background:var(--amber-500); box-shadow:0 0 0 1px var(--amber-500); }
+.profile-tl-item.risk::before { background:var(--red-500); box-shadow:0 0 0 1px var(--red-500); }
+.profile-tl-item.good::before { background:var(--green-500); box-shadow:0 0 0 1px var(--green-500); }
+.profile-tl-item .tl-time { font-size:11px; color:var(--text-muted); }
+.profile-tl-item .tl-title { font-size:13px; font-weight:600; margin:2px 0; }
+.profile-tl-item .tl-desc { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.profile-tl-details summary { font-size:11px; color:var(--blue-500); cursor:pointer; margin-top:4px; }
+.profile-tl-details .tl-full { font-size:12px; color:var(--text-secondary); margin-top:6px; line-height:1.6; }
+.visit-suggest-ai { margin-top:16px; padding:16px 18px; background:linear-gradient(135deg,#eff6ff,#fff); border:1px solid #bfdbfe; border-radius:10px; }
+.visit-suggest-ai h4 { font-size:13px; font-weight:700; color:var(--blue-600); margin:0 0 10px; }
+.visit-suggest-ai ul { margin:0; padding-left:18px; font-size:13px; line-height:1.7; }
+.profile-footer-actions { margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; }
+.btn-primary { padding:6px 14px; background:var(--blue-500); color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-family:var(--font); }
+.btn-primary:hover { background:var(--blue-600); }
+.btn-sm-outline { padding:4px 10px; font-size:11px; background:#fff; border:1px solid var(--border); border-radius:4px; cursor:pointer; font-family:var(--font); }
+.btn-sm-outline:hover { border-color:var(--blue-500); color:var(--blue-600); }
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:#1a1f36; color:#fff; padding:10px 18px; border-radius:8px; font-size:13px; z-index:9999; opacity:0; transition:all .25s; pointer-events:none; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.error-banner { display:none; padding:12px 16px; background:var(--red-50); border:1px solid #fca5a5; border-radius:8px; color:var(--red-500); font-size:13px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay"><div class="loading-spinner"></div><span style="font-size:13px;color:var(--text-secondary);">加载品牌档案...</span></div>
+
+<div class="topbar">
+  <div class="breadcrumb"><a href="index.html" style="color:var(--blue-500,#2f6fed);text-decoration:none;">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">品牌档案</span></div>
+  <div class="topbar-right">
+    <span id="top-date">2026-06-10</span>
+    <span style="color:var(--text-muted);">|</span>
+    <span>厨小事业部 · 采销二组</span>
+    <div class="user-avatar">佳</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="m1-banner">
+    <span class="m1-scope-tag">品牌席</span>
+    <strong>经营看板</strong> · <strong>品牌简介</strong> 已接真数据 · <strong>最新情报</strong> 展示该品牌 **P0 + 分类** 的预警（风险预警 / 增长机会各 TOP）· 新闻不参与。
+  </div>
+  <div class="page-title">品牌档案</div>
+  <div class="page-subtitle">经营数据 + 主数据维护 · 数据来自 MySQL API</div>
+
+  <div id="error-banner" class="error-banner"></div>
+
+  <div class="tab-bar" id="profile-tabs">
+    <div class="tab-item active" data-key="midea">美的</div>
+    <div class="tab-item" data-key="joyoung">九阳</div>
+    <div class="tab-item" data-key="supor">苏泊尔</div>
+    <div class="tab-item" data-key="bear">小熊电器</div>
+    <div class="tab-item" data-key="morphy">摩飞</div>
+  </div>
+
+  <div id="profile-mount" class="profile-brand-shell"></div>
+</div>
+
+<div class="toast" id="appToast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+<script src="js/visit-common.js"></script>
+<script>
+var API_BASE = '';
+var BRAND_TABS = [
+  { key:'midea', label:'美的' },
+  { key:'joyoung', label:'九阳' },
+  { key:'supor', label:'苏泊尔' },
+  { key:'bear', label:'小熊电器' },
+  { key:'morphy', label:'摩飞' }
+];
+var LEVEL_LABEL = { S:'S-战略级', A:'A-核心级', B:'B-成长级', C:'C-观察级' };
+var BENCH_TOP = { margin:24.8, cvr:5.6, adRate:4.2 };
+var BRAND_EXTRA = {
+  midea: {
+    ai: '份额领先但<strong>增长承压</strong>：JD周GMV仍居品类#1，但连续下滑；核心矛盾是抖音618资源倾斜，建议48h内拜访王建国对齐。',
+    gaps: [
+      { sku:'空气炸锅 Pro 5L', platform:'抖音', compSales:'¥820万/月', prio:'P0' },
+      { sku:'电热水壶 1.7L 恒温', platform:'天猫', compSales:'¥310万/月', prio:'P0' }
+    ],
+    opps: [
+      { title:'抖音618主会场资源', body:'品牌预算向抖音倾斜，可谈JD同价同发换搜索专区。', src:'竞对监测', time:'06-07', impact:'高' },
+      { title:'空气炸锅品类楼层', body:'JD市占28%高于均值，可争取618专区加推。', src:'经营数据', time:'06-05', impact:'中' }
+    ],
+    risks: [
+      { title:'王建国岗位变动传闻', body:'决策链断裂风险，需本周拜访确认。', src:'情报库', time:'06-07', impact:'高' },
+      { title:'JD渠道增速-16.3%', body:'连续下滑，需对齐618货盘与价格策略。', src:'经营看板', time:'06-07', impact:'高' }
+    ],
+    history: {
+      days:3, cycle:14, overdue:false, temp:72, tempTrend:'down',
+      timeline:[
+        { date:'2026-06-05', type:'good', title:'季度拜访 · 美的总部', brief:'王建国、李敏参会', full:'议题：618目标、联合投放、3款新品首发。结论：投放方案品牌方内部审批中。' },
+        { date:'2026-06-07', type:'warn', title:'情报入库：抖音618资源倾斜', brief:'P0情报触发', full:'竞对监测显示抖音获主会场头图，建议本周紧急拜访对齐。' }
+      ],
+      commits:[
+        { item:'1款空气炸锅JD首发', status:'done', due:'05-30' },
+        { item:'3款新品JD首发（仅1/3）', status:'fail', due:'06-15' },
+        { item:'联合投放预算600万', status:'doing', due:'06-12' }
+      ],
+      suggest:{ days:3, topics:['确认王建国岗位变动及新对接人','推进联合投放方案书面确认','锁定空气炸锅Pro JD首发排期'] }
+    }
+  },
+  joyoung: {
+    ai: '增长稳健但<strong>K系列供给博弈</strong>关键：抖音月销+45%而JD K9 Pro谈判停滞，存在全网热卖、JD缺货/缺价风险。',
+    gaps: [
+      { sku:'K9 Pro 破壁机', platform:'抖音', compSales:'¥620万/月', prio:'P0' },
+      { sku:'K系列豆浆机', platform:'抖音', compSales:'¥280万/月', prio:'P0' }
+    ],
+    opps: [
+      { title:'K系列抖音爆发可反推JD包销', body:'全网热卖证明需求，可谈48h锁价+618专区。', src:'全网商品', time:'06-07', impact:'高' }
+    ],
+    risks: [
+      { title:'K9 Pro谈判停滞', body:'JD库存深度不足，抖音侧热卖而JD缺货。', src:'经营数据', time:'06-07', impact:'高' }
+    ],
+    history: {
+      days:19, cycle:90, overdue:false, temp:85, tempTrend:'up',
+      timeline:[
+        { date:'2026-05-20', type:'good', title:'季度复盘拜访', brief:'陈志远、赵雪', full:'复盘Q1 GMV达成102%，讨论K9 Pro包销价机制。' }
+      ],
+      commits:[
+        { item:'K9 Pro包销价谈判', status:'doing', due:'06-15' },
+        { item:'618专区库存锁定', status:'doing', due:'06-10' }
+      ],
+      suggest:{ days:7, topics:['48h内推进K9 Pro同价协议','附带618流量对赌条款','重建与陈志远高层沟通节奏'] }
+    }
+  },
+  supor: {
+    ai: 'Q2线上增速仅<strong>+5%</strong>，预算收紧信号明显；关系温度偏低，当前是防守型谈判窗口，宜保毛利换资源。',
+    gaps: [{ sku:'破壁机专供款', platform:'—', compSales:'承诺未落地', prio:'P0' }],
+    opps: [{ title:'线上增速放缓或利好谈判', body:'品牌业绩压力增大，可争取更优返利条款。', src:'财报情报', time:'06-05', impact:'中' }],
+    risks: [{ title:'决策链信息过期', body:'电商总监联系方式待核实更新。', src:'档案巡检', time:'06-06', impact:'高' }],
+    history: {
+      days:42, cycle:90, overdue:true, temp:68, tempTrend:'down',
+      timeline:[{ date:'2026-04-22', type:'', title:'电话沟通 · 专供款', brief:'待确认参会人', full:'讨论破壁机专供款排期，品牌方内部评估中。' }],
+      commits:[
+        { item:'破壁机专供款上架', status:'fail', due:'05-30' },
+        { item:'Q2联合投放方案', status:'doing', due:'06-20' }
+      ],
+      suggest:{ days:5, topics:['补全电商总监决策链','确认破壁机专供款落地时间','用保毛利方案重谈618资源'] }
+    }
+  },
+  bear: {
+    ai: '品类<strong>增速明星</strong>（+15%），养生壶JD领先；策略重心从保合作转向抢增量，推进联名款独家首发。',
+    gaps: [],
+    opps: [{ title:'618联名款独家首发', body:'品牌方初步认可，可绑定站外回流对赌。', src:'拜访纪要', time:'06-04', impact:'高' }],
+    risks: [{ title:'联名款视觉草案待确认', body:'需带草案再谈，避免空口承诺。', src:'档案潜规则', time:'06-01', impact:'中' }],
+    history: {
+      days:4, cycle:45, overdue:false, temp:88, tempTrend:'up',
+      timeline:[{ date:'2026-06-04', type:'good', title:'联名款方案沟通', brief:'林晓、周帆', full:'品牌方对618联名养生壶方案初步认可，待视觉稿确认。' }],
+      commits:[
+        { item:'联名款视觉稿确认', status:'doing', due:'06-12' },
+        { item:'成长品牌流量包申请', status:'doing', due:'06-20' }
+      ],
+      suggest:{ days:14, topics:['推进联名款视觉定稿','申请成长品牌流量包','绑定站外回流数据对赌'] }
+    }
+  },
+  morphy: {
+    ai: '档案完整度<strong>偏低</strong>；行业增速与JD增速背离，38天未拜访，策略以补档案+抢供给为主。',
+    gaps: [
+      { sku:'多功能锅 MR9088', platform:'抖音', compSales:'¥420万/月', prio:'P0' },
+      { sku:'榨汁机便携款', platform:'抖音', compSales:'¥180万/月', prio:'P0' }
+    ],
+    opps: [{ title:'行业增速+22% JD仅+8%', body:'若争取同价同发可快速起量。', src:'经营对比', time:'06-07', impact:'高' }],
+    risks: [
+      { title:'运营总监离职传闻', body:'决策链断裂风险，档案完整度低。', src:'情报库', time:'06-06', impact:'高' },
+      { title:'38天未拜访', body:'超B级品牌季度基线。', src:'拜访周期', time:'06-08', impact:'高' }
+    ],
+    history: {
+      days:38, cycle:90, overdue:true, temp:65, tempTrend:'down',
+      timeline:[{ date:'2026-05-01', type:'warn', title:'电话沟通 · 货盘确认', brief:'对接人不明', full:'未能确认618 JD货盘，决策人信息缺失。' }],
+      commits:[
+        { item:'补全决策链档案', status:'doing', due:'06-10' },
+        { item:'618货盘书面确认', status:'fail', due:'05-20' }
+      ],
+      suggest:{ days:3, topics:['紧急拜访确认决策人','补全档案与联系方式','推进多功能锅JD同价引入'] }
+    }
+  }
+};
+var currentKey = 'midea';
+var currentPTab = 'dashboard';
+var gData = null;
+var gMetricsHistory = [];
+var gBriefing = null;
+var gVisitReminder = null;
+var gVisitHistory = { visits: [], records: [], commitments: [] };
+var chartStore = {};
+
+window.goVisit = function(key) {
+  window.location.href = 'visit.html?brand=' + (key || currentKey);
+};
+window.goIntel = function(key) {
+  window.location.href = 'intel.html?brand=' + (key || currentKey);
+};
+
+function apiReq(path, opts) {
+  opts = opts || {};
+  var fetchOpts = { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json' } };
+  if (opts.body && fetchOpts.method !== 'GET') fetchOpts.body = JSON.stringify(opts.body);
+  return fetch(API_BASE + path, fetchOpts).then(function(r) {
+    return r.json().then(function(data) {
+      if (!r.ok) throw new Error(data.detail || '请求失败');
+      return data;
+    });
+  });
+}
+
+function showToast(msg) {
+  var t = document.getElementById('appToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2600);
+}
+
+function showError(msg) {
+  var el = document.getElementById('error-banner');
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+function hideError() {
+  document.getElementById('error-banner').style.display = 'none';
+}
+
+function fmtPct(v, signed) {
+  if (v == null) return '—';
+  var n = Number(v);
+  if (signed) return (n > 0 ? '↑ +' : n < 0 ? '↓ ' : '') + n + '%';
+  return n + '%';
+}
+
+function trendClass(v) {
+  if (v == null) return '';
+  return Number(v) >= 0 ? 'up' : 'down';
+}
+
+function roleTagClass(tag) {
+  if (tag === '决策者') return 'tag-blue';
+  if (tag === '需加强') return 'tag-amber';
+  return 'tag-gray';
+}
+
+function parseJson(str, fallback) {
+  if (!str) return fallback;
+  try { return JSON.parse(str); } catch (e) { return fallback; }
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return String(d).slice(0, 10);
+}
+
+function weekLabel(period) {
+  if (!period) return '';
+  var m = String(period).match(/W(\d+)/i);
+  return m ? 'W' + parseInt(m[1], 10) : period;
+}
+
+function destroyCharts() {
+  Object.keys(chartStore).forEach(function(k) {
+    chartStore[k].destroy();
+    delete chartStore[k];
+  });
+}
+
+function detectAnomalyFrom(trend) {
+  if (!trend || trend.length < 4) return -1;
+  var maxIdx = 0, maxVal = trend[0];
+  for (var i = 1; i < trend.length - 1; i++) {
+    if (trend[i] > maxVal) { maxVal = trend[i]; maxIdx = i; }
+  }
+  if (trend[trend.length - 1] < maxVal * 0.95 && maxIdx < trend.length - 2) return maxIdx;
+  return -1;
+}
+
+function buildGmvLineDatasets(trend, anomalyFrom) {
+  var n = trend.length;
+  var base = { fill: true, tension: 0.3, pointBorderColor: '#fff', pointBorderWidth: 1, spanGaps: false };
+  if (anomalyFrom < 0 || anomalyFrom >= n) {
+    return [{
+      label: '周GMV(万)', data: trend, borderColor: '#0d7aff', backgroundColor: 'rgba(13,122,255,0.15)',
+      borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#0d7aff'
+    }];
+  }
+  return [
+    Object.assign({}, base, {
+      label: '周GMV(万)', data: trend.map(function(v, i) { return i <= anomalyFrom ? v : null; }),
+      borderColor: '#0d7aff', backgroundColor: 'rgba(13,122,255,0.15)', borderWidth: 2,
+      pointRadius: trend.map(function(_, i) { return i <= anomalyFrom ? 4 : 0; }),
+      pointBackgroundColor: trend.map(function(_, i) { return i <= anomalyFrom ? '#0d7aff' : 'transparent'; })
+    }),
+    Object.assign({}, base, {
+      label: '异常下滑', data: trend.map(function(v, i) { return i >= anomalyFrom ? v : null; }),
+      borderColor: '#cd3b32', backgroundColor: 'rgba(205,59,50,0.2)', borderWidth: 2.5,
+      pointRadius: trend.map(function(_, i) { return i >= anomalyFrom ? 4 : 0; }),
+      pointBackgroundColor: trend.map(function(_, i) { return i >= anomalyFrom ? '#cd3b32' : 'transparent'; })
+    })
+  ];
+}
+
+var chartLightOpts = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { ticks: { color: '#697386' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+    y: { ticks: { color: '#697386' }, grid: { color: 'rgba(0,0,0,0.04)' } }
+  }
+};
+var BENCH_RANKS = {
+  midea: { margin:11, cvr:12, adRate:15 },
+  joyoung: { margin:4, cvr:6, adRate:7 },
+  supor: { margin:9, cvr:14, adRate:18 },
+  bear: { margin:2, cvr:3, adRate:4 },
+  morphy: { margin:1, cvr:17, adRate:3 }
+};
+
+function initCharts(key, metricsHistory, latest) {
+  if (typeof Chart === 'undefined') return;
+  destroyCharts();
+  if (!metricsHistory.length) return;
+
+  var labels = metricsHistory.map(function(r) { return weekLabel(r.period_value); });
+  var trend = metricsHistory.map(function(r) { return r.gmv; });
+  var anomalyFrom = detectAnomalyFrom(trend);
+
+  var gmvCtx = document.getElementById('chart-gmv-' + key);
+  if (gmvCtx) {
+    var gmvOpts = JSON.parse(JSON.stringify(chartLightOpts));
+    gmvOpts.scales.y.ticks.callback = function(v) { return v + '万'; };
+    chartStore.gmv = new Chart(gmvCtx, {
+      type: 'line',
+      data: { labels: labels, datasets: buildGmvLineDatasets(trend, anomalyFrom) },
+      options: gmvOpts
+    });
+  }
+
+  if (!latest) return;
+  var shareCtx = document.getElementById('chart-share-' + key);
+  if (shareCtx) {
+    var shareOpts = JSON.parse(JSON.stringify(chartLightOpts));
+    shareOpts.scales.y.ticks.callback = function(v) { return v + '%'; };
+    chartStore.share = new Chart(shareCtx, {
+      type: 'bar',
+      data: {
+        labels: ['JD', 'TM', 'DY', 'PDD'],
+        datasets: [{
+          label: '市占%',
+          data: [latest.jd_share, latest.tmall_share, latest.douyin_share, latest.pdd_share],
+          backgroundColor: ['#cd3b32', '#e6a700', '#64748b', '#475569']
+        }]
+      },
+      options: shareOpts
+    });
+  }
+
+  var growthCtx = document.getElementById('chart-growth-' + key);
+  if (growthCtx) {
+    var growths = [latest.channel_growth_jd, latest.channel_growth_tmall, latest.channel_growth_douyin, 0];
+    var growthOpts = JSON.parse(JSON.stringify(chartLightOpts));
+    growthOpts.scales.y.ticks.callback = function(v) { return v + '%'; };
+    chartStore.growth = new Chart(growthCtx, {
+      type: 'bar',
+      data: {
+        labels: ['JD', 'TM', 'DY', 'PDD'],
+        datasets: [{
+          label: '增速%',
+          data: growths,
+          backgroundColor: growths.map(function(v) { return (v || 0) >= 0 ? '#0e7c4b' : '#cd3b32'; })
+        }]
+      },
+      options: growthOpts
+    });
+  }
+
+  var catCtx = document.getElementById('chart-cat-' + key);
+  if (catCtx) {
+    var cats = parseJson(latest.category_distribution, []);
+    if (cats.length) {
+      var catOpts = JSON.parse(JSON.stringify(chartLightOpts));
+      catOpts.scales.y.ticks.callback = function(v) { return v + '%'; };
+      chartStore.cat = new Chart(catCtx, {
+        type: 'bar',
+        data: {
+          labels: cats.map(function(c) { return c.name; }),
+          datasets: [{
+            label: 'GMV占比%',
+            data: cats.map(function(c) { return c.share; }),
+            backgroundColor: ['#0d7aff', '#e6a700', '#64748b', '#0e7c4b', '#cd3b32'].slice(0, cats.length)
+          }]
+        },
+        options: catOpts
+      });
+    }
+  }
+}
+
+function renderCompletenessRing(data) {
+  var pct = data.completeness_percent || 0;
+  var score = data.completeness_score || 0;
+  var max = data.completeness_max || 10;
+  var color = pct > 80 ? 'var(--green-500)' : pct >= 60 ? 'var(--amber-500)' : 'var(--red-500)';
+  var r = 30, c = 2 * Math.PI * r, off = c * (1 - pct / 100);
+  return '<div class="profile-health-ring" title="档案完整度 ' + score + '/' + max + ' · ' + pct + '%">' +
+    '<svg width="72" height="72" viewBox="0 0 72 72">' +
+    '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="#e3e8ee" stroke-width="6"/>' +
+    '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="6" stroke-dasharray="' + c + '" stroke-dashoffset="' + off + '" stroke-linecap="round"/>' +
+    '</svg><div class="ring-score">' + pct + '%<span class="ring-label">完整度</span></div></div>';
+}
+
+function loadVisitHistory(key, brandId) {
+  return Promise.all([
+    apiReq('/api/brands/' + key + '/reminder'),
+    apiReq('/api/visits?brand_id=' + brandId),
+    apiReq('/api/records?brand_id=' + brandId + '&limit=20'),
+    apiReq('/api/commitments?brand_id=' + brandId)
+  ]).then(function(results) {
+    gVisitReminder = results[0];
+    gVisitHistory = { visits: results[1], records: results[2], commitments: results[3] };
+  });
+}
+
+function refreshHistoryTab() {
+  if (!gData || !gData.brand) return Promise.resolve();
+  return loadVisitHistory(currentKey, gData.brand.id).then(function() {
+    var pane = document.getElementById('pane-history');
+    if (pane) pane.innerHTML = renderHistoryTab(currentKey, gData.brand);
+  });
+}
+
+function loadBrand(key) {
+  document.getElementById('loading-overlay').classList.remove('hidden');
+  return Promise.all([
+    apiReq('/api/brands/profile/' + key),
+    apiReq('/api/brands/metrics/' + key + '?limit=12'),
+    apiReq('/api/intel/briefing/' + key)
+  ]).then(function(results) {
+    gData = results[0];
+    gMetricsHistory = results[1].slice().reverse();
+    gBriefing = results[2];
+    return loadVisitHistory(key, gData.brand.id).then(function() {
+      hideError();
+      renderBrand(gData);
+    });
+  }).catch(function(e) {
+    showError('加载失败：' + e.message + '（请确认后端在 8000 端口运行）');
+  }).finally(function() {
+    document.getElementById('loading-overlay').classList.add('hidden');
+  });
+}
+
+function getP0Gaps(key) {
+  var extra = BRAND_EXTRA[key] || {};
+  return (extra.gaps || []).filter(function(g) { return g.prio === 'P0'; });
+}
+
+function renderGapPanel(key) {
+  var p0 = getP0Gaps(key);
+  if (!p0.length) {
+    return '<div class="profile-gap-panel" id="gap-panel-' + key + '"><div class="gap-head">暂无 P0 供给缺口</div></div>';
+  }
+  var rows = p0.map(function(g) {
+    return '<tr><td>' + g.sku + '</td><td>' + g.platform + '</td><td>' + g.compSales + '</td><td><span class="tag tag-red">' + g.prio + '</span></td></tr>';
+  }).join('');
+  return '<div class="profile-gap-panel" id="gap-panel-' + key + '"><div class="gap-head">P0 SKU 供给缺口 · 建议引入优先级</div><table><tr><th>SKU</th><th>竞对平台</th><th>竞对月销</th><th>优先级</th></tr>' + rows + '</table></div>';
+}
+
+function renderKpiCards(m, key) {
+  if (!m) return '<p style="color:var(--text-muted);">暂无经营数据</p>';
+  var gmvWow = m.gmv_wow;
+  var orderWow = m.orders_wow;
+  var p0 = getP0Gaps(key);
+  var p0Count = m.p0_gap_count != null ? m.p0_gap_count : p0.length;
+  var gapClick = p0Count > 0 ? ' clickable" onclick="toggleGapPanel(\'' + key + '\')"' : '"';
+  var gmvYoy = m.gmv_yoy;
+  return '<div class="profile-kpi-row">' +
+    '<div class="profile-kpi-card"><div class="kpi-label">GMV（本期）</div><div class="kpi-value">' + (m.gmv != null ? m.gmv : '—') + '</div><span class="kpi-sub ' + trendClass(gmvYoy) + '">同比 ' + fmtPct(gmvYoy, true) + ' · 环比 ' + fmtPct(gmvWow, true) + '</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">GMV增速</div><div class="kpi-value">' + (gmvWow != null ? ((gmvWow > 0 ? '+' : '') + gmvWow + '%') : '—') + '</div><span class="kpi-sub ' + trendClass(gmvWow) + '">周环比</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">成交（订单）</div><div class="kpi-value">' + (m.orders != null ? m.orders.toLocaleString() : '—') + '</div><span class="kpi-sub">本期订单数</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">成交增速</div><div class="kpi-value">' + (orderWow != null ? ((orderWow > 0 ? '+' : '') + orderWow + '%') : '—') + '</div><span class="kpi-sub ' + trendClass(orderWow) + '">订单环比 ' + fmtPct(orderWow, true) + '</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">在售SKU数</div><div class="kpi-value">' + (m.sku_count != null ? m.sku_count : '—') + '</div><span class="kpi-sub">本期在售</span></div>' +
+    '<div class="profile-kpi-card gap-alert' + gapClick + '><div class="kpi-label">P0供给缺口数</div><div class="kpi-value" style="color:' + (p0Count > 0 ? 'var(--red-500)' : 'var(--text-secondary)') + '">' + p0Count + '</div><span class="kpi-sub">' + (p0Count > 0 ? '点击查看缺口列表 →' : '暂无 P0 缺口') + '</span></div>' +
+    '</div>';
+}
+
+window.toggleGapPanel = function(key) {
+  var el = document.getElementById('gap-panel-' + key);
+  if (el) el.classList.toggle('open');
+};
+
+function renderChannelTable(m) {
+  if (!m) return '';
+  var rows = [
+    { ch:'JD', share:m.jd_share, growth:m.channel_growth_jd, highlight:true },
+    { ch:'TM', share:m.tmall_share, growth:m.channel_growth_tmall },
+    { ch:'DY', share:m.douyin_share, growth:m.channel_growth_douyin },
+    { ch:'PDD', share:m.pdd_share, growth:null }
+  ];
+  var html = rows.map(function(r) {
+    var gc = trendClass(r.growth);
+    return '<tr class="' + (r.highlight ? 'jd-row' : '') + '"><td><b>' + r.ch + '</b></td><td>' + (r.share != null ? r.share + '%' : '—') + '</td><td class="kpi-sub ' + gc + '">' + (r.growth != null ? fmtPct(r.growth, true) : '—') + '</td></tr>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><h3>渠道市占</h3><span class="card-meta">JD行高亮 · 数据来自 brand_metrics</span></div><div class="card-body no-padding"><table><tr><th>渠道</th><th>市占%</th><th>增速%</th></tr>' + html + '</table></div></div>';
+}
+
+function renderCategoryTable(m) {
+  var dist = parseJson(m && m.category_distribution, []);
+  var share = parseJson(m && m.category_share, []);
+  var shareMap = {};
+  share.forEach(function(s) { shareMap[s.name] = s; });
+  if (!dist.length) return '<div class="card"><div class="card-header"><h3>类目分布</h3></div><div class="card-body"><span style="color:var(--text-muted);">暂无数据</span></div></div>';
+  var rows = dist.map(function(c) {
+    var s = shareMap[c.name] || {};
+    var avg = s.avg != null ? s.avg : 20;
+    var jd = s.jd_share != null ? s.jd_share : null;
+    var warn = jd != null && jd < avg;
+    return '<tr' + (warn ? ' class="warn-row"' : '') + '><td' + (warn ? ' class="warn-cell"' : '') + '>' + c.name + '</td><td>' + (c.share != null ? c.share + '%' : '—') + '</td><td' + (warn ? ' class="warn-cell"' : '') + '>' + (jd != null ? jd + '%' : '—') + '</td><td>' + avg + '%</td><td>' + (warn ? '<span class="tag tag-amber">低于均值</span>' : '<span class="tag tag-green">正常</span>') + '</td></tr>';
+  }).join('');
+  return '<div class="card"><div class="card-header"><h3>类目维度市占</h3><span class="card-meta">低于品类均值标黄 · 找机会点</span></div><div class="card-body no-padding"><table><tr><th>三级类目</th><th>品牌GMV占比</th><th>JD市占</th><th>品类均值</th><th>判断</th></tr>' + rows + '</table></div></div>';
+}
+
+function benchInterpret(name, rank, higherBetter) {
+  if (rank == null) return '—';
+  if (name === '毛利率' || name === 'UV转化率') return rank <= 8 ? '议价空间较好' : '低于头部';
+  return rank <= 8 ? '费率健康' : '费率偏高';
+}
+
+function renderBenchmark(m, key) {
+  if (!m) return '';
+  var ranks = BENCH_RANKS[key] || { margin:10, cvr:10, adRate:10 };
+  var items = [
+    { name:'毛利率', val:m.gross_margin, top:BENCH_TOP.margin, rank:ranks.margin, higherBetter:true },
+    { name:'UV转化率', val:m.uv_conversion, top:BENCH_TOP.cvr, rank:ranks.cvr, higherBetter:true },
+    { name:'广告费率', val:m.ad_rate, top:BENCH_TOP.adRate, rank:ranks.adRate, higherBetter:false }
+  ];
+  var rows = items.map(function(it) {
+    var bad = it.val == null ? false : (it.higherBetter ? it.val < it.top : it.val > it.top);
+    return '<tr><td>' + it.name + '</td><td' + (bad ? ' class="bad-cell"' : '') + '>' + (it.val != null ? it.val + '%' : '—') + '</td><td>' + it.top + '%</td><td>#' + it.rank + '</td><td>' + benchInterpret(it.name, it.rank, it.higherBetter) + '</td></tr>';
+  }).join('');
+  return '<details class="profile-benchmark-panel"><summary>📊 品类对标（毛利率 / 转化率 / 广告费率 vs TOP20）</summary><div class="profile-benchmark-body"><table><tr><th>指标</th><th>本品牌</th><th>品类TOP20均值</th><th>排名</th><th>解读</th></tr>' + rows + '</table><p style="font-size:12px;color:var(--text-muted);margin-top:10px">帮助判断议价空间与投放效率 · 数据可手工导入或 BI 对接</p></div></details>';
+}
+
+function renderIntelList(items, cls) {
+  if (!items || !items.length) return '<p style="color:var(--text-muted);font-size:12px;">暂无</p>';
+  return items.map(function(it) {
+    var tagCls = it.impact === '高' ? 'red' : it.impact === '中' ? 'amber' : 'blue';
+    return '<div class="profile-intel-item ' + cls + '"><div class="intel-item-title">' + it.title + '</div><div>' + it.body + '</div>' +
+      '<div class="intel-item-meta">' + it.src + ' · ' + it.time + ' · 影响 <span class="tag tag-' + tagCls + '">' + it.impact + '</span></div></div>';
+  }).join('');
+}
+
+function briefingToIntelItem(a) {
+  return {
+    title: (a.priority ? a.priority + ' · ' : '') + a.title,
+    body: a.description || a.suggestion || '',
+    src: '情报预警',
+    time: (a.created_at || '').slice(0, 10),
+    impact: a.priority === 'P0' ? '高' : '中'
+  };
+}
+
+function renderIntelTab(key) {
+  var risks = [];
+  var opps = [];
+  var b = gBriefing;
+  if (b && b.active_alerts) {
+    b.active_alerts.forEach(function(a) {
+      if (a.priority !== 'P0') return;
+      var item = briefingToIntelItem(a);
+      if (a.category === '风险预警') {
+        risks.push(item);
+      } else if (a.category === '增长机会') {
+        opps.push(item);
+      }
+    });
+  }
+  risks = risks.slice(0, 3);
+  opps = opps.slice(0, 3);
+  return '<div class="profile-intel-split">' +
+    '<div class="profile-intel-col"><h4>🟢 增长机会 TOP</h4>' + renderIntelList(opps, 'opp') + '</div>' +
+    '<div class="profile-intel-col"><h4>🔴 风险预警 TOP</h4>' + renderIntelList(risks, 'risk') + '</div></div>' +
+    '<p style="margin-top:14px;font-size:12px"><button class="btn-sm-outline" onclick="goIntel(\'' + key + '\')">查看全部情报 → 品牌情报流</button></p>';
+}
+
+function truncate(s, n) {
+  if (!s) return '';
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+function commitIcon(s) {
+  if (s === 'done') return '<span class="tag tag-green">已兑现 ✓</span>';
+  if (s === 'fail') return '<span class="tag tag-red">未兑现 ✗</span>';
+  return '<span class="tag tag-amber">进行中 ●</span>';
+}
+
+function mapCommitStatus(s) {
+  if (s === 'fulfilled') return 'done';
+  if (s === 'broken') return 'fail';
+  return 'doing';
+}
+
+function formatIsoDate(d) {
+  if (!d) return '—';
+  var s = String(d).slice(0, 10);
+  return s.length === 10 ? s.slice(5) : s;
+}
+
+function formatTimelineDate(d) {
+  if (!d) return '—';
+  return String(d).slice(0, 10);
+}
+
+function renderHistoryTab(key, brand) {
+  var rem = gVisitReminder || {};
+  var vh = gVisitHistory || { visits: [], records: [], commitments: [] };
+  var extra = BRAND_EXTRA[key] || {};
+  var h = extra.history || {};
+
+  var days = rem.days_since_last_visit;
+  if (days === 999) days = null;
+  var cycleDays = h.cycle || 28;
+  var overdue = days != null && days > cycleDays;
+  var statusCls = overdue ? 'status-warn' : 'status-ok';
+  var statusText = days == null
+    ? '暂无已完成拜访记录'
+    : (overdue
+      ? '距上次拜访 <strong>' + days + '天</strong>（超约定周期 ' + cycleDays + '天 · 标红）'
+      : '距上次拜访 <strong>' + days + '天</strong>（周期内）');
+
+  var records = (vh.records || []).slice().sort(function(a, b) {
+    return String(b.visit_date || '').localeCompare(String(a.visit_date || ''));
+  });
+  var tl = records.map(function(r) {
+    return '<div class="profile-tl-item good"><div class="tl-time">' + formatTimelineDate(r.visit_date) + '</div>' +
+      '<div class="tl-title">' + (r.topics || brand.name + ' 拜访') + '</div>' +
+      '<div class="tl-desc">' + truncate(r.participants || r.topics || '', 40) + '</div>' +
+      (r.commitments_raw ? '<details class="profile-tl-details"><summary>展开完整纪要</summary><div class="tl-full">' + r.commitments_raw + '</div></details>' : '') +
+      '</div>';
+  }).join('');
+
+  if (gBriefing && gBriefing.active_alerts) {
+    gBriefing.active_alerts.filter(function(a) { return a.priority === 'P0'; }).slice(0, 3).forEach(function(a) {
+      var d = a.created_at ? String(a.created_at).slice(0, 10) : '';
+      tl += '<div class="profile-tl-item warn"><div class="tl-time">' + formatTimelineDate(d) + '</div>' +
+        '<div class="tl-title">情报入库：' + truncate(a.title, 28) + '</div>' +
+        '<div class="tl-desc">' + a.priority + ' · ' + (a.category || '预警') + '</div>' +
+        (a.description ? '<details class="profile-tl-details"><summary>展开完整纪要</summary><div class="tl-full">' + a.description + '</div></details>' : '') +
+        '</div>';
+    });
+  }
+
+  var commits = (vh.commitments || []).map(function(c) {
+    return '<tr><td>' + c.content + '</td><td>' + commitIcon(mapCommitStatus(c.status)) + '</td><td>' + formatIsoDate(c.deadline) + '</td></tr>';
+  }).join('');
+
+  var pending = (vh.commitments || []).filter(function(c) { return c.status === 'pending'; });
+  var topics = pending.length
+    ? pending.slice(0, 3).map(function(c) { return '跟进：' + c.content; })
+    : (h.suggest && h.suggest.topics ? h.suggest.topics : ['维护日常关系', '同步京东侧资源与排期']);
+  var suggestDays = overdue ? 3 : (h.suggest ? h.suggest.days : 7);
+
+  var latestRecord = records[0];
+  var tempTrend = latestRecord && latestRecord.relation_change === 'up' ? '↑'
+    : latestRecord && latestRecord.relation_change === 'down' ? '↓' : (h.tempTrend || '→');
+  var tempVal = rem.relation_temp != null ? rem.relation_temp : (brand.relation_temp != null ? brand.relation_temp : (h.temp != null ? h.temp : '—'));
+
+  return '<div class="history-status-bar"><span class="' + statusCls + '">' + statusText + '</span>' +
+    '<span>关系温度 <strong>' + tempVal + '°</strong> · 趋势 ' + tempTrend + '</span>' +
+    '<span style="color:var(--text-muted);font-size:12px;">数据来自拜访模块 API</span></div>' +
+    '<div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
+    '<div class="card"><div class="card-header"><h3>拜访时间轴</h3></div><div class="card-body"><div class="profile-timeline">' + (tl || '<p style="color:var(--text-muted);font-size:12px;">暂无拜访记录</p>') + '</div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>承诺追踪</h3></div><div class="card-body no-padding" style="padding:0 16px"><table><tr><th>待办项</th><th>状态</th><th>截止</th></tr>' + (commits || '<tr><td colspan="3" style="color:var(--text-muted);">暂无承诺</td></tr>') + '</table></div></div></div>' +
+    '<div class="visit-suggest-ai"><h4>🤖 AI 下次拜访建议</h4><p style="font-size:13px;margin:0 0 8px">建议 <strong>' + suggestDays + '天内</strong> 安排拜访（综合数据异动 + 拜访周期 + 待办未闭环）：</p><ul>' + topics.map(function(t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
+    '<div class="profile-footer-actions"><button class="btn-sm-outline" onclick="goVisit(\'' + key + '\')">📝 安排拜访</button><button class="btn-sm-outline" onclick="goIntel(\'' + key + '\')">📡 情报库</button></div>';
+}
+
+function renderDashboard(data) {
+  var m = data.metrics;
+  return renderKpiCards(m, currentKey) + renderGapPanel(currentKey) +
+    '<div class="profile-chart-grid">' +
+    '<div class="profile-chart-box"><h4>GMV 趋势 · 近12周（异常段标红）</h4><div class="profile-chart-canvas"><canvas id="chart-gmv-' + currentKey + '"></canvas></div></div>' +
+    '<div class="profile-chart-box"><h4>渠道 GMV 占比 · JD / TM / DY / PDD</h4><div class="profile-chart-canvas"><canvas id="chart-share-' + currentKey + '"></canvas></div></div>' +
+    '</div>' +
+    '<div class="profile-chart-grid">' +
+    '<div class="profile-chart-box"><h4>渠道增速对比</h4><div class="profile-chart-canvas"><canvas id="chart-growth-' + currentKey + '"></canvas></div></div>' +
+    '<div class="profile-chart-box"><h4>三级类目 GMV 占比</h4><div class="profile-chart-canvas"><canvas id="chart-cat-' + currentKey + '"></canvas></div></div>' +
+    '</div>' +
+    renderCategoryTable(m) +
+    renderBenchmark(m, currentKey);
+}
+
+function renderOrg(orgStr) {
+  var org = parseJson(orgStr, null);
+  if (!org) return '<span style="color:var(--text-muted);">暂无组织架构</span>';
+  var nodes = (org.nodes || []).map(function(n) { return '<div class="org-node">' + n + '</div>'; }).join('');
+  return '<div class="org-chart"><div class="org-node">' + (org.root || '') + '</div><div class="org-connector"></div><div class="org-node lead">' + (org.lead || '') + '</div><div class="org-connector"></div><div class="org-row">' + nodes + '</div></div>';
+}
+
+function renderContacts(contacts) {
+  if (!contacts.length) return '<p style="color:var(--text-muted);font-size:13px;">暂无联系人，拜访后补充</p>';
+  return contacts.map(function(c) {
+    return '<div class="person-card person-card-editable" id="contact-' + c.id + '" data-id="' + c.id + '">' +
+      '<div class="person-view"><div class="person-head"><div><div class="person-name">' + c.name + '</div><div class="person-role">' + (c.title || '') + '</div></div>' +
+      '<button class="btn-sm-outline" onclick="editContact(' + c.id + ')">编辑</button></div>' +
+      '<div class="person-tags"><span class="tag ' + roleTagClass(c.role_tag) + '">' + (c.role_tag || '其他') + '</span>' +
+      '<span class="tag tag-gray">最近建联 ' + fmtDate(c.last_contact_date) + '</span></div></div>' +
+      '<div class="person-edit-fields">' +
+      '<label class="form-label">姓名</label><input class="form-input" id="cname-' + c.id + '" value="' + c.name + '">' +
+      '<label class="form-label">职务</label><input class="form-input" id="ctitle-' + c.id + '" value="' + (c.title || '') + '">' +
+      '<label class="form-label">角色标签</label><select class="form-select" id="crole-' + c.id + '">' +
+      ['决策者','日常对接','需加强','其他'].map(function(t) { return '<option' + (c.role_tag === t ? ' selected' : '') + '>' + t + '</option>'; }).join('') +
+      '</select>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveContact(' + c.id + ')">保存</button><button class="btn-sm-outline" onclick="cancelContact(' + c.id + ')">取消</button></div></div></div>';
+  }).join('');
+}
+
+function renderIntro(data) {
+  var b = data.brand;
+  var p = data.profile || {};
+  var taboos = p.taboos || '（暂无潜规则记录）';
+  var meta = p.taboo_updated_by ? ('最后更新：' + p.taboo_updated_by + ' · ' + (p.taboo_updated_at || '').slice(0, 10)) : '尚未更新';
+  return '<div class="profile-intro-grid">' +
+    '<div class="card"><div class="card-header"><h3>基础信息</h3></div><div class="card-body"><dl class="profile-basic-dl">' +
+    '<dt>成立时间</dt><dd>' + (p.founded_year || '—') + '</dd>' +
+    '<dt>总部</dt><dd>' + (p.hq || '—') + '</dd>' +
+    '<dt>品牌定位</dt><dd>' + (p.positioning || '—') + '</dd>' +
+    '<dt>负责采销</dt><dd>' + (b.responsible || '—') + '</dd>' +
+    '</dl></div></div>' +
+    '<div class="card"><div class="card-header"><h3>关键人物</h3><span class="card-meta">可编辑 · AI候选→采销确认</span></div><div class="card-body" id="contacts-mount">' + renderContacts(data.contacts) + '</div></div></div>' +
+    '<div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">' +
+    '<div class="card"><div class="card-header"><h3>组织架构简图</h3></div><div class="card-body">' + renderOrg(p.org_structure) + '</div></div>' +
+    '<div class="card"><div class="card-header"><h3>品牌潜规则</h3><span class="card-meta">拜访禁忌 · 决策偏好</span><button class="btn-sm-outline" style="margin-left:auto;" onclick="editTaboos()">编辑</button></div>' +
+    '<div class="card-body"><div class="profile-rule-box" id="taboo-box">' +
+    '<div class="rule-view" id="taboo-view" style="white-space:pre-wrap;">' + taboos + '</div>' +
+    '<div class="rule-meta" id="taboo-meta">' + meta + '</div>' +
+    '<div class="rule-edit"><textarea class="form-textarea" id="taboo-input" rows="5">' + taboos + '</textarea>' +
+    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveTaboos()">保存</button><button class="btn-sm-outline" onclick="cancelTaboos()">取消</button></div></div></div></div></div></div>';
+}
+
+function renderBrand(data) {
+  var b = data.brand;
+  var lv = (b.level || 'B').toLowerCase();
+  var extra = BRAND_EXTRA[currentKey] || {};
+  var mount = document.getElementById('profile-mount');
+  mount.innerHTML =
+    '<div class="profile-top-bar">' +
+    '<div class="profile-top-left"><h2 class="profile-brand-name">' + b.name + '</h2><span class="level-badge level-' + lv + '">' + (LEVEL_LABEL[b.level] || b.level) + '</span></div>' +
+    renderCompletenessRing(data) +
+    '<div class="profile-ai-oneline">🤖 ' + (extra.ai || '暂无 AI 摘要') + '</div>' +
+    '<div class="profile-top-meta"><span>负责采销：' + (b.responsible || '—') + '</span>' +
+    '<span>档案更新：' + ((data.profile && data.profile.taboo_updated_at) ? String(data.profile.taboo_updated_at).slice(0, 10) : '—') + '</span>' +
+    '<span>数据说明：JD口径 · 近12周 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 10) + '</span></div></div>' +
+    '<div class="tab-bar profile-inner-tabs" id="profile-inner-tabs">' +
+    '<div class="tab-item' + (currentPTab === 'dashboard' ? ' active' : '') + '" data-ptab="dashboard">📊 经营看板</div>' +
+    '<div class="tab-item' + (currentPTab === 'intro' ? ' active' : '') + '" data-ptab="intro">🏢 品牌简介</div>' +
+    '<div class="tab-item' + (currentPTab === 'intel' ? ' active' : '') + '" data-ptab="intel">📡 最新情报</div>' +
+    '<div class="tab-item' + (currentPTab === 'history' ? ' active' : '') + '" data-ptab="history">🤝 历史互动</div></div>' +
+    '<div class="profile-panels">' +
+    '<div class="profile-pane' + (currentPTab === 'dashboard' ? ' active' : '') + '" id="pane-dashboard">' + renderDashboard(data) + '</div>' +
+    '<div class="profile-pane' + (currentPTab === 'intro' ? ' active' : '') + '" id="pane-intro">' + renderIntro(data) + '</div>' +
+    '<div class="profile-pane' + (currentPTab === 'intel' ? ' active' : '') + '" id="pane-intel">' + renderIntelTab(currentKey) + '</div>' +
+    '<div class="profile-pane' + (currentPTab === 'history' ? ' active' : '') + '" id="pane-history">' + renderHistoryTab(currentKey, b) + '</div></div>';
+
+  document.querySelectorAll('#profile-inner-tabs .tab-item').forEach(function(tab) {
+    tab.onclick = function() {
+      currentPTab = this.dataset.ptab;
+      document.querySelectorAll('#profile-inner-tabs .tab-item').forEach(function(t) { t.classList.remove('active'); });
+      this.classList.add('active');
+      document.querySelectorAll('.profile-pane').forEach(function(p) { p.classList.remove('active'); });
+      document.getElementById('pane-' + currentPTab).classList.add('active');
+      if (currentPTab === 'dashboard') {
+        setTimeout(function() { initCharts(currentKey, gMetricsHistory, data.metrics); }, 0);
+      }
+      if (currentPTab === 'intel') {
+        document.getElementById('pane-intel').innerHTML = renderIntelTab(currentKey);
+      }
+      if (currentPTab === 'history') {
+        refreshHistoryTab();
+      }
+    };
+  });
+
+  if (currentPTab === 'dashboard') {
+    setTimeout(function() { initCharts(currentKey, gMetricsHistory, data.metrics); }, 0);
+  }
+}
+
+window.editContact = function(id) {
+  document.getElementById('contact-' + id).classList.add('editing');
+};
+window.cancelContact = function(id) {
+  document.getElementById('contact-' + id).classList.remove('editing');
+};
+window.saveContact = function(id) {
+  var payload = {
+    contacts: [{
+      id: id,
+      name: document.getElementById('cname-' + id).value.trim(),
+      title: document.getElementById('ctitle-' + id).value.trim(),
+      role_tag: document.getElementById('crole-' + id).value
+    }]
+  };
+  apiReq('/api/brands/profile/' + currentKey, { method:'PUT', body: payload }).then(function(data) {
+    gData = data;
+    renderBrand(data);
+    showToast('联系人已保存');
+  }).catch(function(e) { showToast('保存失败：' + e.message); });
+};
+
+window.editTaboos = function() {
+  document.getElementById('taboo-box').classList.add('editing');
+};
+window.cancelTaboos = function() {
+  document.getElementById('taboo-box').classList.remove('editing');
+  document.getElementById('taboo-input').value = document.getElementById('taboo-view').textContent;
+};
+window.saveTaboos = function() {
+  var text = document.getElementById('taboo-input').value.trim();
+  apiReq('/api/brands/profile/' + currentKey, { method:'PUT', body: { taboos: text } }).then(function(data) {
+    gData = data;
+    currentPTab = 'intro';
+    renderBrand(data);
+    showToast('潜规则已保存');
+  }).catch(function(e) { showToast('保存失败：' + e.message); });
+};
+
+document.querySelectorAll('#profile-tabs .tab-item').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('#profile-tabs .tab-item').forEach(function(t) { t.classList.remove('active'); });
+    this.classList.add('active');
+    currentKey = this.dataset.key;
+    currentPTab = 'dashboard';
+    loadBrand(currentKey);
+  });
+});
+
+(function init() {
+  var d = new Date();
+  document.getElementById('top-date').textContent = d.toISOString().slice(0, 10);
+  // 支持 ?brand=midea 从工作台直达指定品牌
+  var params = new URLSearchParams(window.location.search);
+  var brandKey = params.get('brand');
+  var validKeys = BRAND_TABS.map(function (t) { return t.key; });
+  if (brandKey && validKeys.indexOf(brandKey) !== -1) {
+    document.querySelectorAll('.tab-item[data-key]').forEach(function (tab) {
+      tab.classList.toggle('active', tab.dataset.key === brandKey);
+    });
+    currentKey = brandKey;
+    loadBrand(brandKey);
+  } else {
+    loadBrand('midea');
+  }
+})();
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>
