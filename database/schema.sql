@@ -278,10 +278,20 @@ CREATE TABLE brand_metrics (
   gross_margin          DECIMAL(5,2)   DEFAULT NULL COMMENT '毛利率%',
   uv_conversion         DECIMAL(5,2)   DEFAULT NULL COMMENT 'UV转化率%',
   ad_rate               DECIMAL(5,2)   DEFAULT NULL COMMENT '广告费率%',
+  week_start            DATE           DEFAULT NULL COMMENT '周开始（情报周报）',
+  week_end              DATE           DEFAULT NULL COMMENT '周结束（情报周报）',
+  competitor_moves      TEXT           DEFAULT NULL COMMENT '竞品动态（情报叙事）',
+  inventory_status      TEXT           DEFAULT NULL COMMENT '库存状况（情报叙事）',
+  risk_points           TEXT           DEFAULT NULL COMMENT '风险点（情报叙事）',
+  opportunities         TEXT           DEFAULT NULL COMMENT '机会点（情报叙事）',
+  next_week_plan        TEXT           DEFAULT NULL COMMENT '下周计划（情报叙事）',
+  reporter              VARCHAR(32)    DEFAULT NULL COMMENT '填报人（情报周报）',
+  intel_report_status   ENUM('draft','submitted') DEFAULT NULL COMMENT '情报周报状态',
   created_at            DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at            DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_brand_period (brand_id, period_type, period_value),
   FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='品牌经营指标快照表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='品牌经营指标快照表（档案看板+情报周报共用）';
 
 -- 品牌档案种子数据
 INSERT INTO brand_profiles (brand_id, founded_year, hq, positioning, org_structure, taboos, taboo_updated_by, taboo_updated_at) VALUES
@@ -341,6 +351,33 @@ INSERT INTO brand_metrics (
  '[{"name":"多功能锅","jd_share":12,"avg":22},{"name":"榨汁机","jd_share":10,"avg":18}]',
  64, 4, 32.10, 3.80, 2.10);
 
+-- 情报周报叙事字段（写入 brand_metrics，与档案 2026W23 快照同一行）
+UPDATE brand_metrics SET week_start='2026-06-02', week_end='2026-06-08', intel_report_status='submitted',
+  competitor_moves='苏泊尔加大618投放，九阳K系列抖音热卖', inventory_status='空气炸锅Pro库存偏紧，需补货',
+  risk_points='抖音资源倾斜导致预算外溢', opportunities='全屋智能战略带来厨电资源倾斜机会',
+  next_week_plan='推进联合投放600万方案确认', reporter='周采销'
+WHERE brand_id=1 AND period_value='2026W23';
+UPDATE brand_metrics SET week_start='2026-06-02', week_end='2026-06-08', intel_report_status='submitted',
+  competitor_moves='美的破壁机促销力度加大', inventory_status='K9 Pro JD侧库存不足',
+  risk_points='包销价谈判停滞', opportunities='618专区曝光可争取',
+  next_week_plan='锁定618库存与价格', reporter='吴采销'
+WHERE brand_id=2 AND period_value='2026W23';
+UPDATE brand_metrics SET week_start='2026-06-02', week_end='2026-06-08', intel_report_status='submitted',
+  competitor_moves='竞品广告预算缩减', inventory_status='整体库存健康',
+  risk_points='线上增速放缓至5%', opportunities='广告置换谈判窗口',
+  next_week_plan='Q2复盘拜访准备', reporter='李采销'
+WHERE brand_id=3 AND period_value='2026W23';
+UPDATE brand_metrics SET week_start='2026-06-02', week_end='2026-06-08', intel_report_status='submitted',
+  competitor_moves='养生壶品类竞争加剧', inventory_status='联名款预售超预期',
+  risk_points='产能跟进压力', opportunities='618联名款冲击品类第一',
+  next_week_plan='协调产能与曝光资源', reporter='王采销'
+WHERE brand_id=4 AND period_value='2026W23';
+UPDATE brand_metrics SET week_start='2026-06-02', week_end='2026-06-08', intel_report_status='submitted',
+  competitor_moves='摩飞人事变动传闻', inventory_status='多功能锅库存充足',
+  risk_points='决策链可能变化', opportunities='新品线合作待确认',
+  next_week_plan='确认运营总监变动情况', reporter='赵采销'
+WHERE brand_id=5 AND period_value='2026W23';
+
 -- =============================================
 -- 情报模块（开开，2026-06-11 合并）
 -- =============================================
@@ -372,40 +409,16 @@ CREATE TABLE intel_news (
   INDEX idx_news_published (published_at),
   INDEX idx_news_fingerprint (url_fingerprint),
   FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='外部新闻/资讯表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='外部新闻/资讯表（FK brands）';
 
 -- -----------------------------------------
--- 11. 内部周报表
--- -----------------------------------------
-CREATE TABLE intel_weekly_reports (
-  id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '周报ID',
-  brand_id         INT UNSIGNED    NOT NULL COMMENT '关联品牌ID',
-  week_start       DATE           NOT NULL COMMENT '周开始日期',
-  week_end         DATE           NOT NULL COMMENT '周结束日期',
-  week_label       VARCHAR(16)    DEFAULT NULL COMMENT '周标签',
-  weekly_gmv       DECIMAL(12,2)  DEFAULT NULL COMMENT '本周GMV（万元）',
-  gmv_change       DECIMAL(6,2)   DEFAULT NULL COMMENT 'GMV环比变化%',
-  competitor_moves TEXT           DEFAULT NULL COMMENT '竞品动态',
-  inventory_status TEXT           DEFAULT NULL COMMENT '库存状况',
-  risk_points      TEXT           DEFAULT NULL COMMENT '风险点',
-  opportunities    TEXT           DEFAULT NULL COMMENT '机会点',
-  next_week_plan   TEXT           DEFAULT NULL COMMENT '下周计划',
-  reporter         VARCHAR(32)    DEFAULT NULL COMMENT '填报人',
-  status           ENUM('draft','submitted') DEFAULT 'draft' COMMENT '状态',
-  created_at       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_brand_week (brand_id, week_start),
-  FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='内部周报表';
-
--- -----------------------------------------
--- 12. 情报预警表
+-- 11. 情报预警表（FK brands / intel_news / brand_metrics / visits）
 -- -----------------------------------------
 CREATE TABLE intel_alerts (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '预警ID',
   brand_id      INT UNSIGNED    DEFAULT NULL COMMENT '关联品牌ID',
   news_id       INT UNSIGNED    DEFAULT NULL COMMENT '关联新闻ID',
-  weekly_id     INT UNSIGNED    DEFAULT NULL COMMENT '关联周报ID',
+  metrics_id    INT UNSIGNED    DEFAULT NULL COMMENT '关联 brand_metrics 周报周期',
   visit_id      INT UNSIGNED    DEFAULT NULL COMMENT '关联拜访ID',
   priority      ENUM('P0','P1','P2','P3') NOT NULL DEFAULT 'P2' COMMENT '优先级',
   category      ENUM('增长机会','风险预警') DEFAULT NULL COMMENT '情报分类',
@@ -423,7 +436,7 @@ CREATE TABLE intel_alerts (
   INDEX idx_alert_status (status),
   FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL,
   FOREIGN KEY (news_id) REFERENCES intel_news(id) ON DELETE SET NULL,
-  FOREIGN KEY (weekly_id) REFERENCES intel_weekly_reports(id) ON DELETE SET NULL,
+  FOREIGN KEY (metrics_id) REFERENCES brand_metrics(id) ON DELETE SET NULL,
   FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='情报预警表';
 
@@ -455,10 +468,11 @@ INSERT INTO intel_news (brand_id, title, summary, source, sentiment, category, k
 (3, '苏泊尔广告预算缩减信号：主要竞品加大投放', '苏泊尔Q2广告投入环比下降12%，而美的、九阳加大618投放，市占率面临压力。', '竞对监测', 'negative', '竞品', '苏泊尔,广告预算,竞品', '2026-06-04 16:00:00'),
 (4, '小熊电器养生壶品类稳居京东第一，领先优势扩大', '小熊电器养生壶京东月GMV突破420万，市占率领先第二名8个百分点。', '电商监测', 'positive', '渠道', '小熊电器,养生壶,市占', '2026-06-03 10:00:00');
 
--- 预警种子（5条）
+-- 预警种子（6条，含美的 P0 增长机会）
 INSERT INTO intel_alerts (brand_id, news_id, priority, category, title, description, suggestion, status) VALUES
 (1, 1, 'P0', '风险预警', '美的电商总经理岗位变动传闻', '多渠道交叉验证显示王建国可能在Q3调岗。若属实，关键决策链将断裂，需尽早确认并建立新对接人关系。', '建议本周内拜访确认决策链', 'pending'),
 (1, 2, 'P0', '风险预警', '抖音618资源倾斜·美的预算外溢', '抖音获家电主会场头图+搜索品牌专区。京东侧仅为品类楼层第三位，品牌预算向抖音倾斜趋势明显。', '建议48h内与品牌方沟通京东侧资源置换方案', 'pending'),
+(1, 8, 'P0', '增长机会', '美的全屋智能战略：厨电资源倾斜', '美的集团发布全屋智能新战略，厨小事业部作为核心品类将获得更多研发和营销资源。', '建议推进京东侧联合营销与新品首发方案', 'pending'),
 (2, 3, 'P0', '风险预警', '九阳K系列抖音热销 · JD谈判停滞', 'JD库存深度不足，抖音侧热卖而JD缺货/缺价并存。', '建议48h内推进K9 Pro包销价与618专区库存锁定', 'pending'),
 (5, 4, 'P1', '风险预警', '摩飞运营总监离职待确认', '猎头渠道显示摩飞正在招聘电商运营总监。建议主动联系确认并评估对已推进合作的影响。', '补全决策链信息后安排拜访', 'pending'),
 (3, 5, 'P1', '增长机会', '苏泊尔Q2线上增速放缓', '线上全渠道增速放缓至5%。可能影响京东业绩压力与广告预算谈判。', '关注广告预算变化，准备应对方案', 'pending');

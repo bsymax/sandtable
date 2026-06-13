@@ -12,3 +12,6 @@ venv/
 
 # 日志
 *.log
+
+# M1 baseline 打包产物（bash scripts/build-m1-baseline-packages.sh 生成）
+deliverables/

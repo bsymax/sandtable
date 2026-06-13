@@ -1,12 +1,14 @@
 """
 情报模块路由（开开，2026-06-11 合并进主工程）
-- 新闻：列表 / 录入（URL去重）/ 详情
-- 周报：列表 / 提交 / 各品牌最新
-- 预警：列表 / 录入 / 更新 / 一键创建紧急拜访
+- 新闻：列表 / 录入（URL去重）/ 详情 → intel_news（FK brands）
+- 周报：列表 / 提交 / 各品牌最新 → **brand_metrics**（与档案经营底表共用）
+- 预警：列表 / 录入 / 更新 / 一键创建紧急拜访 → intel_alerts（FK brands / intel_news / brand_metrics / visits）
 - 统计：规则版周报摘要 / 品牌简报 / 总览
 
-跨模块说明：create-visit 会向公共表 visits 写入一条紧急拜访（demo 中
-「从预警安排拜访」的真实现，已与拜访模块 Visit 模型复用）。
+底表统一说明（M1 联调）：
+- brands / visits / brand_metrics：与档案、拜访模块共用
+- intel_news：外部资讯（仅 FK brands，无重复底表）
+- intel_alerts：预警编排层，关联上述公共表
 """
 
 from datetime import date, time, datetime, timedelta
@@ -15,13 +17,13 @@ import hashlib
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, func, case
+from sqlalchemy import desc, func, case, or_
 
 from database import get_db
-from models import Brand, Visit, IntelNews, IntelWeeklyReport, IntelAlert
+from models import Brand, Visit, BrandMetrics, IntelNews, IntelAlert
 from schemas import (
-    IntelNewsOut, IntelNewsCreate,
-    IntelWeeklyReportOut, IntelWeeklyReportCreate,
+    IntelNewsOut, IntelNewsCreate, IntelNewsUpdate,
+    IntelWeeklyReportOut, IntelWeeklyReportCreate, IntelWeeklyReportUpdate,
     IntelAlertOut, IntelAlertCreate, IntelAlertUpdate,
     IntelBriefingOut, IntelStatsOut,
 )
@@ -32,6 +34,31 @@ router = APIRouter()
 # ================================================================
 #  辅助函数
 # ================================================================
+def _period_value(week_start: date) -> str:
+    iso = week_start.isocalendar()
+    return f"{iso[0]}W{iso[1]:02d}"
+
+
+def _week_label(period_value: str) -> Optional[str]:
+    if not period_value:
+        return None
+    idx = period_value.find("W")
+    return period_value[idx:] if idx >= 0 else period_value
+
+
+def _weekly_metrics_query(db: Session):
+    """已填报或含叙事字段的周度 brand_metrics（情报周报视图）"""
+    return db.query(BrandMetrics).options(joinedload(BrandMetrics.brand)).filter(
+        BrandMetrics.period_type == "weekly",
+        or_(
+            BrandMetrics.intel_report_status.isnot(None),
+            BrandMetrics.competitor_moves.isnot(None),
+            BrandMetrics.risk_points.isnot(None),
+            BrandMetrics.opportunities.isnot(None),
+        ),
+    )
+
+
 def _fmt_news(n):
     return IntelNewsOut(
         id=n.id, brand_id=n.brand_id, brand_name=n.brand.name if n.brand else None,
@@ -41,16 +68,43 @@ def _fmt_news(n):
     )
 
 
-def _fmt_weekly(r):
+def _fmt_weekly(m: BrandMetrics):
     return IntelWeeklyReportOut(
-        id=r.id, brand_id=r.brand_id, brand_name=r.brand.name if r.brand else None,
-        week_start=r.week_start, week_end=r.week_end, week_label=r.week_label,
-        weekly_gmv=r.weekly_gmv, gmv_change=r.gmv_change,
-        competitor_moves=r.competitor_moves, inventory_status=r.inventory_status,
-        risk_points=r.risk_points, opportunities=r.opportunities,
-        next_week_plan=r.next_week_plan, reporter=r.reporter,
-        status=r.status, created_at=r.created_at, updated_at=r.updated_at,
+        id=m.id,
+        brand_id=m.brand_id,
+        brand_name=m.brand.name if m.brand else None,
+        week_start=m.week_start,
+        week_end=m.week_end,
+        week_label=_week_label(m.period_value),
+        weekly_gmv=float(m.gmv) if m.gmv is not None else None,
+        gmv_change=float(m.gmv_wow) if m.gmv_wow is not None else None,
+        competitor_moves=m.competitor_moves,
+        inventory_status=m.inventory_status,
+        risk_points=m.risk_points,
+        opportunities=m.opportunities,
+        next_week_plan=m.next_week_plan,
+        reporter=m.reporter,
+        status=m.intel_report_status or "submitted",
+        created_at=m.created_at,
+        updated_at=m.updated_at,
     )
+
+
+def _apply_weekly_payload(m: BrandMetrics, payload, mark_submitted: bool = False):
+    data = payload.model_dump(exclude_unset=True)
+    if "weekly_gmv" in data:
+        m.gmv = data.pop("weekly_gmv")
+    if "gmv_change" in data:
+        m.gmv_wow = data.pop("gmv_change")
+    if "week_start" in data and data["week_start"]:
+        m.period_value = _period_value(data["week_start"])
+    for k, v in data.items():
+        if k == "week_label":
+            continue
+        if hasattr(m, k):
+            setattr(m, k, v)
+    if mark_submitted:
+        m.intel_report_status = "submitted"
 
 
 def _default_alert_category(priority: str, category: Optional[str] = None) -> str:
@@ -64,7 +118,7 @@ def _fmt_alert(a):
         id=a.id, brand_id=a.brand_id, brand_name=a.brand.name if a.brand else None,
         brand_name_key=a.brand.name_key if a.brand else None,
         brand_level=a.brand.level if a.brand else None,
-        news_id=a.news_id, weekly_id=a.weekly_id, visit_id=a.visit_id,
+        news_id=a.news_id, metrics_id=a.metrics_id, visit_id=a.visit_id,
         priority=a.priority,
         category=a.category or _default_alert_category(a.priority),
         title=a.title, description=a.description,
@@ -106,6 +160,19 @@ def create_news(payload: IntelNewsCreate, db: Session = Depends(get_db)):
         published_at=payload.published_at or datetime.now(),
     )
     db.add(news); db.commit(); db.refresh(news)
+    news = db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(IntelNews.id == news.id).first()
+    return _fmt_news(news)
+
+
+@router.put("/api/intel/news/{news_id}", response_model=IntelNewsOut, tags=["情报-新闻"])
+def update_news(news_id: int, payload: IntelNewsUpdate, db: Session = Depends(get_db)):
+    news = db.query(IntelNews).filter(IntelNews.id == news_id).first()
+    if not news:
+        raise HTTPException(404, "新闻不存在")
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(news, k, v)
+    db.commit()
+    news = db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(IntelNews.id == news_id).first()
     return _fmt_news(news)
 
 
@@ -117,27 +184,50 @@ def get_news(news_id: int, db: Session = Depends(get_db)):
 
 
 # ================================================================
-#  周报
+#  周报（读写 brand_metrics，与档案经营底表共用）
 # ================================================================
 @router.get("/api/intel/weekly", response_model=List[IntelWeeklyReportOut], tags=["情报-周报"])
 def list_weekly(brand_id: Optional[int] = None, limit: int = 20, db: Session = Depends(get_db)):
-    q = db.query(IntelWeeklyReport)
-    if brand_id: q = q.filter(IntelWeeklyReport.brand_id == brand_id)
-    return [_fmt_weekly(r) for r in q.order_by(desc(IntelWeeklyReport.week_start)).limit(limit).all()]
+    q = _weekly_metrics_query(db)
+    if brand_id:
+        q = q.filter(BrandMetrics.brand_id == brand_id)
+    rows = q.order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).limit(limit).all()
+    return [_fmt_weekly(r) for r in rows]
 
 
 @router.post("/api/intel/weekly", response_model=IntelWeeklyReportOut, tags=["情报-周报"])
 def create_weekly(payload: IntelWeeklyReportCreate, db: Session = Depends(get_db)):
     if not db.query(Brand).filter(Brand.id == payload.brand_id).first():
         raise HTTPException(404, "品牌不存在")
-    if db.query(IntelWeeklyReport).filter(
-        IntelWeeklyReport.brand_id == payload.brand_id,
-        IntelWeeklyReport.week_start == payload.week_start,
-    ).first():
+    pv = _period_value(payload.week_start)
+    m = db.query(BrandMetrics).filter(
+        BrandMetrics.brand_id == payload.brand_id,
+        BrandMetrics.period_type == "weekly",
+        BrandMetrics.period_value == pv,
+    ).first()
+    if m and m.intel_report_status == "submitted":
         raise HTTPException(400, "该品牌本周报已存在")
-    r = IntelWeeklyReport(**payload.model_dump()); r.status = "submitted"
-    db.add(r); db.commit(); db.refresh(r)
-    return _fmt_weekly(r)
+    if not m:
+        m = BrandMetrics(brand_id=payload.brand_id, period_type="weekly", period_value=pv)
+        db.add(m)
+    _apply_weekly_payload(m, payload, mark_submitted=True)
+    db.commit(); db.refresh(m)
+    m = db.query(BrandMetrics).options(joinedload(BrandMetrics.brand)).filter(BrandMetrics.id == m.id).first()
+    return _fmt_weekly(m)
+
+
+@router.put("/api/intel/weekly/{weekly_id}", response_model=IntelWeeklyReportOut, tags=["情报-周报"])
+def update_weekly(weekly_id: int, payload: IntelWeeklyReportUpdate, db: Session = Depends(get_db)):
+    m = db.query(BrandMetrics).filter(
+        BrandMetrics.id == weekly_id,
+        BrandMetrics.period_type == "weekly",
+    ).first()
+    if not m:
+        raise HTTPException(404, "周报不存在")
+    _apply_weekly_payload(m, payload)
+    db.commit()
+    m = db.query(BrandMetrics).options(joinedload(BrandMetrics.brand)).filter(BrandMetrics.id == weekly_id).first()
+    return _fmt_weekly(m)
 
 
 @router.get("/api/intel/weekly/latest", response_model=List[IntelWeeklyReportOut], tags=["情报-周报"])
@@ -145,10 +235,11 @@ def latest_weekly(db: Session = Depends(get_db)):
     brands = db.query(Brand).filter(Brand.status == "active").all()
     result = []
     for b in brands:
-        latest = db.query(IntelWeeklyReport).filter(
-            IntelWeeklyReport.brand_id == b.id
-        ).order_by(desc(IntelWeeklyReport.week_start)).first()
-        if latest: result.append(_fmt_weekly(latest))
+        latest = _weekly_metrics_query(db).filter(
+            BrandMetrics.brand_id == b.id
+        ).order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).first()
+        if latest:
+            result.append(_fmt_weekly(latest))
     return result
 
 
@@ -204,7 +295,7 @@ def update_alert(alert_id: int, payload: IntelAlertUpdate, db: Session = Depends
 @router.post("/api/intel/alerts/{alert_id}/create-visit", tags=["情报-预警"])
 def create_visit_from_alert(alert_id: int, db: Session = Depends(get_db)):
     """从预警一键创建紧急拜访（写公共表 visits，与拜访模块联动）"""
-    alert = db.query(IntelAlert).filter(IntelAlert.id == alert_id).first()
+    alert = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(IntelAlert.id == alert_id).first()
     if not alert: raise HTTPException(404, "预警不存在")
     if not alert.brand_id: raise HTTPException(400, "预警未关联品牌")
 
@@ -291,21 +382,23 @@ def get_brand_briefing(brand_key: str, db: Session = Depends(get_db)):
         IntelAlert.status.in_(["pending", "confirmed"]),
     ).order_by(case((IntelAlert.priority=="P0",0),(IntelAlert.priority=="P1",1),else_=2)).all()
 
-    latest_w = db.query(IntelWeeklyReport).filter(
-        IntelWeeklyReport.brand_id == brand.id
-    ).order_by(desc(IntelWeeklyReport.week_start)).first()
+    latest_w = _weekly_metrics_query(db).filter(
+        BrandMetrics.brand_id == brand.id
+    ).order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).first()
 
     return IntelBriefingOut(
         brand_id=brand.id, brand_name=brand.name, brand_level=brand.level,
         recent_news=[_fmt_news(n) for n in news],
         active_alerts=[_fmt_alert(a) for a in alerts],
         latest_weekly={
-            "week_label": latest_w.week_label,
-            "weekly_gmv": float(latest_w.weekly_gmv) if latest_w.weekly_gmv is not None else None,
-            "gmv_change": float(latest_w.gmv_change) if latest_w.gmv_change is not None else None,
-            "competitor_moves": latest_w.competitor_moves,
-            "risk_points": latest_w.risk_points, "opportunities": latest_w.opportunities,
-            "reporter": latest_w.reporter, "created_at": str(latest_w.created_at),
+            "week_label": _week_label(latest_w.period_value) if latest_w else None,
+            "weekly_gmv": float(latest_w.gmv) if latest_w and latest_w.gmv is not None else None,
+            "gmv_change": float(latest_w.gmv_wow) if latest_w and latest_w.gmv_wow is not None else None,
+            "competitor_moves": latest_w.competitor_moves if latest_w else None,
+            "risk_points": latest_w.risk_points if latest_w else None,
+            "opportunities": latest_w.opportunities if latest_w else None,
+            "reporter": latest_w.reporter if latest_w else None,
+            "created_at": str(latest_w.created_at) if latest_w else None,
         } if latest_w else None,
         stats={"total_news": len(news), "active_alerts": len(alerts)},
     )

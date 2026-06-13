@@ -205,6 +205,16 @@ class BrandMetrics(Base):
     gross_margin          = Column(Numeric(5, 2))
     uv_conversion         = Column(Numeric(5, 2))
     ad_rate               = Column(Numeric(5, 2))
+    # 情报周报叙事字段（与档案 brand_metrics 共用，GMV 以 gmv/gmv_wow 为准）
+    week_start            = Column(Date, comment="周开始日期")
+    week_end              = Column(Date, comment="周结束日期")
+    competitor_moves      = Column(Text, comment="竞品动态")
+    inventory_status      = Column(Text, comment="库存状况")
+    risk_points           = Column(Text, comment="风险点")
+    opportunities         = Column(Text, comment="机会点")
+    next_week_plan        = Column(Text, comment="下周计划")
+    reporter              = Column(String(32), comment="填报人")
+    intel_report_status   = Column(Enum("draft", "submitted"), comment="情报周报状态")
     created_at            = Column(DateTime, server_default=func.now())
     updated_at            = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -237,29 +247,7 @@ class IntelNews(Base):
     brand = relationship("Brand")
 
 
-# ---------- 内部周报 ----------
-class IntelWeeklyReport(Base):
-    __tablename__ = "intel_weekly_reports"
-
-    id               = Column(Integer, primary_key=True, autoincrement=True)
-    brand_id         = Column(Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
-    week_start       = Column(Date, nullable=False)
-    week_end         = Column(Date, nullable=False)
-    week_label       = Column(String(16))
-    weekly_gmv       = Column(Numeric(12, 2))
-    gmv_change       = Column(Numeric(6, 2))
-    competitor_moves = Column(Text)
-    inventory_status = Column(Text)
-    risk_points      = Column(Text)
-    opportunities    = Column(Text)
-    next_week_plan   = Column(Text)
-    reporter         = Column(String(32))
-    status           = Column(Enum("draft", "submitted"), default="draft")
-    created_at       = Column(DateTime, server_default=func.now())
-    updated_at       = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-    brand = relationship("Brand")
-
+# ---------- 内部周报（已并入 brand_metrics，保留 Out 模型供 API 兼容） ----------
 
 # ---------- 情报预警 ----------
 class IntelAlert(Base):
@@ -268,7 +256,7 @@ class IntelAlert(Base):
     id            = Column(Integer, primary_key=True, autoincrement=True)
     brand_id      = Column(Integer, ForeignKey("brands.id", ondelete="SET NULL"), nullable=True)
     news_id       = Column(Integer, ForeignKey("intel_news.id", ondelete="SET NULL"), nullable=True)
-    weekly_id     = Column(Integer, ForeignKey("intel_weekly_reports.id", ondelete="SET NULL"), nullable=True)
+    metrics_id    = Column(Integer, ForeignKey("brand_metrics.id", ondelete="SET NULL"), nullable=True, comment="关联 brand_metrics 周报")
     visit_id      = Column(Integer, ForeignKey("visits.id", ondelete="SET NULL"), nullable=True)
     priority      = Column(Enum("P0", "P1", "P2", "P3"), nullable=False, default="P2")
     category      = Column(Enum("增长机会", "风险预警"), nullable=True, comment="情报分类")
@@ -285,4 +273,4 @@ class IntelAlert(Base):
     brand = relationship("Brand")
     news  = relationship("IntelNews")
     visit = relationship("Visit")
-    weekly_report = relationship("IntelWeeklyReport")
+    metrics = relationship("BrandMetrics")
