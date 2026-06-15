@@ -225,8 +225,8 @@ class BrandMetricsOut(BaseModel):
     gmv: Optional[float] = None
     gmv_wow: Optional[float] = None
     gmv_yoy: Optional[float] = None
-    orders: Optional[int] = None
-    orders_wow: Optional[float] = None
+    sales_volume: Optional[int] = None
+    sales_volume_wow: Optional[float] = None
     jd_share: Optional[float] = None
     jd_share_wow: Optional[float] = None
     tmall_share: Optional[float] = None
@@ -246,7 +246,7 @@ class BrandMetricsOut(BaseModel):
     updated_at: Optional[datetime] = None
 
     @field_serializer(
-        "gmv", "gmv_wow", "gmv_yoy", "orders_wow",
+        "gmv", "gmv_wow", "gmv_yoy", "sales_volume_wow",
         "jd_share", "jd_share_wow", "tmall_share", "douyin_share", "pdd_share",
         "channel_growth_jd", "channel_growth_tmall", "channel_growth_douyin",
         "gross_margin", "uv_conversion", "ad_rate",

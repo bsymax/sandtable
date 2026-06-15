@@ -1,25 +1,23 @@
 /**
- * 品牌沙盘 M1 · 统一壳层（Max 维护，模块页勿改）
+ * 品牌沙盘 M1 · 统一侧栏组件（Max 维护，模块页勿改）
  *
  * 用法：模块页 </body> 前加一行
  *   <script src="js/shell.js"></script>
  *
  * 作用：
- * - 左侧导航侧栏（与工作台 index 一致）
- * - 三模块顶栏统一：← 工作台 › 品牌沙盘 M1 › 当前模块名
- * - #main 布局与 topbar-right 统一
+ * - 在页面左侧注入与工作台 index.html 一致的导航侧栏（固定定位）
+ * - 根据当前文件名自动高亮对应模块
+ * - 所有 class 带 m1s- 前缀，不会与模块页自身样式冲突
+ *
+ * ⚠️ 合并 SOP 提醒（手册 §八）：合并新交付的模块页后，
+ *    必须确认本文件引用仍在、侧栏正常显示。
  */
 (function () {
   'use strict';
 
   var SIDEBAR_W = 256;
 
-  var MODULE_PAGES = {
-    'profile.html': '品牌档案',
-    'visit.html': '智能拜访助手',
-    'intel.html': '品牌情报流'
-  };
-
+  // 四个标准页面（手册 §6.5）
   var NAV = [
     { section: '入口', items: [
       { href: 'index.html', icon: '\uD83D\uDCCB', label: '今日工作台', badge: null },
@@ -48,74 +46,24 @@
     '#m1s-sidebar .m1s-icon{width:18px;text-align:center;font-size:15px;flex-shrink:0;}',
     '#m1s-sidebar .m1s-label{flex:1;min-width:0;font-size:12px;line-height:1.35;white-space:nowrap;}',
     '#m1s-sidebar .m1s-badge{margin-left:auto;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:#0e7c4b;color:#fff;}',
-    'body.m1s-module{margin-left:' + SIDEBAR_W + 'px !important;}',
-    'body.m1s-module #main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:100vh;}',
-    'body.m1s-module #main > .content{flex:1;overflow-y:auto;}',
-    'body.m1s-module .topbar{height:56px;background:#fff;border-bottom:1px solid #e3e8ee;display:flex;align-items:center;padding:0 28px;gap:20px;flex-shrink:0;position:relative;top:auto;z-index:10;}',
-    'body.m1s-module .topbar .breadcrumb{font-size:13px;color:#697386;}',
-    'body.m1s-module .topbar .breadcrumb a{color:#2f6fed;text-decoration:none;}',
-    'body.m1s-module .topbar .breadcrumb .current{color:#1a1f36;font-weight:600;}',
-    'body.m1s-module .topbar .topbar-right{margin-left:auto;display:flex;align-items:center;gap:16px;font-size:13px;color:#697386;}',
-    'body.m1s-module .topbar .user-avatar{width:32px;height:32px;border-radius:50%;background:#3b82f6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;}',
-    '@media (max-width:900px){#m1s-sidebar{display:none;}body.m1s-module{margin-left:0 !important;}}',
+    'body{margin-left:' + SIDEBAR_W + 'px !important;}',
+    '@media (max-width:900px){#m1s-sidebar{display:none;}body{margin-left:0 !important;}}',
   ].join('');
 
   function currentPage() {
-    return window.location.pathname.split('/').pop() || 'index.html';
-  }
-
-  function breadcrumbHtml(moduleName) {
-    var sep = '<span style="margin:0 6px;color:#c1c9d2;">›</span>';
-    return '<a href="index.html">← 工作台</a> ' + sep + ' 品牌沙盘 M1 ' + sep +
-      ' <span class="current">' + moduleName + '</span>';
-  }
-
-  function topbarRightHtml() {
-    var d = new Date();
-    var wd = ['日', '一', '二', '三', '四', '五', '六'];
-    return '<span id="m1s-top-date">' + d.toISOString().slice(0, 10) + ' 周' + wd[d.getDay()] + '</span>' +
-      '<span style="color:#a3acba;">|</span>' +
-      '<span>厨小事业部 · 采销二组</span>' +
-      '<div class="user-avatar">周</div>';
-  }
-
-  function ensureMainWrapper() {
-    if (document.getElementById('main')) return;
-    var topbar = document.querySelector('.topbar');
-    var content = document.querySelector('.content');
-    if (!topbar || !content) return;
-    var parent = topbar.parentNode;
-    if (parent !== document.body && parent !== document.getElementById('main')) return;
-    if (parent === document.body) {
-      var main = document.createElement('div');
-      main.id = 'main';
-      document.body.insertBefore(main, topbar);
-      main.appendChild(topbar);
-      main.appendChild(content);
-    }
-  }
-
-  function normalizeModuleTopbar(moduleName) {
-    ensureMainWrapper();
-    var topbar = document.querySelector('.topbar');
-    if (!topbar) return;
-    var bc = topbar.querySelector('.breadcrumb');
-    if (bc) bc.innerHTML = breadcrumbHtml(moduleName);
-    var right = topbar.querySelector('.topbar-right');
-    if (right) right.innerHTML = topbarRightHtml();
+    var p = window.location.pathname.split('/').pop() || 'index.html';
+    return p;
   }
 
   function build() {
-    var cur = currentPage();
-    var moduleName = MODULE_PAGES[cur];
-
+    // 注入样式
     var style = document.createElement('style');
     style.id = 'm1s-style';
     style.textContent = CSS;
     document.head.appendChild(style);
 
-    if (moduleName) document.body.classList.add('m1s-module');
-
+    // 注入侧栏
+    var cur = currentPage();
     var html = '<div class="m1s-header">' +
       '<div class="m1s-name">品牌沙盘 <small>M1</small></div>' +
       '<div class="m1s-sub">Brand Sandtable · 厨小事业部</div>' +
@@ -137,8 +85,6 @@
     bar.id = 'm1s-sidebar';
     bar.innerHTML = html;
     document.body.insertBefore(bar, document.body.firstChild);
-
-    if (moduleName) normalizeModuleTopbar(moduleName);
   }
 
   if (document.readyState === 'loading') {

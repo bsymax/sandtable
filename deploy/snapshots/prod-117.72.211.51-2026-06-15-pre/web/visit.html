@@ -35,7 +35,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 /* Topbar */
 .topbar { height:var(--header-h); background:#fff; border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 28px; gap:20px; position:sticky; top:0; z-index:10; }
 .topbar .breadcrumb { font-size:13px; color:var(--text-secondary); }
-.breadcrumb .current { color:var(--text); font-weight:600; }
+.topbar .breadcrumb span.current { color:var(--text); font-weight:600; }
 .topbar-right { margin-left:auto; display:flex; align-items:center; gap:16px; font-size:13px; color:var(--text-secondary); }
 .topbar-right .user-avatar { width:32px; height:32px; border-radius:50%; background:#3b82f6; color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
 /* Content */
@@ -137,11 +137,10 @@ table tr:hover td { background:#f8fafd; }
 <div id="loading-overlay"><div class="loading-spinner"></div><span style="font-size:13px;color:var(--text-secondary);">加载中...</span></div>
 
 <!-- Topbar -->
-<div id="main">
 <div class="topbar">
-  <div class="breadcrumb"><a href="index.html">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">智能拜访助手</span></div>
+  <div class="breadcrumb"><a href="index.html" style="color:var(--blue-500);text-decoration:none;">← 工作台</a><span style="margin:0 6px;color:#c1c9d2;">|</span>品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">智能拜访助手</span></div>
   <div class="topbar-right">
-    <span id="top-date">—</span>
+    <span>2026-06-10 周三</span>
     <span style="color:var(--text-muted);">|</span>
     <span>厨小事业部 · 采销二组</span>
     <div class="user-avatar">周</div>
@@ -348,7 +347,6 @@ table tr:hover td { background:#f8fafd; }
     </div>
   </div>
 
-</div>
 </div>
 
 <!-- Toast -->

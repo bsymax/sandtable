@@ -261,8 +261,8 @@ CREATE TABLE brand_metrics (
   gmv                   DECIMAL(12,2)  DEFAULT NULL COMMENT 'GMV（万元）',
   gmv_wow               DECIMAL(6,2)   DEFAULT NULL COMMENT '周环比%',
   gmv_yoy               DECIMAL(6,2)   DEFAULT NULL COMMENT '同比%',
-  orders                INT            DEFAULT NULL COMMENT '订单数',
-  orders_wow            DECIMAL(6,2)   DEFAULT NULL COMMENT '订单环比%',
+  sales_volume          INT            DEFAULT NULL COMMENT '销量',
+  sales_volume_wow      DECIMAL(6,2)   DEFAULT NULL COMMENT '销量环比%',
   jd_share              DECIMAL(5,2)   DEFAULT NULL COMMENT 'JD市占%',
   jd_share_wow          DECIMAL(5,2)   DEFAULT NULL COMMENT '市占环比变化pp',
   tmall_share           DECIMAL(5,2)   DEFAULT NULL,
@@ -319,7 +319,7 @@ INSERT INTO brand_profiles (brand_id, founded_year, hq, positioning, org_structu
 -- 品牌经营指标种子数据（当前周 2026W23；近 12 周历史由 server 启动时按
 -- jiaxuan seed 规则补全，或运行 jiaxuan-m1-0610/backend/seed.py）
 INSERT INTO brand_metrics (
-  brand_id, period_type, period_value, gmv, gmv_wow, gmv_yoy, orders, orders_wow,
+  brand_id, period_type, period_value, gmv, gmv_wow, gmv_yoy, sales_volume, sales_volume_wow,
   jd_share, jd_share_wow, tmall_share, douyin_share, pdd_share,
   channel_growth_jd, channel_growth_tmall, channel_growth_douyin,
   category_distribution, category_share, sku_count, p0_gap_count,

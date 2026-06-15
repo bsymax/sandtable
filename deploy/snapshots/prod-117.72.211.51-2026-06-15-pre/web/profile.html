@@ -182,14 +182,13 @@ table tr.jd-row td { background:var(--blue-50); }
 
 <div id="loading-overlay"><div class="loading-spinner"></div><span style="font-size:13px;color:var(--text-secondary);">加载品牌档案...</span></div>
 
-<div id="main">
 <div class="topbar">
-  <div class="breadcrumb"><a href="index.html">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">品牌档案</span></div>
+  <div class="breadcrumb"><a href="index.html" style="color:var(--blue-500,#2f6fed);text-decoration:none;">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">品牌档案</span></div>
   <div class="topbar-right">
-    <span id="top-date">—</span>
+    <span id="top-date">2026-06-10</span>
     <span style="color:var(--text-muted);">|</span>
     <span>厨小事业部 · 采销二组</span>
-    <div class="user-avatar">周</div>
+    <div class="user-avatar">佳</div>
   </div>
 </div>
 
@@ -212,7 +211,6 @@ table tr.jd-row td { background:var(--blue-50); }
   </div>
 
   <div id="profile-mount" class="profile-brand-shell"></div>
-</div>
 </div>
 
 <div class="toast" id="appToast"></div>
@@ -345,47 +343,6 @@ var gVisitReminder = null;
 var gVisitHistory = { visits: [], records: [], commitments: [] };
 var chartStore = {};
 
-var DEMO_GMV_TRENDS = {
-  midea: [607, 624, 647, 630, 635, 618, 601, 578, 555, 532, 508, 487],
-  joyoung: [350, 356, 362, 365, 368, 372, 378, 385, 420, 460, 490, 512],
-  supor: [569, 574, 580, 586, 592, 598, 604, 610, 616, 620, 622, 623],
-  bear: [218, 225, 232, 238, 245, 252, 260, 268, 276, 285, 292, 298],
-  morphy: [137, 141, 145, 148, 152, 156, 162, 168, 174, 180, 184, 187]
-};
-
-function metricNum(v) {
-  if (v == null || v === '') return null;
-  var n = Number(v);
-  return isNaN(n) ? null : n;
-}
-
-function getSalesVolume(m) {
-  if (!m) return null;
-  return m.sales_volume != null ? m.sales_volume : m.orders;
-}
-
-function getSalesVolumeWow(m) {
-  if (!m) return null;
-  return m.sales_volume_wow != null ? m.sales_volume_wow : m.orders_wow;
-}
-
-function prepareMetricsHistory(history, key, latest) {
-  var rows = (history || []).map(function(r) {
-    return Object.assign({}, r, { gmv: metricNum(r.gmv) });
-  }).filter(function(r) { return r.gmv != null; });
-  rows.sort(function(a, b) {
-    return String(a.period_value).localeCompare(String(b.period_value));
-  });
-  if (rows.length >= 2) return rows;
-
-  var trend = DEMO_GMV_TRENDS[key];
-  if (!trend) return rows;
-  return trend.map(function(gmv, i) {
-    var w = i + 12;
-    return { period_value: '2026W' + (w < 10 ? '0' + w : '' + w), gmv: gmv };
-  });
-}
-
 window.goVisit = function(key) {
   window.location.href = 'visit.html?brand=' + (key || currentKey);
 };
@@ -517,19 +474,13 @@ var BENCH_RANKS = {
 function initCharts(key, metricsHistory, latest) {
   if (typeof Chart === 'undefined') return;
   destroyCharts();
-  var history = prepareMetricsHistory(metricsHistory, key, latest);
-  var gmvCtx = document.getElementById('chart-gmv-' + key);
-  if (!history.length) {
-    if (gmvCtx && gmvCtx.parentElement) {
-      gmvCtx.parentElement.innerHTML = '<p style="color:var(--text-muted);font-size:12px;padding:40px 0;text-align:center;">暂无 GMV 趋势数据</p>';
-    }
-    return;
-  }
+  if (!metricsHistory.length) return;
 
-  var labels = history.map(function(r) { return weekLabel(r.period_value); });
-  var trend = history.map(function(r) { return r.gmv; });
+  var labels = metricsHistory.map(function(r) { return weekLabel(r.period_value); });
+  var trend = metricsHistory.map(function(r) { return r.gmv; });
   var anomalyFrom = detectAnomalyFrom(trend);
 
+  var gmvCtx = document.getElementById('chart-gmv-' + key);
   if (gmvCtx) {
     var gmvOpts = JSON.parse(JSON.stringify(chartLightOpts));
     gmvOpts.scales.y.ticks.callback = function(v) { return v + '万'; };
@@ -673,8 +624,7 @@ function renderGapPanel(key) {
 function renderKpiCards(m, key) {
   if (!m) return '<p style="color:var(--text-muted);">暂无经营数据</p>';
   var gmvWow = m.gmv_wow;
-  var volWow = getSalesVolumeWow(m);
-  var salesVol = getSalesVolume(m);
+  var orderWow = m.orders_wow;
   var p0 = getP0Gaps(key);
   var p0Count = m.p0_gap_count != null ? m.p0_gap_count : p0.length;
   var gapClick = p0Count > 0 ? ' clickable" onclick="toggleGapPanel(\'' + key + '\')"' : '"';
@@ -682,8 +632,8 @@ function renderKpiCards(m, key) {
   return '<div class="profile-kpi-row">' +
     '<div class="profile-kpi-card"><div class="kpi-label">GMV（本期）</div><div class="kpi-value">' + (m.gmv != null ? m.gmv : '—') + '</div><span class="kpi-sub ' + trendClass(gmvYoy) + '">同比 ' + fmtPct(gmvYoy, true) + ' · 环比 ' + fmtPct(gmvWow, true) + '</span></div>' +
     '<div class="profile-kpi-card"><div class="kpi-label">GMV增速</div><div class="kpi-value">' + (gmvWow != null ? ((gmvWow > 0 ? '+' : '') + gmvWow + '%') : '—') + '</div><span class="kpi-sub ' + trendClass(gmvWow) + '">周环比</span></div>' +
-    '<div class="profile-kpi-card"><div class="kpi-label">销量</div><div class="kpi-value">' + (salesVol != null ? salesVol.toLocaleString() : '—') + '</div><span class="kpi-sub">本期销量</span></div>' +
-    '<div class="profile-kpi-card"><div class="kpi-label">销量增速</div><div class="kpi-value">' + (volWow != null ? ((volWow > 0 ? '+' : '') + volWow + '%') : '—') + '</div><span class="kpi-sub ' + trendClass(volWow) + '">销量环比 ' + fmtPct(volWow, true) + '</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">成交（订单）</div><div class="kpi-value">' + (m.orders != null ? m.orders.toLocaleString() : '—') + '</div><span class="kpi-sub">本期订单数</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">成交增速</div><div class="kpi-value">' + (orderWow != null ? ((orderWow > 0 ? '+' : '') + orderWow + '%') : '—') + '</div><span class="kpi-sub ' + trendClass(orderWow) + '">订单环比 ' + fmtPct(orderWow, true) + '</span></div>' +
     '<div class="profile-kpi-card"><div class="kpi-label">在售SKU数</div><div class="kpi-value">' + (m.sku_count != null ? m.sku_count : '—') + '</div><span class="kpi-sub">本期在售</span></div>' +
     '<div class="profile-kpi-card gap-alert' + gapClick + '><div class="kpi-label">P0供给缺口数</div><div class="kpi-value" style="color:' + (p0Count > 0 ? 'var(--red-500)' : 'var(--text-secondary)') + '">' + p0Count + '</div><span class="kpi-sub">' + (p0Count > 0 ? '点击查看缺口列表 →' : '暂无 P0 缺口') + '</span></div>' +
     '</div>';
@@ -709,47 +659,20 @@ function renderChannelTable(m) {
   return '<div class="card"><div class="card-header"><h3>渠道市占</h3><span class="card-meta">JD行高亮 · 数据来自 brand_metrics</span></div><div class="card-body no-padding"><table><tr><th>渠道</th><th>市占%</th><th>增速%</th></tr>' + html + '</table></div></div>';
 }
 
-function getCategoryChannelPct(s) {
-  if (!s) return { jd: null, tm: null, tb: null, dy: null };
-  if (s.jd != null && s.tm != null && s.tb != null && s.dy != null) {
-    return { jd: s.jd, tm: s.tm, tb: s.tb, dy: s.dy };
-  }
-  var jd = s.jd != null ? s.jd : (s.jd_share != null ? s.jd_share : null);
-  var tm = s.tm != null ? s.tm : (s.tm_share != null ? s.tm_share : null);
-  var dy = s.dy != null ? s.dy : (s.dy_share != null ? s.dy_share : null);
-  var tb = s.tb != null ? s.tb : (s.tb_share != null ? s.tb_share : null);
-  if (jd != null && tm != null && dy != null && tb == null) {
-    tb = Math.max(0, 100 - jd - tm - dy);
-  }
-  return { jd: jd, tm: tm, tb: tb, dy: dy };
-}
-
 function renderCategoryTable(m) {
   var dist = parseJson(m && m.category_distribution, []);
   var share = parseJson(m && m.category_share, []);
   var shareMap = {};
   share.forEach(function(s) { shareMap[s.name] = s; });
-  if (!dist.length) return '<div class="card"><div class="card-header"><h3>类目维度市占</h3></div><div class="card-body"><span style="color:var(--text-muted);">暂无数据</span></div></div>';
+  if (!dist.length) return '<div class="card"><div class="card-header"><h3>类目分布</h3></div><div class="card-body"><span style="color:var(--text-muted);">暂无数据</span></div></div>';
   var rows = dist.map(function(c) {
     var s = shareMap[c.name] || {};
-    var ch = getCategoryChannelPct(s);
-    var jdPlatform = s.jd_platform_share != null ? s.jd_platform_share : s.avg;
-    var warn = ch.jd != null && jdPlatform != null && ch.jd < jdPlatform;
-    var opp;
-    if (warn) opp = '<span class="tag tag-amber">JD布局偏弱</span>';
-    else if (ch.jd != null && jdPlatform != null && ch.jd >= jdPlatform + 5) opp = '<span class="tag tag-green">JD优势类目</span>';
-    else opp = '<span class="tag tag-blue">可观察</span>';
-    var chSum = (ch.jd || 0) + (ch.tm || 0) + (ch.tb || 0) + (ch.dy || 0);
-    var sumHint = chSum === 100 ? '' : ' title="渠道合计' + chSum + '%"';
-    return '<tr' + (warn ? ' class="warn-row"' : '') + '><td' + (warn ? ' class="warn-cell"' : '') + '>' + c.name + '</td><td>' + (c.share != null ? c.share + '%' : '—') + '</td>' +
-      '<td>' + (jdPlatform != null ? jdPlatform + '%' : '—') + '</td>' +
-      '<td' + (warn ? ' class="warn-cell"' : '') + sumHint + '>' + (ch.jd != null ? ch.jd + '%' : '—') + '</td>' +
-      '<td>' + (ch.tm != null ? ch.tm + '%' : '—') + '</td>' +
-      '<td>' + (ch.tb != null ? ch.tb + '%' : '—') + '</td>' +
-      '<td>' + (ch.dy != null ? ch.dy + '%' : '—') + '</td>' +
-      '<td>' + opp + '</td></tr>';
+    var avg = s.avg != null ? s.avg : 20;
+    var jd = s.jd_share != null ? s.jd_share : null;
+    var warn = jd != null && jd < avg;
+    return '<tr' + (warn ? ' class="warn-row"' : '') + '><td' + (warn ? ' class="warn-cell"' : '') + '>' + c.name + '</td><td>' + (c.share != null ? c.share + '%' : '—') + '</td><td' + (warn ? ' class="warn-cell"' : '') + '>' + (jd != null ? jd + '%' : '—') + '</td><td>' + avg + '%</td><td>' + (warn ? '<span class="tag tag-amber">低于均值</span>' : '<span class="tag tag-green">正常</span>') + '</td></tr>';
   }).join('');
-  return '<div class="card"><div class="card-header"><h3>类目维度市占</h3><span class="card-meta">品牌下类目占比=京东渠道品类布局 · JD品类整体占比=平台基准 · JD/TM/TB/DY 四渠道合计100%</span></div><div class="card-body no-padding"><table><tr><th>三级类目</th><th>品牌下类目占比</th><th>JD品类整体占比</th><th>JD</th><th>TM</th><th>TB</th><th>DY</th><th>布局机会</th></tr>' + rows + '</table></div></div>';
+  return '<div class="card"><div class="card-header"><h3>类目维度市占</h3><span class="card-meta">低于品类均值标黄 · 找机会点</span></div><div class="card-body no-padding"><table><tr><th>三级类目</th><th>品牌GMV占比</th><th>JD市占</th><th>品类均值</th><th>判断</th></tr>' + rows + '</table></div></div>';
 }
 
 function benchInterpret(name, rank, higherBetter) {
@@ -904,7 +827,7 @@ function renderHistoryTab(key, brand) {
     '<div class="card"><div class="card-header"><h3>拜访时间轴</h3></div><div class="card-body"><div class="profile-timeline">' + (tl || '<p style="color:var(--text-muted);font-size:12px;">暂无拜访记录</p>') + '</div></div></div>' +
     '<div class="card"><div class="card-header"><h3>承诺追踪</h3></div><div class="card-body no-padding" style="padding:0 16px"><table><tr><th>待办项</th><th>状态</th><th>截止</th></tr>' + (commits || '<tr><td colspan="3" style="color:var(--text-muted);">暂无承诺</td></tr>') + '</table></div></div></div>' +
     '<div class="visit-suggest-ai"><h4>🤖 AI 下次拜访建议</h4><p style="font-size:13px;margin:0 0 8px">建议 <strong>' + suggestDays + '天内</strong> 安排拜访（综合数据异动 + 拜访周期 + 待办未闭环）：</p><ul>' + topics.map(function(t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
-    '<div class="profile-footer-actions"><button class="btn-sm-outline" onclick="goVisit(\'' + key + '\')">📝 安排拜访</button></div>';
+    '<div class="profile-footer-actions"><button class="btn-sm-outline" onclick="goVisit(\'' + key + '\')">📝 安排拜访</button><button class="btn-sm-outline" onclick="goIntel(\'' + key + '\')">📡 情报库</button></div>';
 }
 
 function renderDashboard(data) {
@@ -1068,6 +991,8 @@ document.querySelectorAll('#profile-tabs .tab-item').forEach(function(tab) {
 });
 
 (function init() {
+  var d = new Date();
+  document.getElementById('top-date').textContent = d.toISOString().slice(0, 10);
   // 支持 ?brand=midea 从工作台直达指定品牌
   var params = new URLSearchParams(window.location.search);
   var brandKey = params.get('brand');
