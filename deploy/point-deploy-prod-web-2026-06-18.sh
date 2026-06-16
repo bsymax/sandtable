@@ -47,6 +47,10 @@ DB_PASS=$(grep -E '^DB_PASSWORD=' "$APP/server/.env" | cut -d= -f2- | tr -d '\r'
 
 mysql -u brand_app -p"${DB_PASS}" brand_sandtable < "$APP/database/migrate_m2_prod.sql" 2>/dev/null || true
 
+cd "$APP/server"
+source venv/bin/activate
+pip install -q 'python-multipart>=0.0.6'
+
 chmod -R a+rX "$APP/web"
 systemctl restart sandtable
 sleep 3
