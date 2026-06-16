@@ -2,7 +2,7 @@
 品牌档案模块路由（佳璇，2026-06-11 合并进主工程）
 - GET  /api/brands/profile/{name_key}   品牌档案（含完整度评分）
 - GET  /api/brands/metrics/{name_key}   近 N 周经营指标
-- PUT  /api/brands/profile/{name_key}   更新潜规则 / 关键联系人
+- PUT  /api/brands/profile/{name_key}   更新潜规则 / 竞争格局 / 增长机会 / 关键联系人
 
 注意：本路由必须先于 routers/brands.py 注册（main.py 中 include 顺序），
 否则 /api/brands/profile/{x} 会被 /api/brands/{name_key} 抢先匹配。
@@ -77,7 +77,7 @@ def list_brand_metrics(
 
 @router.put("/api/brands/profile/{name_key}", response_model=BrandProfileDetailOut, tags=["品牌档案"])
 def update_brand_profile(name_key: str, payload: BrandProfileUpdate, db: Session = Depends(get_db)):
-    """更新品牌档案：潜规则 + 关键联系人"""
+    """更新品牌档案：潜规则 + 竞争/机会 + 关键联系人"""
     brand = db.query(Brand).filter(Brand.name_key == name_key).first()
     if not brand:
         raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
@@ -90,6 +90,12 @@ def update_brand_profile(name_key: str, payload: BrandProfileUpdate, db: Session
         profile.taboos = payload.taboos
         profile.taboo_updated_by = brand.responsible or "采销"
         profile.taboo_updated_at = datetime.now()
+
+    if payload.competitive_landscape is not None:
+        profile.competitive_landscape = payload.competitive_landscape
+
+    if payload.growth_opportunities is not None:
+        profile.growth_opportunities = payload.growth_opportunities
 
     if payload.contacts:
         for item in payload.contacts:

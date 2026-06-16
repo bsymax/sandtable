@@ -220,10 +220,14 @@ cat > "$OUT/清单.txt" <<EOF
 M1 联调基准包 · 生成时间 ${STAMP}
 路径: ${OUT}
 
-发给佳璇: jiaxuan-m1-0612-baseline.zip
-发给开开: kaikai-m1-0612-baseline.zip
-发给培翛: peixiao-m1-0612-baseline.zip
+发给佳璇: jiaxuan-m2-0616-baseline.zip
+发给开开: kaikai-m2-0616-baseline.zip
+发给培翛: peixiao-m2-0616-baseline.zip
 全员对照: sandtable-m1-reference-readonly.zip
+
+M2 交付包（三人 → Max，无 -baseline 后缀）:
+  jiaxuan-m2-0616.zip / peixiao-m2-0616.zip / kaikai-m2-0616.zip
+  最晚 06-17 18:00 前交 Max；06-16 提前交 OK
 
 说明文档（也在各 zip 内）:
 - docs/M1联调基准说明.md

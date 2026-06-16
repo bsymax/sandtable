@@ -243,6 +243,8 @@ CREATE TABLE brand_profiles (
   positioning      VARCHAR(255)   DEFAULT NULL COMMENT '品牌定位',
   org_structure    TEXT           DEFAULT NULL COMMENT '组织架构（JSON文本）',
   taboos           TEXT           DEFAULT NULL COMMENT '品牌潜规则',
+  competitive_landscape TEXT      DEFAULT NULL COMMENT '竞争格局（M2 可编辑）',
+  growth_opportunities  TEXT      DEFAULT NULL COMMENT '增长机会（M2 可编辑）',
   taboo_updated_by VARCHAR(32)    DEFAULT NULL COMMENT '潜规则最后更新人',
   taboo_updated_at DATETIME       DEFAULT NULL COMMENT '潜规则最后更新时间',
   created_at       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,

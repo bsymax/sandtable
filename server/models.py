@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from sqlalchemy import (
     Column, Integer, String, Text, Date, Time, DateTime, Enum,
-    ForeignKey, Boolean, Numeric, func,
+    ForeignKey, Boolean, Numeric, JSON, func,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -168,10 +168,12 @@ class BrandProfile(Base):
     hq               = Column(String(64))
     positioning      = Column(String(255))
     org_structure    = Column(Text, comment="组织架构（JSON文本）")
-    taboos           = Column(Text, comment="品牌潜规则")
-    taboo_updated_by = Column(String(32))
-    taboo_updated_at = Column(DateTime)
-    created_at       = Column(DateTime, server_default=func.now())
+    taboos                  = Column(Text, comment="品牌潜规则")
+    competitive_landscape   = Column(Text, comment="竞争格局（M2 可编辑）")
+    growth_opportunities    = Column(Text, comment="增长机会（M2 可编辑）")
+    taboo_updated_by        = Column(String(32))
+    taboo_updated_at        = Column(DateTime)
+    created_at              = Column(DateTime, server_default=func.now())
     updated_at       = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     brand = relationship("Brand", back_populates="profile")
@@ -274,3 +276,18 @@ class IntelAlert(Base):
     news  = relationship("IntelNews")
     visit = relationship("Visit")
     metrics = relationship("BrandMetrics")
+
+
+class IntelBriefingCache(Base):
+    """M2：简报缓存（30min TTL）"""
+    __tablename__ = "intel_briefing_cache"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id      = Column(Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    briefing_data = Column(JSON, default=None)
+    generated_at  = Column(DateTime, server_default=func.now())
+    expires_at    = Column(DateTime)
+    created_at    = Column(DateTime, server_default=func.now())
+    updated_at    = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    brand = relationship("Brand")

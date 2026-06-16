@@ -10,10 +10,10 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, case
+from sqlalchemy import desc, case, or_
 
 from database import get_db
-from models import Brand, BrandContact, Visit, Commitment
+from models import Brand, BrandContact, Visit, Commitment, IntelAlert, BrandMetrics
 from schemas import BrandOut, BrandBrief, ContactOut
 
 router = APIRouter()
@@ -72,11 +72,35 @@ def brand_visit_reminder(name_key: str, db: Session = Depends(get_db)):
         Commitment.status == "pending",
     ).all()
 
+    broken_commitments = db.query(Commitment).filter(
+        Commitment.visit.has(Visit.brand_id == brand.id),
+        Commitment.status == "broken",
+    ).all()
+
     thirty_days_ago = date.today() - timedelta(days=30)
     stale_contacts = db.query(BrandContact).filter(
         BrandContact.brand_id == brand.id,
         BrandContact.last_contact_date < thirty_days_ago,
     ).all()
+
+    p0_alerts = db.query(IntelAlert).filter(
+        IntelAlert.brand_id == brand.id,
+        IntelAlert.priority == "P0",
+        IntelAlert.status.in_(["pending", "confirmed"]),
+    ).order_by(
+        case((IntelAlert.category == "风险预警", 0), else_=1),
+        desc(IntelAlert.created_at),
+    ).limit(5).all()
+
+    latest_weekly = db.query(BrandMetrics).filter(
+        BrandMetrics.brand_id == brand.id,
+        BrandMetrics.period_type == "weekly",
+        or_(
+            BrandMetrics.intel_report_status.isnot(None),
+            BrandMetrics.risk_points.isnot(None),
+            BrandMetrics.opportunities.isnot(None),
+        ),
+    ).order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).first()
 
     return {
         "brand": brand.name,
@@ -88,10 +112,29 @@ def brand_visit_reminder(name_key: str, db: Session = Depends(get_db)):
         "pending_commitments": [
             {"content": c.content, "deadline": c.deadline} for c in pending_commitments
         ],
+        "broken_commitments": [
+            {"content": c.content, "deadline": c.deadline} for c in broken_commitments
+        ],
         "stale_contacts": [
             {"name": c.name, "days_since": (date.today() - c.last_contact_date).days}
             for c in stale_contacts
         ],
+        "p0_alerts": [
+            {
+                "title": a.title,
+                "category": a.category,
+                "priority": a.priority,
+                "description": a.description,
+                "suggestion": a.suggestion,
+            }
+            for a in p0_alerts
+        ],
+        "latest_weekly": {
+            "week_label": latest_weekly.period_value if latest_weekly else None,
+            "competitor_moves": latest_weekly.competitor_moves if latest_weekly else None,
+            "risk_points": latest_weekly.risk_points if latest_weekly else None,
+            "opportunities": latest_weekly.opportunities if latest_weekly else None,
+        } if latest_weekly else None,
         "days_since_last_visit": (
             (date.today() - last_visit.visit_date).days if last_visit else 999
         ),

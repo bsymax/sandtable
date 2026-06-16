@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>智能拜访助手 · 品牌沙盘 M1</title>
+<title>智能拜访助手 · 品牌沙盘 M2</title>
 <style>
 /* ======== CSS 变量与基础（与独立版完全一致） ======== */
 :root {
@@ -119,6 +119,14 @@ table tr:hover td { background:#f8fafd; }
 ::-webkit-scrollbar { width:6px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:#c1c9d2; border-radius:3px; }
+/* Empty state */
+.empty-state { text-align:center; padding:32px 16px; color:var(--text-muted); }
+.empty-state .empty-icon { font-size:36px; margin-bottom:10px; }
+.empty-state .empty-title { font-size:13px; font-weight:600; color:var(--text-secondary); }
+.empty-state .empty-hint { font-size:12px; color:var(--text-muted); margin-top:4px; }
+/* Loading skeleton */
+.skeleton-row { height:40px; background:linear-gradient(90deg,#f0f1f5 25%,#e8eaef 50%,#f0f1f5 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:4px; margin:4px 0; }
+@keyframes shimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
 /* Responsive */
 @media (max-width:768px) {
   .grid-2 { grid-template-columns:1fr; }
@@ -153,11 +161,11 @@ table tr:hover td { background:#f8fafd; }
   <div class="m1-banner">
     <span class="m1-scope-tag">拜访席</span>
     安排拜访 · 拜访后记录 · 承诺跟踪 · 拜访日历 · 频率健康度。
-    <strong>第一期不含</strong>作战手册 PDF、博弈推演联动、语音转写、GMV效果追踪。
+    <strong>M2 新增</strong>提醒接 briefing P0预警、拜访类型/目的、空态。
   </div>
 
   <div class="page-title">智能拜访助手</div>
-  <div class="page-subtitle">拜访全链路记录 · 数据已对接 MySQL</div>
+  <div class="page-subtitle">拜访全链路记录 · M2 提醒已接 briefing + 承诺 · 类型/目的可选</div>
 
   <!-- Tab bar -->
   <div class="tab-bar" id="visit-tabs">
@@ -186,16 +194,39 @@ table tr:hover td { background:#f8fafd; }
               <div class="visit-field"><label class="form-label">时间</label><input type="time" class="form-input" id="visit-time" value="14:00"></div>
             </div>
             <div class="visit-field">
-              <label class="form-label">拜访类型 *</label>
-              <div class="radio-group">
-                <label><input type="radio" name="visitType" value="urgent" checked> 紧急</label>
-                <label><input type="radio" name="visitType" value="regular"> 定期</label>
-                <label><input type="radio" name="visitType" value="renewal"> 续约</label>
-              </div>
+              <label class="form-label">拜访类型 <span class="form-required">*</span></label>
+              <select class="form-select" id="visit-type-select">
+                <option value="urgent">紧急（触发预警、48h内需到场）</option>
+                <option value="regular" selected>定期（季度/月度例行拜访）</option>
+                <option value="renewal">续约（合同/年度框架续签前）</option>
+              </select>
             </div>
             <div class="visit-field">
-              <label class="form-label">拜访目的 *</label>
-              <textarea class="form-textarea" id="visit-purpose" rows="3" placeholder="请填写本次拜访目的..."></textarea>
+              <label class="form-label">拜访目的 <span class="form-required">*</span></label>
+              <select class="form-select" id="visit-purpose-select" onchange="onPurposeSelectChange()">
+                <option value="">— 请选择 —</option>
+                <optgroup label="商务谈判">
+                  <option value="联合投放方案确认">联合投放方案确认</option>
+                  <option value="包销/专供价格谈判">包销/专供价格谈判</option>
+                  <option value="年度框架/续约谈判">年度框架/续约谈判</option>
+                  <option value="广告置换/资源置换">广告置换/资源置换</option>
+                </optgroup>
+                <optgroup label="产品沟通">
+                  <option value="新品首发/排期沟通">新品首发/排期沟通</option>
+                  <option value="618/双11大促货盘对齐">618/双11大促货盘对齐</option>
+                  <option value="库存/供应链协调">库存/供应链协调</option>
+                </optgroup>
+                <optgroup label="关系维护">
+                  <option value="季度例行拜访">季度例行拜访</option>
+                  <option value="人员变动/决策链更新">人员变动/决策链更新</option>
+                  <option value="客诉/品质问题沟通">客诉/品质问题沟通</option>
+                </optgroup>
+                <option value="__custom__">✏️ 自定义...</option>
+              </select>
+            </div>
+            <div class="visit-field" id="visit-purpose-custom-field" style="display:none;">
+              <label class="form-label">自定义目的</label>
+              <textarea class="form-textarea" id="visit-purpose" rows="2" placeholder="请描述本次拜访目的..."></textarea>
             </div>
             <div class="visit-field">
               <label class="form-label">拜访对象（品牌方）</label>
@@ -488,6 +519,29 @@ function loadBrands() {
   });
 }
 
+// ===== 拜访目的下拉联动 =====
+function getPurposeValue() {
+  var ps = document.getElementById('visit-purpose-select');
+  if (ps && ps.value) {
+    if (ps.value === '__custom__') {
+      return document.getElementById('visit-purpose').value.trim();
+    }
+    return ps.value;
+  }
+  return document.getElementById('visit-purpose').value.trim();
+}
+
+function onPurposeSelectChange() {
+  var ps = document.getElementById('visit-purpose-select');
+  var customField = document.getElementById('visit-purpose-custom-field');
+  if (ps && ps.value === '__custom__') {
+    customField.style.display = 'block';
+  } else {
+    customField.style.display = 'none';
+    document.getElementById('visit-purpose').value = '';
+  }
+}
+
 // ===== 安排拜访 =====
 function submitSchedule() {
   var nameKey = document.getElementById('visit-brand-select').value;
@@ -496,11 +550,11 @@ function submitSchedule() {
   var brand = gBrandMap[nameKey];
   if (!brand) { showToast('品牌数据未加载'); return; }
 
-  var purpose = document.getElementById('visit-purpose').value.trim();
-  if (!purpose) { showToast('请填写拜访目的'); return; }
+  var purpose = getPurposeValue();
+  if (!purpose) { showToast('请选择或填写拜访目的'); return; }
 
-  var typeRadio = document.querySelector('input[name="visitType"]:checked');
-  var visitType = typeRadio ? typeRadio.value : 'regular';
+  var typeSelect = document.getElementById('visit-type-select');
+  var visitType = typeSelect ? typeSelect.value : 'regular';
   var dateVal = document.getElementById('visit-date').value;
   var timeVal = document.getElementById('visit-time').value;
   var notesVal = document.getElementById('visit-notes').value.trim();
@@ -543,6 +597,9 @@ function submitSchedule() {
 function clearScheduleFormFields() {
   document.getElementById('visit-purpose').value = '';
   document.getElementById('visit-notes').value = '';
+  var ps = document.getElementById('visit-purpose-select');
+  if (ps) ps.value = '';
+  document.getElementById('visit-purpose-custom-field').style.display = 'none';
   var tags = document.querySelectorAll('#visit-attendees-tags .tag');
   tags.forEach(function(t) { t.remove(); });
 }
@@ -551,7 +608,8 @@ function resetScheduleForm() {
   clearScheduleFormFields();
   setTodayDate();
   document.getElementById('visit-time').value = '14:00';
-  document.querySelector('input[name="visitType"][value="urgent"]').checked = true;
+  var typeSel = document.getElementById('visit-type-select');
+  if (typeSel) typeSel.value = 'regular';
   document.getElementById('visit-brand-select').value = gBrands.length > 0 ? gBrands[0].name_key : '';
   document.getElementById('visit-brand-select').dispatchEvent(new Event('change'));
   hideMsg('scheduleConfirm', 'scheduleError');
@@ -601,7 +659,14 @@ document.getElementById('new-attendee-input').addEventListener('keydown', functi
 function loadScheduledVisits() {
   Api.listVisits({ status: 'scheduled' }).then(function(visits) {
     var tbody = document.getElementById('upcoming-visits-table');
-    if (!visits.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">暂无安排</td></tr>'; return; }
+    if (!visits.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:28px 16px;color:var(--text-muted);">' +
+        '<div style="font-size:32px;margin-bottom:8px;">📋</div>' +
+        '<div style="font-size:13px;">暂无拜访安排</div>' +
+        '<div style="font-size:12px;margin-top:4px;color:var(--text-muted);">在上方表单中创建第一条拜访</div>' +
+        '</td></tr>';
+      return;
+    }
     tbody.innerHTML = visits.map(function(v) {
       return '<tr>' +
         '<td><strong>' + formatDate(v.visit_date) + '</strong></td>' +
@@ -722,7 +787,7 @@ function loadRecentRecords() {
   if (brandId) params.brand_id = brandId;
   Api.listRecords(params).then(function(records) {
     var tbody = document.getElementById('recent-records-table');
-    tbody.innerHTML = VC.renderRecordsTable(records, '暂无记录');
+    tbody.innerHTML = VC.renderRecordsTable(records, '<div style="font-size:28px;margin-bottom:6px;">📋</div><div>暂无拜访记录</div><div style="font-size:11px;margin-top:4px;color:var(--text-muted);">完成拜访并保存后显示</div>');
   });
 }
 
@@ -740,14 +805,24 @@ function loadCalendar() {
 function loadHealth() {
   Api.health().then(function(data) {
     var tbody = document.getElementById('health-table');
-    if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">暂无数据</td></tr>'; return; }
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:28px 16px;color:var(--text-muted);">' +
+        '<div style="font-size:28px;margin-bottom:6px;">📊</div>' +
+        '<div>暂无健康度数据</div>' +
+        '<div style="font-size:11px;margin-top:4px;">创建拜访记录后自动计算</div>' +
+        '</td></tr>';
+      return;
+    }
     var brandKey = getModuleFilterBrandKey('filter-history-brand');
     var rows = data;
     if (brandKey) {
       rows = data.filter(function(h) { return h.name_key === brandKey; });
     }
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">暂无数据</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px 16px;color:var(--text-muted);">' +
+        '<div style="font-size:24px;margin-bottom:4px;">🏷️</div>' +
+        '<div>该品牌暂无健康度数据</div>' +
+        '</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map(function(h) { return VC.renderHealthRow(h); }).join('');

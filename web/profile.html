@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>品牌档案 · 品牌沙盘 M1</title>
+<title>品牌档案 · 品牌沙盘 M2</title>
 <style>
 :root {
   --bg:#f4f5f9; --card-bg:#fff; --text:#1a1f36; --text-secondary:#697386; --text-muted:#a3acba;
@@ -131,8 +131,8 @@ table tr.jd-row td { background:var(--blue-50); }
 .profile-chart-box { background:#fff; border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
 .profile-chart-box h4 { font-size:12px; font-weight:600; color:var(--text-secondary); margin:0 0 12px; }
 .profile-chart-canvas { position:relative; height:220px; }
-.profile-ai-oneline { font-size:13px; line-height:1.65; padding:10px 14px; background:var(--blue-50); border:1px solid #bfdbfe; border-radius:8px; }
-.profile-ai-oneline strong { color:var(--blue-600); }
+.profile-ai-oneline, #profile-ai-blurb { font-size:13px; line-height:1.65; padding:10px 14px; background:var(--blue-50); border:1px solid #bfdbfe; border-radius:8px; grid-column:1/-1; }
+.profile-ai-oneline strong, #profile-ai-blurb strong { color:var(--blue-600); }
 .profile-gap-panel { display:none; margin-bottom:16px; border:1px solid #fecaca; background:var(--red-50); border-radius:8px; overflow:hidden; }
 .profile-gap-panel.open { display:block; }
 .profile-gap-panel .gap-head { padding:10px 14px; font-size:12px; font-weight:600; color:var(--red-500); border-bottom:1px solid #fecaca; }
@@ -176,9 +176,32 @@ table tr.jd-row td { background:var(--blue-50); }
 .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:#1a1f36; color:#fff; padding:10px 18px; border-radius:8px; font-size:13px; z-index:9999; opacity:0; transition:all .25s; pointer-events:none; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 .error-banner { display:none; padding:12px 16px; background:var(--red-50); border:1px solid #fca5a5; border-radius:8px; color:var(--red-500); font-size:13px; margin-bottom:16px; }
+.chart-empty-placeholder { color:var(--text-muted); font-size:12px; padding:40px 0; text-align:center; }
+.profile-strategy-box { border:1px solid var(--border); border-radius:8px; padding:14px; font-size:13px; line-height:1.65; min-height:120px; }
+.profile-strategy-box.editing .strategy-view { display:none; }
+.profile-strategy-box.editing .strategy-edit { display:block; }
+.profile-strategy-box .strategy-edit { display:none; }
+@media print {
+  #m1s-sidebar, .topbar, .m1-banner, .page-title, .page-subtitle,
+  #profile-tabs, .profile-inner-tabs, .no-print, #loading-overlay,
+  .profile-footer-actions, #error-banner, .toast { display:none !important; }
+  body, body.m1s-module { margin:0 !important; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .content { max-width:none; padding:12px 16px; }
+  .profile-brand-shell { border:none; box-shadow:none; }
+  .profile-top-bar { position:static; background:#fff; border-bottom:2px solid #333; page-break-after:avoid; }
+  .profile-health-ring { display:none; }
+  #pane-intel, #pane-history { display:none !important; }
+  .profile-pane { display:none !important; padding:12px 0; }
+  #pane-dashboard, #pane-intro, #pane-strategy { display:block !important; page-break-inside:avoid; }
+  #pane-intro, #pane-strategy { border-top:1px dashed #ccc; margin-top:8px; padding-top:12px; }
+  .person-card-editable .person-edit-fields,
+  .profile-rule-box .rule-edit,
+  .profile-strategy-box .strategy-edit { display:none !important; }
+  .profile-chart-canvas { height:160px !important; }
+}
 </style>
 </head>
-<body>
+<body data-m1-page="profile.html">
 
 <div id="loading-overlay"><div class="loading-spinner"></div><span style="font-size:13px;color:var(--text-secondary);">加载品牌档案...</span></div>
 
@@ -196,7 +219,7 @@ table tr.jd-row td { background:var(--blue-50); }
 <div class="content">
   <div class="m1-banner">
     <span class="m1-scope-tag">品牌席</span>
-    <strong>经营看板</strong> · <strong>品牌简介</strong> 已接真数据 · <strong>最新情报</strong> 展示该品牌 **P0 + 分类** 的预警（风险预警 / 增长机会各 TOP）· 新闻不参与。
+    <strong>经营看板</strong> · <strong>品牌简介</strong> · <strong>竞争与机会</strong> 已接真数据 · Tab1 规则解读 + Tab3 P0 情报展示。
   </div>
   <div class="page-title">品牌档案</div>
   <div class="page-subtitle">经营数据 + 主数据维护 · 数据来自 MySQL API</div>
@@ -397,12 +420,113 @@ function apiReq(path, opts) {
   opts = opts || {};
   var fetchOpts = { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json' } };
   if (opts.body && fetchOpts.method !== 'GET') fetchOpts.body = JSON.stringify(opts.body);
-  return fetch(API_BASE + path, fetchOpts).then(function(r) {
+  var base = opts.base != null ? opts.base : API_BASE;
+  return fetch(base + path, fetchOpts).then(function(r) {
     return r.json().then(function(data) {
       if (!r.ok) throw new Error(data.detail || '请求失败');
       return data;
     });
   });
+}
+
+function apiReqOptional(path, base) {
+  return apiReq(path, { base: base }).catch(function() { return null; });
+}
+
+/** M2 D-J-0：规则版解读（经营 + 情报 + 拜访 → 策略与行动，M3 同 id 换 LLM） */
+function buildProfileAiBlurb(data, briefing) {
+  var m = data && data.metrics;
+  var extra = BRAND_EXTRA[currentKey] || {};
+  var rem = gVisitReminder || {};
+  var vh = gVisitHistory || { visits: [], records: [], commitments: [] };
+  var chunks = [];
+
+  if (m) {
+    var gmv = m.gmv != null ? m.gmv : '—';
+    var wow = m.gmv_wow;
+    var volWow = getSalesVolumeWow(m);
+    var biz = '【经营】本期 GMV <strong>' + gmv + ' 万</strong>';
+    if (wow != null) biz += '，周环比 ' + (wow > 0 ? '↑' : wow < 0 ? '↓' : '') + Math.abs(wow) + '%';
+    if (volWow != null) biz += '；销量环比 ' + volWow + '%';
+    if (m.jd_share != null && m.channel_growth_jd != null) {
+      biz += '；JD 市占 ' + m.jd_share + '%、渠道增速 ' + m.channel_growth_jd + '%';
+    }
+    chunks.push(biz + '。');
+  } else {
+    chunks.push('【经营】暂无本期指标，建议先补 brand_metrics。');
+  }
+
+  var riskTitles = [];
+  var oppTitles = [];
+  if (briefing && briefing.active_alerts) {
+    briefing.active_alerts.forEach(function(a) {
+      if (a.priority !== 'P0') return;
+      var t = a.title || a.description || '';
+      if (!t) return;
+      if (a.category === '风险预警') riskTitles.push(t);
+      else if (a.category === '增长机会') oppTitles.push(t);
+    });
+  }
+  if (!riskTitles.length && extra.risks) {
+    extra.risks.slice(0, 2).forEach(function(r) { if (r.title) riskTitles.push(r.title); });
+  }
+  if (!oppTitles.length && extra.opps) {
+    extra.opps.slice(0, 2).forEach(function(o) { if (o.title) oppTitles.push(o.title); });
+  }
+  var intelBits = [];
+  if (riskTitles.length) intelBits.push('风险：' + riskTitles.slice(0, 2).join('、'));
+  if (oppTitles.length) intelBits.push('机会：' + oppTitles.slice(0, 2).join('、'));
+  if (intelBits.length) chunks.push('【情报】' + intelBits.join('；') + '。');
+
+  var visitBits = [];
+  var days = rem.days_since_last_visit;
+  if (days != null && days !== 999) {
+    var h = extra.history || {};
+    var cycle = h.cycle || rem.cycle_days || 28;
+    visitBits.push('距上次拜访 <strong>' + days + ' 天</strong>' + (days > cycle ? '（超周期）' : ''));
+  }
+  var pending = (vh.commitments || []).filter(function(c) { return c.status === 'pending'; });
+  if (pending.length) {
+    visitBits.push('未兑现承诺 ' + pending.length + ' 项（如「' + truncate(pending[0].content, 18) + '」）');
+  }
+  var records = (vh.records || []).slice().sort(function(a, b) {
+    return String(b.visit_date || '').localeCompare(String(a.visit_date || ''));
+  });
+  if (records.length) {
+    visitBits.push('最近拜访 ' + formatTimelineDate(records[0].visit_date) + '：' + truncate(records[0].topics || '季度对齐', 20));
+  } else if (extra.history && extra.history.timeline && extra.history.timeline[0]) {
+    var tl0 = extra.history.timeline[0];
+    visitBits.push('最近互动 ' + tl0.date + '：' + truncate(tl0.title, 20));
+  }
+  if (visitBits.length) chunks.push('【拜访】' + visitBits.join('；') + '。');
+
+  var strategies = [];
+  if (m && m.gmv_wow != null && m.gmv_wow < -5) strategies.push('JD 渠道承压，优先对齐货盘/价格与 618 排期');
+  if (m && m.channel_growth_douyin != null && m.channel_growth_jd != null && m.channel_growth_douyin > m.channel_growth_jd + 15) {
+    strategies.push('抖音增速显著高于 JD，谈同价同发或搜索专区换资源');
+  }
+  if (riskTitles.length) strategies.push('优先消化 P0 风险：' + truncate(riskTitles[0], 22));
+  if (oppTitles.length && strategies.length < 2) strategies.push('借势增长机会争取楼层/首发资源');
+  if (pending.length) strategies.push('先闭环未兑现承诺再谈新要量');
+  if (strategies.length) chunks.push('【策略】' + strategies.slice(0, 2).join('；') + '。');
+
+  var actions = [];
+  var overdue = days != null && days !== 999 && days > ((extra.history || {}).cycle || 28);
+  if (overdue || riskTitles.length) {
+    actions.push('<strong>' + (overdue ? 3 : 7) + ' 天内</strong>安排拜访');
+  }
+  pending.slice(0, 2).forEach(function(c) { actions.push('跟进「' + truncate(c.content, 16) + '」'); });
+  if (!actions.length && oppTitles.length) {
+    actions.push('带 JD 数据方案拜访，谈「' + truncate(oppTitles[0], 14) + '」');
+  }
+  if (!actions.length && m && m.p0_gap_count > 0) {
+    actions.push('针对 P0 供给缺口谈 SKU 引入');
+  }
+  if (!actions.length) actions.push('例行维护关系，同步下一档资源排期');
+  chunks.push('【行动】' + actions.slice(0, 3).join('；') + '。');
+
+  if (chunks.length <= 1 && extra.ai) return extra.ai;
+  return chunks.join(' ');
 }
 
 function showToast(msg) {
@@ -463,6 +587,16 @@ function destroyCharts() {
   });
 }
 
+function showChartEmpty(canvasId, msg) {
+  var el = document.getElementById(canvasId);
+  if (!el || !el.parentElement) return;
+  el.parentElement.innerHTML = '<p class="chart-empty-placeholder">' + (msg || '暂无数据') + '</p>';
+}
+
+function hasNumericValues(arr) {
+  return arr.some(function(v) { return v != null && !isNaN(Number(v)); });
+}
+
 function detectAnomalyFrom(trend) {
   if (!trend || trend.length < 4) return -1;
   var maxIdx = 0, maxVal = trend[0];
@@ -518,31 +652,38 @@ function initCharts(key, metricsHistory, latest) {
   if (typeof Chart === 'undefined') return;
   destroyCharts();
   var history = prepareMetricsHistory(metricsHistory, key, latest);
-  var gmvCtx = document.getElementById('chart-gmv-' + key);
+  var gmvId = 'chart-gmv-' + key;
+
   if (!history.length) {
-    if (gmvCtx && gmvCtx.parentElement) {
-      gmvCtx.parentElement.innerHTML = '<p style="color:var(--text-muted);font-size:12px;padding:40px 0;text-align:center;">暂无 GMV 趋势数据</p>';
+    showChartEmpty(gmvId, '暂无 GMV 趋势数据');
+  } else {
+    var labels = history.map(function(r) { return weekLabel(r.period_value); });
+    var trend = history.map(function(r) { return r.gmv; });
+    var anomalyFrom = detectAnomalyFrom(trend);
+    var gmvCtx = document.getElementById(gmvId);
+    if (gmvCtx) {
+      var gmvOpts = JSON.parse(JSON.stringify(chartLightOpts));
+      gmvOpts.scales.y.ticks.callback = function(v) { return v + '万'; };
+      chartStore.gmv = new Chart(gmvCtx, {
+        type: 'line',
+        data: { labels: labels, datasets: buildGmvLineDatasets(trend, anomalyFrom) },
+        options: gmvOpts
+      });
     }
+  }
+
+  if (!latest) {
+    showChartEmpty('chart-share-' + key, '暂无渠道占比数据');
+    showChartEmpty('chart-growth-' + key, '暂无渠道增速数据');
+    showChartEmpty('chart-cat-' + key, '暂无类目分布数据');
     return;
   }
 
-  var labels = history.map(function(r) { return weekLabel(r.period_value); });
-  var trend = history.map(function(r) { return r.gmv; });
-  var anomalyFrom = detectAnomalyFrom(trend);
-
-  if (gmvCtx) {
-    var gmvOpts = JSON.parse(JSON.stringify(chartLightOpts));
-    gmvOpts.scales.y.ticks.callback = function(v) { return v + '万'; };
-    chartStore.gmv = new Chart(gmvCtx, {
-      type: 'line',
-      data: { labels: labels, datasets: buildGmvLineDatasets(trend, anomalyFrom) },
-      options: gmvOpts
-    });
-  }
-
-  if (!latest) return;
   var shareCtx = document.getElementById('chart-share-' + key);
-  if (shareCtx) {
+  var shareData = [latest.jd_share, latest.tmall_share, latest.douyin_share, latest.pdd_share];
+  if (!hasNumericValues(shareData)) {
+    showChartEmpty('chart-share-' + key, '暂无渠道占比数据');
+  } else if (shareCtx) {
     var shareOpts = JSON.parse(JSON.stringify(chartLightOpts));
     shareOpts.scales.y.ticks.callback = function(v) { return v + '%'; };
     chartStore.share = new Chart(shareCtx, {
@@ -551,7 +692,7 @@ function initCharts(key, metricsHistory, latest) {
         labels: ['JD', 'TM', 'DY', 'PDD'],
         datasets: [{
           label: '市占%',
-          data: [latest.jd_share, latest.tmall_share, latest.douyin_share, latest.pdd_share],
+          data: shareData,
           backgroundColor: ['#cd3b32', '#e6a700', '#64748b', '#475569']
         }]
       },
@@ -560,8 +701,10 @@ function initCharts(key, metricsHistory, latest) {
   }
 
   var growthCtx = document.getElementById('chart-growth-' + key);
-  if (growthCtx) {
-    var growths = [latest.channel_growth_jd, latest.channel_growth_tmall, latest.channel_growth_douyin, 0];
+  var growths = [latest.channel_growth_jd, latest.channel_growth_tmall, latest.channel_growth_douyin, 0];
+  if (!hasNumericValues(growths)) {
+    showChartEmpty('chart-growth-' + key, '暂无渠道增速数据');
+  } else if (growthCtx) {
     var growthOpts = JSON.parse(JSON.stringify(chartLightOpts));
     growthOpts.scales.y.ticks.callback = function(v) { return v + '%'; };
     chartStore.growth = new Chart(growthCtx, {
@@ -579,24 +722,24 @@ function initCharts(key, metricsHistory, latest) {
   }
 
   var catCtx = document.getElementById('chart-cat-' + key);
-  if (catCtx) {
-    var cats = parseJson(latest.category_distribution, []);
-    if (cats.length) {
-      var catOpts = JSON.parse(JSON.stringify(chartLightOpts));
-      catOpts.scales.y.ticks.callback = function(v) { return v + '%'; };
-      chartStore.cat = new Chart(catCtx, {
-        type: 'bar',
-        data: {
-          labels: cats.map(function(c) { return c.name; }),
-          datasets: [{
-            label: 'GMV占比%',
-            data: cats.map(function(c) { return c.share; }),
-            backgroundColor: ['#0d7aff', '#e6a700', '#64748b', '#0e7c4b', '#cd3b32'].slice(0, cats.length)
-          }]
-        },
-        options: catOpts
-      });
-    }
+  var cats = parseJson(latest.category_distribution, []);
+  if (!cats.length) {
+    showChartEmpty('chart-cat-' + key, '暂无类目分布数据');
+  } else if (catCtx) {
+    var catOpts = JSON.parse(JSON.stringify(chartLightOpts));
+    catOpts.scales.y.ticks.callback = function(v) { return v + '%'; };
+    chartStore.cat = new Chart(catCtx, {
+      type: 'bar',
+      data: {
+        labels: cats.map(function(c) { return c.name; }),
+        datasets: [{
+          label: 'GMV占比%',
+          data: cats.map(function(c) { return c.share; }),
+          backgroundColor: ['#0d7aff', '#e6a700', '#64748b', '#0e7c4b', '#cd3b32'].slice(0, cats.length)
+        }]
+      },
+      options: catOpts
+    });
   }
 }
 
@@ -614,14 +757,19 @@ function renderCompletenessRing(data) {
 }
 
 function loadVisitHistory(key, brandId) {
+  var mainBase = (typeof M1_MAIN_API_BASE !== 'undefined' && M1_MAIN_API_BASE) ? M1_MAIN_API_BASE : API_BASE;
   return Promise.all([
-    apiReq('/api/brands/' + key + '/reminder'),
-    apiReq('/api/visits?brand_id=' + brandId),
-    apiReq('/api/records?brand_id=' + brandId + '&limit=20'),
-    apiReq('/api/commitments?brand_id=' + brandId)
+    apiReqOptional('/api/brands/' + key + '/reminder', mainBase),
+    apiReqOptional('/api/visits?brand_id=' + brandId, mainBase),
+    apiReqOptional('/api/records?brand_id=' + brandId + '&limit=20', mainBase),
+    apiReqOptional('/api/commitments?brand_id=' + brandId, mainBase)
   ]).then(function(results) {
-    gVisitReminder = results[0];
-    gVisitHistory = { visits: results[1], records: results[2], commitments: results[3] };
+    gVisitReminder = results[0] || {};
+    gVisitHistory = {
+      visits: results[1] || [],
+      records: results[2] || [],
+      commitments: results[3] || []
+    };
   });
 }
 
@@ -635,20 +783,21 @@ function refreshHistoryTab() {
 
 function loadBrand(key) {
   document.getElementById('loading-overlay').classList.remove('hidden');
+  var mainBase = (typeof M1_MAIN_API_BASE !== 'undefined' && M1_MAIN_API_BASE) ? M1_MAIN_API_BASE : API_BASE;
   return Promise.all([
     apiReq('/api/brands/profile/' + key),
     apiReq('/api/brands/metrics/' + key + '?limit=12'),
-    apiReq('/api/intel/briefing/' + key)
+    apiReqOptional('/api/intel/briefing/' + key, mainBase)
   ]).then(function(results) {
     gData = results[0];
-    gMetricsHistory = results[1].slice().reverse();
+    gMetricsHistory = (results[1] || []).slice().reverse();
     gBriefing = results[2];
     return loadVisitHistory(key, gData.brand.id).then(function() {
       hideError();
       renderBrand(gData);
     });
   }).catch(function(e) {
-    showError('加载失败：' + e.message + '（请确认后端在 8000 端口运行）');
+    showError('加载失败：' + e.message + '（请确认 backend 已启动：8001 档案 API，8000 可选用于 briefing/拜访）');
   }).finally(function() {
     document.getElementById('loading-overlay').classList.add('hidden');
   });
@@ -970,6 +1119,32 @@ function renderIntro(data) {
     '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveTaboos()">保存</button><button class="btn-sm-outline" onclick="cancelTaboos()">取消</button></div></div></div></div></div></div>';
 }
 
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderStrategyTab(data) {
+  var p = data.profile || {};
+  var comp = p.competitive_landscape || '（待补全竞争格局分析）';
+  var opp = p.growth_opportunities || '（待补全增长机会）';
+  return '<div class="profile-strategy-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px;">' +
+    '<div class="card"><div class="card-header"><h3>竞争格局</h3><span class="card-meta">M2 可编辑 · 保存后刷新仍在</span>' +
+    '<button class="btn-sm-outline no-print" style="margin-left:auto;" onclick="editStrategy(\'comp\')">编辑</button></div>' +
+    '<div class="card-body"><div class="profile-strategy-box" id="comp-box">' +
+    '<div class="strategy-view" id="comp-view" style="white-space:pre-wrap;">' + escapeHtml(comp) + '</div>' +
+    '<div class="strategy-edit"><textarea class="form-textarea" id="comp-input" rows="8">' + escapeHtml(comp) + '</textarea>' +
+    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveStrategy()">保存</button>' +
+    '<button class="btn-sm-outline" onclick="cancelStrategy(\'comp\')">取消</button></div></div></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>增长机会</h3><span class="card-meta">M2 可编辑</span>' +
+    '<button class="btn-sm-outline no-print" style="margin-left:auto;" onclick="editStrategy(\'opp\')">编辑</button></div>' +
+    '<div class="card-body"><div class="profile-strategy-box" id="opp-box">' +
+    '<div class="strategy-view" id="opp-view" style="white-space:pre-wrap;">' + escapeHtml(opp) + '</div>' +
+    '<div class="strategy-edit"><textarea class="form-textarea" id="opp-input" rows="8">' + escapeHtml(opp) + '</textarea>' +
+    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveStrategy()">保存</button>' +
+    '<button class="btn-sm-outline" onclick="cancelStrategy(\'opp\')">取消</button></div></div></div></div></div></div>';
+}
+
 function renderBrand(data) {
   var b = data.brand;
   var lv = (b.level || 'B').toLowerCase();
@@ -979,18 +1154,21 @@ function renderBrand(data) {
     '<div class="profile-top-bar">' +
     '<div class="profile-top-left"><h2 class="profile-brand-name">' + b.name + '</h2><span class="level-badge level-' + lv + '">' + (LEVEL_LABEL[b.level] || b.level) + '</span></div>' +
     renderCompletenessRing(data) +
-    '<div class="profile-ai-oneline">🤖 ' + (extra.ai || '暂无 AI 摘要') + '</div>' +
+    '<div id="profile-ai-blurb" class="profile-ai-oneline">🤖 ' + buildProfileAiBlurb(data, gBriefing) + '</div>' +
     '<div class="profile-top-meta"><span>负责采销：' + (b.responsible || '—') + '</span>' +
     '<span>档案更新：' + ((data.profile && data.profile.taboo_updated_at) ? String(data.profile.taboo_updated_at).slice(0, 10) : '—') + '</span>' +
-    '<span>数据说明：JD口径 · 近12周 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 10) + '</span></div></div>' +
+    '<span>数据说明：JD口径 · 近12周 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 10) + '</span>' +
+    '<button class="btn-sm-outline no-print" onclick="window.print()">🖨 打印摘要</button></div></div>' +
     '<div class="tab-bar profile-inner-tabs" id="profile-inner-tabs">' +
     '<div class="tab-item' + (currentPTab === 'dashboard' ? ' active' : '') + '" data-ptab="dashboard">📊 经营看板</div>' +
     '<div class="tab-item' + (currentPTab === 'intro' ? ' active' : '') + '" data-ptab="intro">🏢 品牌简介</div>' +
+    '<div class="tab-item' + (currentPTab === 'strategy' ? ' active' : '') + '" data-ptab="strategy">⚔️ 竞争与机会</div>' +
     '<div class="tab-item' + (currentPTab === 'intel' ? ' active' : '') + '" data-ptab="intel">📡 最新情报</div>' +
     '<div class="tab-item' + (currentPTab === 'history' ? ' active' : '') + '" data-ptab="history">🤝 历史互动</div></div>' +
     '<div class="profile-panels">' +
     '<div class="profile-pane' + (currentPTab === 'dashboard' ? ' active' : '') + '" id="pane-dashboard">' + renderDashboard(data) + '</div>' +
     '<div class="profile-pane' + (currentPTab === 'intro' ? ' active' : '') + '" id="pane-intro">' + renderIntro(data) + '</div>' +
+    '<div class="profile-pane' + (currentPTab === 'strategy' ? ' active' : '') + '" id="pane-strategy">' + renderStrategyTab(data) + '</div>' +
     '<div class="profile-pane' + (currentPTab === 'intel' ? ' active' : '') + '" id="pane-intel">' + renderIntelTab(currentKey) + '</div>' +
     '<div class="profile-pane' + (currentPTab === 'history' ? ' active' : '') + '" id="pane-history">' + renderHistoryTab(currentKey, b) + '</div></div>';
 
@@ -1054,6 +1232,33 @@ window.saveTaboos = function() {
     currentPTab = 'intro';
     renderBrand(data);
     showToast('潜规则已保存');
+  }).catch(function(e) { showToast('保存失败：' + e.message); });
+};
+
+window.editStrategy = function(which) {
+  if (which === 'comp') document.getElementById('comp-box').classList.add('editing');
+  if (which === 'opp') document.getElementById('opp-box').classList.add('editing');
+};
+window.cancelStrategy = function(which) {
+  if (which === 'comp') {
+    document.getElementById('comp-box').classList.remove('editing');
+    document.getElementById('comp-input').value = document.getElementById('comp-view').textContent;
+  }
+  if (which === 'opp') {
+    document.getElementById('opp-box').classList.remove('editing');
+    document.getElementById('opp-input').value = document.getElementById('opp-view').textContent;
+  }
+};
+window.saveStrategy = function() {
+  var payload = {
+    competitive_landscape: document.getElementById('comp-input').value.trim(),
+    growth_opportunities: document.getElementById('opp-input').value.trim()
+  };
+  apiReq('/api/brands/profile/' + currentKey, { method:'PUT', body: payload }).then(function(data) {
+    gData = data;
+    currentPTab = 'strategy';
+    renderBrand(data);
+    showToast('竞争/机会已保存');
   }).catch(function(e) { showToast('保存失败：' + e.message); });
 };
 

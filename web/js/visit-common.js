@@ -49,6 +49,7 @@
     var html = '';
     var daysSince = d.days_since_last_visit;
 
+    // 最近拜访
     if (d.last_visit_date) {
       html += '<div class="visit-alert-banner"><span style="font-size:18px;">📋</span><div>';
       html += '<b style="color:var(--text);">最近拜访：</b>' + formatDate(d.last_visit_date) + '（' + daysSince + '天前）';
@@ -58,10 +59,45 @@
       html += '<div class="visit-alert-banner"><span style="font-size:18px;">🚨</span><div><b style="color:var(--text);">无拜访记录</b></div></div>';
     }
 
-    if (d.pending_commitments && d.pending_commitments.length > 0) {
-      html += '<p><b style="color:var(--text);">未兑现承诺：</b>';
-      d.pending_commitments.forEach(function(c) {
+    // M2: P0 情报预警
+    if (d.p0_alerts && d.p0_alerts.length > 0) {
+      html += '<div class="visit-alert-banner" style="background:linear-gradient(135deg,#fdecea,#fff);border-color:#fca5a5;"><span style="font-size:18px;">⚠️</span><div>';
+      html += '<b style="color:var(--red-500);">来自情报流 P0 预警：</b>';
+      d.p0_alerts.forEach(function(a) {
+        var catTag = a.category === '风险预警' ?
+          '<span class="tag tag-red" style="margin:0 4px 2px 0;">风险</span>' :
+          '<span class="tag tag-amber" style="margin:0 4px 2px 0;">增长</span>';
+        html += '<div style="margin-top:4px;">' + catTag + ' ' + truncate(a.title, 40) + '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    // M2: 周报简报
+    if (d.latest_weekly) {
+      var w = d.latest_weekly;
+      if (w.risk_points || w.opportunities) {
+        html += '<div class="visit-alert-banner"><span style="font-size:18px;">📊</span><div>';
+        html += '<b style="color:var(--text);">近期周报简报：</b>';
+        if (w.risk_points) html += '<div style="margin-top:2px;color:var(--red-500);">⚠ 风险：' + truncate(w.risk_points, 40) + '</div>';
+        if (w.opportunities) html += '<div style="margin-top:2px;color:var(--green-500);">💡 机会：' + truncate(w.opportunities, 40) + '</div>';
+        html += '</div></div>';
+      }
+    }
+
+    // 未兑现承诺（broken）
+    if (d.broken_commitments && d.broken_commitments.length > 0) {
+      html += '<p style="margin-top:8px;"><b style="color:var(--red-500);">❌ 已broken承诺：</b>';
+      d.broken_commitments.forEach(function(c) {
         html += '<span class="tag tag-red" style="margin-right:4px;margin-bottom:4px;">' + c.content + '</span>';
+      });
+      html += '</p>';
+    }
+
+    // 待兑现承诺（pending）
+    if (d.pending_commitments && d.pending_commitments.length > 0) {
+      html += '<p><b style="color:var(--text);">待兑现承诺：</b>';
+      d.pending_commitments.forEach(function(c) {
+        html += '<span class="tag tag-amber" style="margin-right:4px;margin-bottom:4px;">' + c.content + '</span>';
       });
       html += '</p>';
     }
@@ -83,8 +119,8 @@
 
   function renderRecordsTable(records, emptyMsg) {
     if (!records.length) {
-      return '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">' +
-        (emptyMsg || '暂无记录') + '</td></tr>';
+      var msg = emptyMsg || '<div style="font-size:28px;margin-bottom:6px;">📋</div><div>暂无拜访记录</div><div style="font-size:11px;margin-top:4px;color:var(--text-muted);">完成拜访并保存后显示</div>';
+      return '<tr><td colspan="6" style="text-align:center;padding:28px 16px;color:var(--text-muted);">' + msg + '</td></tr>';
     }
     return records.map(function(r) {
       return '<tr>' +
@@ -104,8 +140,10 @@
     var onStatusChange = options.onStatusChange || 'updateCommitmentStatus';
     var colSpan = showBrand ? 6 : 5;
     if (!commitments.length) {
-      return '<tr><td colspan="' + colSpan + '" style="text-align:center;color:var(--text-muted);">' +
-        (options.emptyMsg || '暂无承诺（保存拜访记录后按行自动生成）') + '</td></tr>';
+      return '<tr><td colspan="' + colSpan + '" style="text-align:center;padding:28px 16px;color:var(--text-muted);">' +
+        '<div style="font-size:28px;margin-bottom:6px;">✅</div>' +
+        '<div style="font-size:13px;">' + (options.emptyMsg || '暂无承诺（保存拜访记录后按行自动生成）') + '</div>' +
+        '</td></tr>';
     }
     return commitments.map(function(c) {
       var visit = visitMap[c.visit_id] || {};
@@ -128,8 +166,11 @@
     options = options || {};
     var onScheduled = options.onScheduledClick || 'fillRecordForm';
     if (!visits.length) {
-      return '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">' +
-        (options.emptyMsg || '暂无数据') + '</td></tr>';
+      return '<tr><td colspan="7" style="text-align:center;padding:28px 16px;color:var(--text-muted);">' +
+        '<div style="font-size:32px;margin-bottom:8px;">📅</div>' +
+        '<div style="font-size:13px;">' + (options.emptyMsg || '暂无拜访数据') + '</div>' +
+        '<div style="font-size:12px;margin-top:4px;color:var(--text-muted);">安排拜访后显示</div>' +
+        '</td></tr>';
     }
     return visits.map(function(v) {
       var actionCell;

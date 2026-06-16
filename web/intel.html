@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>品牌情报流 · 智能拜访助手</title>
+<title>品牌情报流 · 智能拜访助手 · M2</title>
 <style>
 :root {
   --bg: #f4f5f9;
@@ -30,36 +30,17 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:var(--font); background:var(--bg); color:var(--text); display:flex; height:100vh; overflow:hidden; }
 
-/* Sidebar */
-#sidebar {
-  width:var(--sidebar-w); background:#0f172a; color:#e2e8f0; display:flex; flex-direction:column;
-  flex-shrink:0; z-index:10;
-}
-.sidebar-header { padding:18px 20px; border-bottom:1px solid rgba(255,255,255,.06); }
-.sidebar-header .product-name { font-size:16px; font-weight:700; letter-spacing:-.2px; }
-.sidebar-header .product-sub { font-size:12px; color:#94a3b8; margin-top:6px; line-height:1.4; }
-.sidebar-nav { flex:1; overflow-y:auto; padding:8px 0; }
-.nav-section-title { font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:#475569; padding:12px 20px 6px; font-weight:600; }
-.nav-item {
-  display:flex; align-items:center; gap:10px; padding:10px 20px; cursor:pointer; font-size:13px;
-  color:#94a3b8; transition:all .15s; border-left:3px solid transparent; text-decoration:none;
-}
-.nav-item:hover { background:rgba(255,255,255,.04); color:#e2e8f0; }
-.nav-item.active { color:#fff; background:rgba(255,255,255,.06); border-left-color:#3b82f6; font-weight:500; }
-.nav-item .nav-icon { width:18px; text-align:center; font-size:15px; flex-shrink:0; }
-.nav-item .badge { margin-left:auto; font-size:10px; padding:2px 6px; border-radius:8px; font-weight:600; }
-.badge-red { background:#ef4444; color:#fff; }
-.badge-amber { background:#f59e0b; color:#000; }
-
-/* Main */
+/* Main — shell.js 会注入 #m1s-sidebar 并给 body 加 m1s-module class */
 #main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 .topbar {
   height:var(--header-h); background:#fff; border-bottom:1px solid var(--border);
   display:flex; align-items:center; padding:0 28px; gap:20px; flex-shrink:0;
 }
 .breadcrumb { font-size:13px; color:var(--text-secondary); }
+.breadcrumb a { color:var(--blue-500); text-decoration:none; }
 .breadcrumb .current { color:var(--text); font-weight:600; }
 .topbar-right { margin-left:auto; display:flex; align-items:center; gap:16px; font-size:13px; color:var(--text-secondary); }
+.user-avatar { width:32px; height:32px; border-radius:50%; background:#3b82f6; color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; }
 .content { flex:1; overflow-y:auto; padding:24px 28px; }
 
 /* Cards */
@@ -106,19 +87,6 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 }
 .intel-filters input { flex:1; min-width:160px; }
 
-/* Intel cards */
-.intel-card { padding:16px; border:1px solid var(--border); border-radius:6px; margin-bottom:10px; background:#fff; cursor:default; transition:box-shadow .15s; }
-.intel-card:hover { box-shadow:var(--shadow-sm); }
-.intel-card.p0 { border-left:3px solid var(--red-500); }
-.intel-card.p1 { border-left:3px solid var(--amber-500); }
-.intel-card.p2 { border-left:3px solid var(--blue-500); }
-.intel-level { font-size:10px; font-weight:700; margin-bottom:6px; text-transform:uppercase; }
-.intel-title { font-size:13px; font-weight:600; margin-bottom:4px; }
-.intel-body { font-size:12px; color:var(--text-secondary); line-height:1.6; }
-.intel-meta { font-size:11px; color:var(--text-muted); margin-top:6px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-.intel-meta a { color:var(--blue-500); text-decoration:none; cursor:pointer; }
-.intel-meta a:hover { text-decoration:underline; }
-
 /* Buttons */
 .btn-primary { padding:8px 16px; background:var(--blue-500); color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; font-family:var(--font); transition:background .15s; }
 .btn-primary:hover { background:var(--blue-600); }
@@ -127,10 +95,17 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 .btn-outline { padding:8px 16px; background:#fff; border:1px solid var(--border); border-radius:4px; cursor:pointer; font-size:13px; font-family:var(--font); }
 .btn-outline:hover { border-color:var(--blue-500); color:var(--blue-600); }
 
+/* Template quick-fill bar */
+.template-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+.template-bar .tmpl-label { font-size:12px; color:var(--text-secondary); font-weight:600; }
+.template-btn { padding:5px 12px; font-size:11px; border:1px dashed var(--border); border-radius:4px; background:#f8fafd; cursor:pointer; font-family:var(--font); transition:all .15s; }
+.template-btn:hover { border-color:var(--blue-500); background:var(--blue-50); color:var(--blue-600); }
+
 /* Modal */
-.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:100; justify-content:center; align-items:center; }
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:1000; justify-content:center; align-items:center; }
 .modal-overlay.show { display:flex; }
 .modal-box { background:#fff; border-radius:12px; width:520px; max-height:80vh; overflow-y:auto; padding:24px; box-shadow:var(--shadow-md); }
+.modal-box.wide { width:640px; }
 .modal-box h3 { font-size:16px; margin-bottom:16px; }
 .form-group { margin-bottom:14px; }
 .form-label { font-size:13px; font-weight:600; display:block; margin-bottom:4px; }
@@ -139,6 +114,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 .form-row { display:flex; gap:10px; }
 .form-row > * { flex:1; }
 .form-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+.form-hint { font-size:11px; color:var(--text-muted); margin-top:4px; }
 
 /* Weekly report */
 .intel-weekly { background:#f8fafd; border:1px solid var(--border); border-radius:8px; padding:16px 18px; margin-top:16px; }
@@ -159,6 +135,21 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 .empty-state { text-align:center; padding:60px 20px; color:var(--text-muted); }
 .empty-state .icon { font-size:48px; margin-bottom:12px; }
 
+/* Load more */
+.load-more-bar { text-align:center; padding:12px 0; }
+.load-more-bar button { padding:8px 24px; }
+
+/* CSV import result */
+.csv-result { margin-top:12px; padding:12px; border-radius:6px; font-size:12px; line-height:1.6; }
+.csv-result.success { background:#e8f5ef; color:#0e7c4b; border:1px solid #b7dfc9; }
+.csv-result.partial { background:#fff8e6; color:#92400e; border:1px solid #fcd34d; }
+
+/* Tab buttons (CSV modal) */
+.tab-row { display:flex; gap:8px; margin-bottom:16px; }
+.tab-btn { padding:6px 16px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:#fff; cursor:pointer; font-family:var(--font); transition:all .15s; }
+.tab-btn.active { background:var(--blue-500); color:#fff; border-color:var(--blue-500); }
+.tab-btn:hover:not(.active) { border-color:var(--blue-500); color:var(--blue-600); }
+
 /* Responsive */
 @media (max-width: 960px) {
   .grid-2, .grid-4 { grid-template-columns:1fr; }
@@ -168,6 +159,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 .m1-banner { background:linear-gradient(90deg,#0f172a,#1e3a5f); color:#e2e8f0; padding:10px 16px; border-radius:8px; font-size:12px; margin-bottom:16px; line-height:1.6; }
 .m1-banner strong { color:#93c5fd; }
 .m1-scope-tag { display:inline-block; background:#3b82f6; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-right:8px; vertical-align:middle; }
+.m2-scope-tag { display:inline-block; background:#0e7c4b; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-right:4px; vertical-align:middle; }
 
 .news-card { padding:14px; border:1px solid var(--border); border-radius:6px; margin-bottom:8px; background:#fafbfd; transition:background .15s; }
 .news-card:hover { background:#fff; }
@@ -198,7 +190,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 
 <div id="main">
 <div class="topbar">
-  <div class="breadcrumb"><a href="index.html">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">品牌情报流</span></div>
+  <div class="breadcrumb"><a href="index.html">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 M2 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">品牌情报流</span></div>
   <div class="topbar-right">
     <span id="today-date">—</span>
     <span style="color:var(--text-muted);">|</span>
@@ -210,8 +202,8 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 <div class="content">
   <div class="m1-banner">
     <span class="m1-scope-tag">情报席</span>
-    外部新闻抓取 + 内部周报 + <strong>AI预警建议</strong> · 与拜访助手联动。
-    支持手工录入与自动抓取，分级 P0/P1/P2/P3。
+    <span class="m2-scope-tag">M2</span>
+    外部新闻抓取 + 内部周报 + <strong>AI预警建议</strong> · CSV批量导入 · 录入模板 · 分页浏览 · 简报缓存。
   </div>
 
   <div class="page-title">品牌情报流</div>
@@ -251,6 +243,18 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
     <button class="btn-primary" onclick="openAlertForm()">+ 录入情报</button>
     <button class="btn-outline" onclick="openNewsForm()">📰 录入新闻</button>
     <button class="btn-outline" onclick="openWeeklyForm()">📝 写周报</button>
+    <button class="btn-outline" onclick="openCsvModal()" title="CSV批量导入（M2新增）">📥 CSV导入</button>
+  </div>
+
+  <!-- M2 录入模板快捷栏 -->
+  <div class="template-bar">
+    <span class="tmpl-label">⚡ 快捷模板:</span>
+    <button class="template-btn" onclick="quickFillAlert('P0','风险预警')">🔴 P0风险预警</button>
+    <button class="template-btn" onclick="quickFillAlert('P1','风险预警')">🟡 P1风险预警</button>
+    <button class="template-btn" onclick="quickFillAlert('P1','增长机会')">🟢 增长机会</button>
+    <button class="template-btn" onclick="quickFillNews('negative','竞品')">📰 竞品负面</button>
+    <button class="template-btn" onclick="quickFillNews('positive','新品')">📰 新品发布</button>
+    <button class="template-btn" onclick="quickFillWeekly()">📝 本周周报</button>
   </div>
 
   <!-- 预警列表 -->
@@ -262,6 +266,9 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
     <div class="card-body no-padding" style="padding:0 20px;" id="alerts-container">
       <div class="loading">加载中...</div>
     </div>
+    <div class="load-more-bar" id="alerts-load-more" style="display:none;">
+      <button class="btn-outline" onclick="loadMoreAlerts()">加载更多预警 ↓</button>
+    </div>
   </div>
 
   <!-- 新闻列表 -->
@@ -272,6 +279,9 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
     </div>
     <div class="card-body no-padding" style="padding:0 20px;" id="news-container">
       <div class="loading">加载中...</div>
+    </div>
+    <div class="load-more-bar" id="news-load-more" style="display:none;">
+      <button class="btn-outline" onclick="loadMoreNews()">加载更多新闻 ↓</button>
     </div>
   </div>
 
@@ -285,11 +295,12 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 </div>
 </div>
 
+<!-- ============ MODALS ============ -->
+
 <!-- 录入情报 Modal -->
 <div class="modal-overlay" id="modal-alert">
 <div class="modal-box">
   <h3 id="modal-alert-title">✏️ 录入情报预警</h3>
-  <input type="hidden" id="alert-form-id" value="">
   <div class="form-group">
     <label class="form-label">品牌</label>
     <select class="form-select" id="alert-form-brand"></select>
@@ -336,8 +347,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 <!-- 录入新闻 Modal -->
 <div class="modal-overlay" id="modal-news">
 <div class="modal-box">
-  <h3 id="modal-news-title">📰 录入新闻资讯</h3>
-  <input type="hidden" id="news-form-id" value="">
+  <h3>📰 录入新闻资讯</h3>
   <div class="form-group">
     <label class="form-label">品牌</label>
     <select class="form-select" id="news-form-brand"></select>
@@ -367,6 +377,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
         <option value="行业">行业</option>
         <option value="竞品">竞品</option>
         <option value="人事">人事</option>
+        <option value="渠道">渠道</option>
         <option value="其他">其他</option>
       </select>
     </div>
@@ -393,8 +404,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 <!-- 周报 Modal -->
 <div class="modal-overlay" id="modal-weekly">
 <div class="modal-box">
-  <h3 id="modal-weekly-title">📝 提交周报</h3>
-  <input type="hidden" id="weekly-form-id" value="">
+  <h3>📝 提交周报</h3>
   <div class="form-group">
     <label class="form-label">品牌 <span style="color:var(--red-500);">*</span></label>
     <select class="form-select" id="weekly-form-brand"></select>
@@ -454,46 +464,95 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 </div>
 </div>
 
+<!-- M2 CSV 批量导入 Modal -->
+<div class="modal-overlay" id="modal-csv">
+<div class="modal-box wide">
+  <h3>📥 CSV 批量导入新闻（M2 新增）</h3>
+
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="switchCsvTab('file')" id="csv-tab-file">📁 上传CSV文件</button>
+    <button class="tab-btn" onclick="switchCsvTab('paste')" id="csv-tab-paste">📋 粘贴JSON数据</button>
+  </div>
+
+  <div id="csv-panel-file">
+    <div class="form-group">
+      <label class="form-label">选择CSV文件</label>
+      <input type="file" class="form-input" id="csv-file-input" accept=".csv" style="padding:6px;">
+      <div class="form-hint">CSV 列: brand_id, title, summary, source, sentiment, category, keywords, url, published_at</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">默认品牌（可选，CSV中无brand_id时使用）</label>
+      <select class="form-select" id="csv-default-brand">
+        <option value="">不指定</option>
+      </select>
+    </div>
+    <div class="form-actions">
+      <button class="btn-outline" onclick="downloadCsvTemplate()">📥 下载CSV模板</button>
+      <button class="btn-outline" onclick="closeModal('modal-csv')">取消</button>
+      <button class="btn-primary" onclick="uploadCsv()">✅ 上传并导入</button>
+    </div>
+  </div>
+
+  <div id="csv-panel-paste" style="display:none;">
+    <div class="form-group">
+      <label class="form-label">粘贴 JSON 数组（每行一条新闻）</label>
+      <textarea class="form-textarea" id="csv-paste-area" rows="12" placeholder='[{"brand_id":1,"title":"新闻标题","summary":"摘要","sentiment":"neutral","category":"行业"}]'></textarea>
+      <div class="form-hint">必填: title。可选: brand_id, summary, source, sentiment, category, keywords, url, published_at</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-outline" onclick="fillCsvSample()">📝 填入10条示例</button>
+      <button class="btn-outline" onclick="closeModal('modal-csv')">取消</button>
+      <button class="btn-primary" onclick="importCsvJson()">✅ 批量导入</button>
+    </div>
+  </div>
+
+  <div id="csv-result-area" style="display:none;"></div>
+</div>
+</div>
+
 <div id="appToast" class="toast"></div>
 
 <script src="js/api-base.js"></script>
 <script>
 const API = M1_API_BASE;
+const PAGE_SIZE = 20;
 let allAlerts = [], allNews = [], allWeeklies = [], brands = [];
-let urlBrandId = null;
+let alertsOffset = 0, newsOffset = 0;
+let alertsHasMore = false, newsHasMore = false;
+let csvTab = 'file';
 
 function brandKeyById(id) {
   const b = brands.find(x => x.id == id);
   return b ? b.name_key : '';
 }
 
-function parseUrlBrand() {
-  const brandKey = new URLSearchParams(window.location.search).get('brand');
-  if (!brandKey) return;
-  const b = brands.find(x => x.name_key === brandKey);
-  if (b) {
-    urlBrandId = b.id;
-    document.getElementById('filter-brand').value = b.id;
-  }
-}
-
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('today-date').textContent = new Date().toISOString().slice(0,10) + ' 周' + ['日','一','二','三','四','五','六'][new Date().getDay()];
   await loadBrands();
   parseUrlBrand();
   setupFilters();
-  await Promise.all([loadStats(), loadAlerts(), loadNews(), loadWeeklySummary()]);
-  applyFilters();
+  await Promise.all([loadStats(), loadAlerts(true), loadNews(true), loadWeeklySummary()]);
   document.getElementById('alert-form-priority').addEventListener('change', function() {
     document.getElementById('alert-form-category').value = this.value === 'P0' ? '风险预警' : '增长机会';
   });
 });
 
+function parseUrlBrand() {
+  const brandKey = new URLSearchParams(window.location.search).get('brand');
+  if (!brandKey) return;
+  const b = brands.find(x => x.name_key === brandKey);
+  if (b) {
+    document.getElementById('filter-brand').value = b.id;
+  }
+}
+
 async function loadBrands() {
   try {
     const res = await fetch(`${API}/api/brands`);
     brands = await res.json();
-    ['filter-brand','alert-form-brand','news-form-brand','weekly-form-brand'].forEach(id => {
+    const selIds = ['filter-brand','alert-form-brand','news-form-brand','weekly-form-brand','csv-default-brand'];
+    selIds.forEach(id => {
       const sel = document.getElementById(id);
       if (!sel) return;
       sel.innerHTML = '<option value="">全部品牌</option>' + brands.map(b => `<option value="${b.id}">${b.name} (${b.level})</option>`).join('');
@@ -513,16 +572,35 @@ async function loadStats() {
   } catch(e) { console.error('loadStats:', e); }
 }
 
-async function loadAlerts() {
+// ---- Alerts (M2: + pagination) ----
+async function loadAlerts(reset = false) {
   const container = document.getElementById('alerts-container');
+  if (reset) { alertsOffset = 0; allAlerts = []; }
   try {
-    const res = await fetch(`${API}/api/intel/alerts?limit=50`);
-    allAlerts = await res.json();
+    const brand = document.getElementById('filter-brand').value;
+    const level = document.getElementById('filter-level').value;
+    const cat = document.getElementById('filter-category').value;
+    const status = document.getElementById('filter-status').value;
+    let url = `${API}/api/intel/alerts?limit=${PAGE_SIZE}&offset=${alertsOffset}`;
+    if (brand) url += `&brand_id=${brand}`;
+    if (level) url += `&priority=${level}`;
+    if (cat) url += `&category=${encodeURIComponent(cat)}`;
+    if (status) url += `&status=${status}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (reset) allAlerts = data;
+    else allAlerts = allAlerts.concat(data);
+    alertsHasMore = data.length >= PAGE_SIZE;
+    document.getElementById('alerts-load-more').style.display = alertsHasMore ? '' : 'none';
+    document.getElementById('alert-count').textContent = `共 ${allAlerts.length} 条${alertsHasMore ? '+' : ''}`;
+    renderAlerts(allAlerts);
   } catch(e) {
     allAlerts = [];
     container.innerHTML = '<div class="loading">⚠️ 加载失败，请确认后端已启动</div>';
   }
 }
+
+function loadMoreAlerts() { alertsOffset += PAGE_SIZE; loadAlerts(false); }
 
 function renderAlerts(alerts) {
   const container = document.getElementById('alerts-container');
@@ -532,7 +610,6 @@ function renderAlerts(alerts) {
   }
   container.innerHTML = alerts.map(a => {
     const dotColor = a.priority === 'P0' ? 'red' : (a.priority === 'P1' ? 'amber' : 'blue');
-    const brandKey = a.brand_name_key || brandKeyById(a.brand_id);
     const catTag = a.category === '增长机会'
       ? '<span class="tag tag-green">增长机会</span>'
       : '<span class="tag tag-red">风险预警</span>';
@@ -541,11 +618,12 @@ function renderAlerts(alerts) {
                       a.status === 'linked' ? '<span class="tag tag-blue">已关联拜访</span>' :
                       '<span class="tag tag-gray">已关闭</span>';
     const levelClass = a.brand_level === 'S' ? 'level-s' : (a.brand_level === 'A' ? 'level-a' : 'level-b');
+    const brandKey = a.brand_name_key || brandKeyById(a.brand_id);
     const crossLinks = brandKey
       ? `· <a href="profile.html?brand=${brandKey}">查看档案 →</a> · <a href="visit.html?brand=${brandKey}">安排拜访 →</a>`
       : '';
     return `
-    <div class="alert-row" data-brand="${a.brand_id||''}" data-level="${a.priority}" data-category="${a.category||''}" data-status="${a.status}">
+    <div class="alert-row">
       <div class="alert-dot ${dotColor} ${a.priority==='P0'?'pulse':''}"></div>
       <div class="alert-content">
         <div class="alert-title">${a.priority} · ${a.title} ${catTag} ${statusTag}</div>
@@ -559,7 +637,6 @@ function renderAlerts(alerts) {
         </div>
       </div>
       <div class="alert-actions">
-        <button class="btn-sm-outline" onclick="editAlert(${a.id})">✏️编辑</button>
         ${a.status === 'pending' ? `<button class="btn-sm-outline" onclick="updateAlertStatus(${a.id},'confirmed')">✓确认</button>` : ''}
         ${(a.status === 'pending' || a.status === 'confirmed') && a.brand_id ? `<button class="btn-sm-outline" onclick="createVisitFromAlert(${a.id})">📝一键拜访</button>` : ''}
         ${a.status !== 'closed' ? `<button class="btn-sm-outline" onclick="updateAlertStatus(${a.id},'closed')">✕关闭</button>` : ''}
@@ -568,16 +645,29 @@ function renderAlerts(alerts) {
   }).join('');
 }
 
-async function loadNews() {
+// ---- News (M2: + pagination) ----
+async function loadNews(reset = false) {
   const container = document.getElementById('news-container');
+  if (reset) { newsOffset = 0; allNews = []; }
   try {
-    const res = await fetch(`${API}/api/intel/news?limit=30`);
-    allNews = await res.json();
+    const brand = document.getElementById('filter-brand').value;
+    let url = `${API}/api/intel/news?limit=${PAGE_SIZE}&offset=${newsOffset}`;
+    if (brand) url += `&brand_id=${brand}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (reset) allNews = data;
+    else allNews = allNews.concat(data);
+    newsHasMore = data.length >= PAGE_SIZE;
+    document.getElementById('news-load-more').style.display = newsHasMore ? '' : 'none';
+    document.getElementById('news-count').textContent = `共 ${allNews.length} 条${newsHasMore ? '+' : ''}`;
+    renderNews(allNews);
   } catch(e) {
     allNews = [];
     container.innerHTML = '<div class="loading">⚠️ 加载失败</div>';
   }
 }
+
+function loadMoreNews() { newsOffset += PAGE_SIZE; loadNews(false); }
 
 function renderNews(news) {
   const container = document.getElementById('news-container');
@@ -603,164 +693,106 @@ function renderNews(news) {
   `).join('');
 }
 
+// ---- Weekly Summary ----
 async function loadWeeklySummary() {
   const container = document.getElementById('weekly-summary');
   try {
     const res = await fetch(`${API}/api/intel/weekly/latest`);
     allWeeklies = await res.json();
-  } catch(e) {
-    allWeeklies = [];
-    container.innerHTML = '<p style="color:var(--text-muted)">加载失败</p>';
-  }
-}
-
-function renderWeeklySummary(weeklies) {
-  const container = document.getElementById('weekly-summary');
-  if (!weeklies.length) {
-    container.innerHTML = '<p style="color:var(--text-muted)">暂无周报数据</p>';
-    return;
-  }
-  container.innerHTML = weeklies.map(w => `
+    if (!allWeeklies.length) { container.innerHTML = '<p style="color:var(--text-muted)">暂无周报数据</p>'; return; }
+    container.innerHTML = allWeeklies.map(w => `
       <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-          <div>
-            <strong>${w.brand_name||''}</strong> · ${w.week_label||''} (${w.week_start} ~ ${w.week_end}) · 填报人：${w.reporter||'-'}
-            ${w.weekly_gmv ? `· GMV: ¥${w.weekly_gmv}万` : ''}
-            ${w.gmv_change ? `· 环比: ${w.gmv_change>0?'+':''}${w.gmv_change}%` : ''}
-            ${w.competitor_moves ? `<br>📊 竞品：${w.competitor_moves}` : ''}
-            ${w.risk_points ? `<br>⚠️ 风险：${w.risk_points}` : ''}
-            ${w.opportunities ? `<br>💡 机会：${w.opportunities}` : ''}
-            ${w.next_week_plan ? `<br>📅 下周：${w.next_week_plan}` : ''}
-          </div>
-          <button class="btn-sm-outline" onclick="editWeekly(${w.id})">✏️编辑</button>
-        </div>
+        <strong>${w.brand_name||''}</strong> · ${w.week_label||''} (${w.week_start} ~ ${w.week_end}) · 填报人：${w.reporter||'-'}
+        ${w.weekly_gmv ? `· GMV: ¥${w.weekly_gmv}万` : ''}
+        ${w.gmv_change ? `· 环比: ${w.gmv_change>0?'+':''}${w.gmv_change}%` : ''}
+        ${w.competitor_moves ? `<br>📊 竞品：${w.competitor_moves}` : ''}
+        ${w.risk_points ? `<br>⚠️ 风险：${w.risk_points}` : ''}
+        ${w.opportunities ? `<br>💡 机会：${w.opportunities}` : ''}
       </div>
     `).join('');
+  } catch(e) { container.innerHTML = '<p style="color:var(--text-muted)">加载失败</p>'; }
 }
 
 // ---- Filters ----
 function setupFilters() {
   ['filter-brand','filter-level','filter-category','filter-status'].forEach(id => {
-    document.getElementById(id).addEventListener('change', applyFilters);
+    document.getElementById(id).addEventListener('change', () => { loadAlerts(true); loadNews(true); });
   });
-  document.getElementById('filter-brand').addEventListener('change', function() {
-    if (!this.value) urlBrandId = null;
+  document.getElementById('filter-search').addEventListener('input', function() {
+    const search = this.value.toLowerCase();
+    let filtered = allAlerts;
+    if (search) {
+      filtered = allAlerts.filter(a => (a.title + (a.description||'') + (a.brand_name||'')).toLowerCase().includes(search));
+    }
+    renderAlerts(filtered);
+    document.getElementById('alert-count').textContent = `筛选 ${filtered.length} 条`;
   });
-  document.getElementById('filter-search').addEventListener('input', applyFilters);
 }
 
-function applyFilters() {
-  const brand = document.getElementById('filter-brand').value;
-  const effectiveBrand = brand || urlBrandId;
-  const level = document.getElementById('filter-level').value;
-  const category = document.getElementById('filter-category').value;
-  const status = document.getElementById('filter-status').value;
-  const search = document.getElementById('filter-search').value.toLowerCase();
-
-  const filteredAlerts = allAlerts.filter(a => {
-    if (effectiveBrand && a.brand_id != effectiveBrand) return false;
-    if (level && a.priority !== level) return false;
-    if (category && a.category !== category) return false;
-    if (status && a.status !== status) return false;
-    if (search) {
-      const txt = (a.title + a.description + (a.brand_name||'')).toLowerCase();
-      if (!txt.includes(search)) return false;
+// ---- M2: Quick-fill Templates (D-K-2) ----
+function quickFillAlert(priority, category) {
+  const templates = {
+    'P0': { '风险预警': { title: '[紧急] 品牌关键决策链变动预警', desc: '多渠道信息显示品牌方核心对接人可能发生变动，需尽快确认决策链现状。', suggestion: '建议48h内安排紧急拜访确认决策链，同步准备备用对接方案。' }},
+    'P1': {
+      '风险预警': { title: '[关注] 竞品大幅度降价促销', desc: '竞品在核心渠道开启大规模降价促销活动，可能影响我品市场份额。', suggestion: '建议关注竞品促销动态，评估是否需要跟进价格策略。' },
+      '增长机会': { title: '[机会] 品牌方计划加大京东渠道投入', desc: '品牌方透露Q3将增加京东渠道营销预算，有望获得更多资源位和独家政策。', suggestion: '建议尽快跟进品牌方，锁定Q3合作协议和资源位。' }
     }
-    return true;
-  });
-  renderAlerts(filteredAlerts);
-  document.getElementById('alert-count').textContent = `共 ${filteredAlerts.length} 条`;
-  const filteredNews = allNews.filter(n => !effectiveBrand || n.brand_id == effectiveBrand);
-  document.getElementById('news-count').textContent = `共 ${filteredNews.length} 条`;
-  renderNews(filteredNews);
-  renderWeeklySummary(allWeeklies.filter(w => !effectiveBrand || w.brand_id == effectiveBrand));
+  };
+  const tmpl = (templates[priority]||{})[category];
+  if (!tmpl) { showToast('该组合暂无模板'); return; }
+  document.getElementById('alert-form-priority').value = priority;
+  document.getElementById('alert-form-category').value = category;
+  document.getElementById('alert-form-title').value = tmpl.title;
+  document.getElementById('alert-form-desc').value = tmpl.desc;
+  document.getElementById('alert-form-suggestion').value = tmpl.suggestion;
+  document.getElementById('modal-alert').classList.add('show');
+}
+
+function quickFillNews(sentiment, category) {
+  const templates = {
+    'negative': { '竞品': { title: '竞品在核心渠道加大促销力度，我品份额承压', summary: '竞品近期在京东/天猫等核心渠道加大促销投入，我品牌市场份额出现下滑趋势。', source: '竞对监测', keywords: '竞品,促销,份额' }},
+    'positive': { '新品': { title: '品牌方新款产品首发预售超预期', summary: '新款产品在京东首发预售数据表现亮眼，首日预定量突破预期目标。', source: '电商监测', keywords: '新品,首发,预售' }}
+  };
+  const tmpl = (templates[sentiment]||{})[category];
+  document.getElementById('news-form-sentiment').value = sentiment;
+  document.getElementById('news-form-category').value = category;
+  if (tmpl) {
+    document.getElementById('news-form-title').value = tmpl.title;
+    document.getElementById('news-form-summary').value = tmpl.summary;
+    document.getElementById('news-form-source').value = tmpl.source;
+  }
+  document.getElementById('modal-news').classList.add('show');
+}
+
+function quickFillWeekly() {
+  const now = new Date(); const day = now.getDay();
+  const monday = new Date(now); monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  document.getElementById('weekly-form-start').value = monday.toISOString().slice(0,10);
+  document.getElementById('weekly-form-end').value = sunday.toISOString().slice(0,10);
+  document.getElementById('modal-weekly').classList.add('show');
 }
 
 // ---- CRUD Actions ----
-function resetAlertForm() {
-  document.getElementById('alert-form-id').value = '';
-  document.getElementById('modal-alert-title').textContent = '✏️ 录入情报预警';
-  document.getElementById('alert-form-brand').value = '';
-  document.getElementById('alert-form-priority').value = 'P1';
-  document.getElementById('alert-form-category').value = '增长机会';
+function openAlertForm() {
   document.getElementById('alert-form-title').value = '';
   document.getElementById('alert-form-desc').value = '';
   document.getElementById('alert-form-suggestion').value = '';
   document.getElementById('alert-form-assignee').value = '';
-}
-
-function openAlertForm() {
-  resetAlertForm();
+  document.getElementById('alert-form-priority').value = 'P1';
+  document.getElementById('alert-form-category').value = '增长机会';
   document.getElementById('modal-alert').classList.add('show');
 }
-
-function editAlert(id) {
-  const a = allAlerts.find(x => x.id === id);
-  if (!a) return;
-  document.getElementById('alert-form-id').value = a.id;
-  document.getElementById('modal-alert-title').textContent = '✏️ 编辑情报预警';
-  document.getElementById('alert-form-brand').value = a.brand_id || '';
-  document.getElementById('alert-form-priority').value = a.priority;
-  document.getElementById('alert-form-category').value = a.category || (a.priority === 'P0' ? '风险预警' : '增长机会');
-  document.getElementById('alert-form-title').value = a.title || '';
-  document.getElementById('alert-form-desc').value = a.description || '';
-  document.getElementById('alert-form-suggestion').value = a.suggestion || '';
-  document.getElementById('alert-form-assignee').value = a.assignee || '';
-  document.getElementById('modal-alert').classList.add('show');
-}
-
-function resetNewsForm() {
-  document.getElementById('news-form-id').value = '';
-  document.getElementById('modal-news-title').textContent = '📰 录入新闻资讯';
-  document.getElementById('news-form-brand').value = '';
+function openNewsForm() {
   document.getElementById('news-form-title').value = '';
   document.getElementById('news-form-summary').value = '';
   document.getElementById('news-form-source').value = '';
   document.getElementById('news-form-category').value = '';
   document.getElementById('news-form-sentiment').value = 'neutral';
   document.getElementById('news-form-url').value = '';
-}
-
-function openNewsForm() {
-  resetNewsForm();
   document.getElementById('modal-news').classList.add('show');
 }
-
-function editNews(id) {
-  const n = allNews.find(x => x.id === id);
-  if (!n) return;
-  document.getElementById('news-form-id').value = n.id;
-  document.getElementById('modal-news-title').textContent = '📰 编辑新闻资讯';
-  document.getElementById('news-form-brand').value = n.brand_id || '';
-  document.getElementById('news-form-title').value = n.title || '';
-  document.getElementById('news-form-summary').value = n.summary || '';
-  document.getElementById('news-form-source').value = n.source || '';
-  document.getElementById('news-form-category').value = n.category || '';
-  document.getElementById('news-form-sentiment').value = n.sentiment || 'neutral';
-  document.getElementById('news-form-url').value = n.url || '';
-  document.getElementById('modal-news').classList.add('show');
-}
-
-function resetWeeklyForm() {
-  document.getElementById('weekly-form-id').value = '';
-  document.getElementById('modal-weekly-title').textContent = '📝 提交周报';
-  document.getElementById('weekly-form-brand').value = '';
-  document.getElementById('weekly-form-start').value = '';
-  document.getElementById('weekly-form-end').value = '';
-  document.getElementById('weekly-form-label').value = '';
-  document.getElementById('weekly-form-gmv').value = '';
-  document.getElementById('weekly-form-gmv-change').value = '';
-  document.getElementById('weekly-form-comp').value = '';
-  document.getElementById('weekly-form-inventory').value = '';
-  document.getElementById('weekly-form-risk').value = '';
-  document.getElementById('weekly-form-opp').value = '';
-  document.getElementById('weekly-form-plan').value = '';
-  document.getElementById('weekly-form-reporter').value = '';
-}
-
-function closeModal(id) {
-  document.getElementById(id).classList.remove('show');
-}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
 async function submitAlert() {
   const title = document.getElementById('alert-form-title').value.trim();
@@ -770,24 +802,15 @@ async function submitAlert() {
     brand_id: brandVal ? parseInt(brandVal) : null,
     priority: document.getElementById('alert-form-priority').value,
     category: document.getElementById('alert-form-category').value,
-    title: title,
-    description: document.getElementById('alert-form-desc').value.trim(),
+    title, description: document.getElementById('alert-form-desc').value.trim(),
     suggestion: document.getElementById('alert-form-suggestion').value.trim(),
     assignee: document.getElementById('alert-form-assignee').value.trim(),
   };
-  const id = document.getElementById('alert-form-id').value;
   try {
-    const res = await fetch(`${API}/api/intel/alerts${id ? '/' + id : ''}`, {
-      method: id ? 'PUT' : 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(`${API}/api/intel/alerts`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
-    closeModal('modal-alert');
-    showToast(id ? '预警已更新 ✅' : '情报已录入 ✅');
-    await loadAlerts();
-    await loadStats();
-    applyFilters();
+    closeModal('modal-alert'); showToast('情报已录入 ✅');
+    await loadAlerts(true); await loadStats();
   } catch(e) { showToast('错误：' + e.message); }
 }
 
@@ -796,59 +819,62 @@ async function submitNews() {
   if (!title) { showToast('请输入标题'); return; }
   const brandVal = document.getElementById('news-form-brand').value;
   const payload = {
-    brand_id: brandVal ? parseInt(brandVal) : null,
-    title: title,
+    brand_id: brandVal ? parseInt(brandVal) : null, title,
     summary: document.getElementById('news-form-summary').value.trim(),
     source: document.getElementById('news-form-source').value.trim(),
     sentiment: document.getElementById('news-form-sentiment').value,
     category: document.getElementById('news-form-category').value,
     url: document.getElementById('news-form-url').value.trim(),
+    published_at: new Date().toISOString(),
   };
-  const id = document.getElementById('news-form-id').value;
-  if (!id) payload.published_at = new Date().toISOString();
   try {
-    const res = await fetch(`${API}/api/intel/news${id ? '/' + id : ''}`, {
-      method: id ? 'PUT' : 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(`${API}/api/intel/news`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
-    closeModal('modal-news');
-    showToast(id ? '新闻已更新 ✅' : '新闻已录入 ✅');
-    await loadNews();
-    await loadStats();
-    applyFilters();
+    closeModal('modal-news'); showToast('新闻已录入 ✅');
+    await loadNews(true); await loadStats();
   } catch(e) { showToast('错误：' + e.message); }
 }
 
+async function editNews(id) {
+  const n = allNews.find(x => x.id === id);
+  if (!n) return;
+  document.getElementById('news-form-brand').value = n.brand_id || '';
+  document.getElementById('news-form-title').value = n.title || '';
+  document.getElementById('news-form-summary').value = n.summary || '';
+  document.getElementById('news-form-source').value = n.source || '';
+  document.getElementById('news-form-category').value = n.category || '';
+  document.getElementById('news-form-sentiment').value = n.sentiment || 'neutral';
+  document.getElementById('news-form-url').value = n.url || '';
+  document.getElementById('modal-news').classList.add('show');
+  const btn = document.querySelector('#modal-news .btn-primary');
+  btn.textContent = '✅ 更新';
+  btn.onclick = async () => {
+    const p = {
+      brand_id: document.getElementById('news-form-brand').value ? parseInt(document.getElementById('news-form-brand').value) : null,
+      title: document.getElementById('news-form-title').value.trim(),
+      summary: document.getElementById('news-form-summary').value.trim(),
+      source: document.getElementById('news-form-source').value.trim(),
+      sentiment: document.getElementById('news-form-sentiment').value,
+      category: document.getElementById('news-form-category').value,
+      url: document.getElementById('news-form-url').value.trim(),
+    };
+    try {
+      const r = await fetch(`${API}/api/intel/news/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
+      closeModal('modal-news'); showToast('新闻已更新 ✅');
+      await loadNews(true);
+      btn.textContent = '✅ 提交'; btn.onclick = submitNews;
+    } catch(e) { showToast('错误：' + e.message); }
+  };
+}
+
 function openWeeklyForm() {
-  resetWeeklyForm();
-  const now = new Date();
-  const day = now.getDay();
+  const now = new Date(); const day = now.getDay();
   const monday = new Date(now); monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
   const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
   document.getElementById('weekly-form-start').value = monday.toISOString().slice(0,10);
   document.getElementById('weekly-form-end').value = sunday.toISOString().slice(0,10);
-  document.getElementById('modal-weekly').classList.add('show');
-}
-
-function editWeekly(id) {
-  const w = allWeeklies.find(x => x.id === id);
-  if (!w) return;
-  document.getElementById('weekly-form-id').value = w.id;
-  document.getElementById('modal-weekly-title').textContent = '📝 编辑周报';
-  document.getElementById('weekly-form-brand').value = w.brand_id;
-  document.getElementById('weekly-form-start').value = w.week_start;
-  document.getElementById('weekly-form-end').value = w.week_end;
-  document.getElementById('weekly-form-label').value = w.week_label || '';
-  document.getElementById('weekly-form-gmv').value = w.weekly_gmv != null ? w.weekly_gmv : '';
-  document.getElementById('weekly-form-gmv-change').value = w.gmv_change != null ? w.gmv_change : '';
-  document.getElementById('weekly-form-comp').value = w.competitor_moves || '';
-  document.getElementById('weekly-form-inventory').value = w.inventory_status || '';
-  document.getElementById('weekly-form-risk').value = w.risk_points || '';
-  document.getElementById('weekly-form-opp').value = w.opportunities || '';
-  document.getElementById('weekly-form-plan').value = w.next_week_plan || '';
-  document.getElementById('weekly-form-reporter').value = w.reporter || '';
+  ['weekly-form-label','weekly-form-gmv','weekly-form-gmv-change','weekly-form-comp','weekly-form-inventory','weekly-form-risk','weekly-form-opp','weekly-form-plan','weekly-form-reporter'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('modal-weekly').classList.add('show');
 }
 
@@ -860,8 +886,8 @@ async function submitWeekly() {
     week_start: document.getElementById('weekly-form-start').value,
     week_end: document.getElementById('weekly-form-end').value,
     week_label: document.getElementById('weekly-form-label').value.trim(),
-    weekly_gmv: parseInt(document.getElementById('weekly-form-gmv').value) || null,
-    gmv_change: parseInt(document.getElementById('weekly-form-gmv-change').value) || null,
+    weekly_gmv: parseFloat(document.getElementById('weekly-form-gmv').value) || null,
+    gmv_change: parseFloat(document.getElementById('weekly-form-gmv-change').value) || null,
     competitor_moves: document.getElementById('weekly-form-comp').value.trim(),
     inventory_status: document.getElementById('weekly-form-inventory').value.trim(),
     risk_points: document.getElementById('weekly-form-risk').value.trim(),
@@ -869,56 +895,132 @@ async function submitWeekly() {
     next_week_plan: document.getElementById('weekly-form-plan').value.trim(),
     reporter: document.getElementById('weekly-form-reporter').value.trim(),
   };
-  const id = document.getElementById('weekly-form-id').value;
   try {
-    const res = await fetch(`${API}/api/intel/weekly${id ? '/' + id : ''}`, {
-      method: id ? 'PUT' : 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(`${API}/api/intel/weekly`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
-    closeModal('modal-weekly');
-    showToast(id ? '周报已更新 ✅' : '周报已提交 ✅');
+    closeModal('modal-weekly'); showToast('周报已提交 ✅');
     await loadWeeklySummary();
-    applyFilters();
   } catch(e) { showToast('错误：' + e.message); }
 }
 
 async function updateAlertStatus(id, status) {
   try {
-    await fetch(`${API}/api/intel/alerts/${id}`, {
-      method: 'PUT',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({status}),
-    });
+    await fetch(`${API}/api/intel/alerts/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
     showToast(status === 'confirmed' ? '预警已确认' : '预警已关闭');
-    await loadAlerts();
-    await loadStats();
-    applyFilters();
+    await loadAlerts(true); await loadStats();
   } catch(e) { showToast('更新失败'); }
 }
 
 async function createVisitFromAlert(alertId) {
   try {
-    const res = await fetch(`${API}/api/intel/alerts/${alertId}/create-visit`, {method:'POST'});
+    const res = await fetch(`${API}/api/intel/alerts/${alertId}/create-visit`, { method:'POST' });
     if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
     const visit = await res.json();
     showToast(`✅ 紧急拜访已创建！日期：${visit.visit_date}，品牌：${visit.brand_name}`);
-    await loadAlerts();
-    await loadStats();
-    applyFilters();
+    await loadAlerts(true); await loadStats();
   } catch(e) { showToast('创建失败：' + e.message); }
+}
+
+// ---- M2: CSV Import (D-K-1) ----
+function openCsvModal() {
+  document.getElementById('modal-csv').classList.add('show');
+  document.getElementById('csv-result-area').style.display = 'none';
+  document.getElementById('csv-result-area').innerHTML = '';
+  switchCsvTab('file');
+}
+
+function switchCsvTab(tab) {
+  csvTab = tab;
+  document.getElementById('csv-tab-file').classList.toggle('active', tab === 'file');
+  document.getElementById('csv-tab-paste').classList.toggle('active', tab === 'paste');
+  document.getElementById('csv-panel-file').style.display = tab === 'file' ? '' : 'none';
+  document.getElementById('csv-panel-paste').style.display = tab === 'paste' ? '' : 'none';
+}
+
+async function uploadCsv() {
+  const fileInput = document.getElementById('csv-file-input');
+  const file = fileInput.files[0];
+  if (!file) { showToast('请选择CSV文件'); return; }
+  const brandId = document.getElementById('csv-default-brand').value;
+  const formData = new FormData(); formData.append('file', file);
+  let url = `${API}/api/intel/news/csv/upload`;
+  if (brandId) url += `?brand_id=${brandId}`;
+  try {
+    showToast('正在导入...');
+    const res = await fetch(url, { method:'POST', body: formData });
+    const result = await res.json();
+    showCsvResult(result);
+  } catch(e) { showToast('导入失败：' + e.message); }
+}
+
+async function importCsvJson() {
+  const text = document.getElementById('csv-paste-area').value.trim();
+  if (!text) { showToast('请粘贴JSON数据'); return; }
+  let rows;
+  try { rows = JSON.parse(text); if (!Array.isArray(rows)) throw new Error('数据必须是数组'); }
+  catch(e) { showToast('JSON格式错误：' + e.message); return; }
+  try {
+    showToast(`正在导入 ${rows.length} 条...`);
+    const res = await fetch(`${API}/api/intel/news/csv`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({rows}) });
+    const result = await res.json();
+    showCsvResult(result);
+  } catch(e) { showToast('导入失败：' + e.message); }
+}
+
+function showCsvResult(result) {
+  const area = document.getElementById('csv-result-area');
+  area.style.display = '';
+  const cls = result.errors.length > 0 ? 'partial' : 'success';
+  let html = `<div class="csv-result ${cls}"><strong>导入完成：</strong>总计 ${result.total} 条 · 成功 ${result.success} 条 · 跳过 ${result.skipped} 条`;
+  if (result.errors.length > 0) {
+    html += '<br><br><strong>跳过详情：</strong><br>';
+    result.errors.forEach(e => { html += `· 第${e.row}行: ${e.error}${e.title ? ' (' + e.title + ')' : ''}<br>`; });
+  }
+  html += '</div>'; area.innerHTML = html;
+  if (result.success > 0) { loadNews(true); loadStats(); }
+}
+
+function fillCsvSample() {
+  const sample = [
+    {brand_id:1,title:"美的集团Q2营收同比增长18%",summary:"家电业务表现亮眼",source:"行业情报",sentiment:"neutral",category:"行业",keywords:"美的,Q2,增长",url:"https://example.com/1",published_at:"2026-06-10T10:00:00"},
+    {brand_id:1,title:"海尔推出新款智能冰箱对标美的",summary:"海尔新款冰箱定位中高端",source:"竞对监测",sentiment:"negative",category:"竞品",keywords:"海尔,冰箱",url:"https://example.com/2",published_at:"2026-06-09T14:00:00"},
+    {brand_id:2,title:"九阳破壁机L18京东市占回升至22%",summary:"618促销力度加大后效果显著",source:"电商监测",sentiment:"positive",category:"渠道",keywords:"九阳,破壁机",url:"https://example.com/3",published_at:"2026-06-08T08:00:00"},
+    {brand_id:3,title:"苏泊尔广告预算Q2环比下降12%",summary:"主要竞品加大618投放",source:"竞对监测",sentiment:"negative",category:"竞品",keywords:"苏泊尔,广告",url:"https://example.com/4",published_at:"2026-06-07T16:00:00"},
+    {brand_id:4,title:"小熊电器联名款首发预售突破500万",summary:"IP联名养生壶预售超预期",source:"电商监测",sentiment:"positive",category:"新品",keywords:"小熊,联名",url:"https://example.com/5",published_at:"2026-06-08T08:00:00"},
+    {brand_id:5,title:"摩飞新款咖啡机评测口碑走高",summary:"社交媒体获得大量好评",source:"社交媒体",sentiment:"positive",category:"新品",keywords:"摩飞,咖啡机",url:"https://example.com/6",published_at:"2026-06-06T10:00:00"},
+    {brand_id:2,title:"九阳K系列抖音月销+45%再创新高",summary:"抖音渠道持续放量",source:"电商监测",sentiment:"positive",category:"渠道",keywords:"九阳,K系列",url:"https://example.com/7",published_at:"2026-06-05T09:00:00"},
+    {brand_id:3,title:"苏泊尔Q2线上增速放缓至5%",summary:"线上全渠道增速放缓",source:"行业情报",sentiment:"neutral",category:"行业",keywords:"苏泊尔,Q2",url:"https://example.com/8",published_at:"2026-06-04T11:00:00"},
+    {brand_id:1,title:"美的全屋智能战略发布·厨电获资源倾斜",summary:"厨小事业部将获更多资源",source:"官方渠道",sentiment:"positive",category:"行业",keywords:"美的,全屋智能",url:"https://example.com/9",published_at:"2026-06-03T09:00:00"},
+    {brand_id:4,title:"小熊电器养生壶品类京东GMV突破420万",summary:"市占率领先第二名8个百分点",source:"电商监测",sentiment:"positive",category:"渠道",keywords:"小熊,养生壶",url:"https://example.com/10",published_at:"2026-06-02T10:00:00"}
+  ];
+  document.getElementById('csv-paste-area').value = JSON.stringify(sample, null, 2);
+  showToast('示例数据已填入（10条）');
+}
+
+async function downloadCsvTemplate() {
+  try {
+    const res = await fetch(`${API}/api/intel/news/csv/template`);
+    const data = await res.json();
+    const blob = new Blob(['﻿' + data.template], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = 'intel_news_template.csv'; a.click(); URL.revokeObjectURL(url);
+    showToast('CSV模板已下载 ✅');
+  } catch(e) {
+    const csv = '﻿brand_id,title,summary,source,sentiment,category,keywords,url,published_at\n1,示例新闻标题,摘要内容,行业情报,neutral,行业,关键词,https://example.com/1,2026-06-10T10:00:00';
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = 'intel_news_template.csv'; a.click(); URL.revokeObjectURL(url);
+    showToast('CSV模板已下载 ✅');
+  }
 }
 
 function showToast(msg) {
   const t = document.getElementById('appToast');
-  t.textContent = msg;
-  t.classList.add('show');
+  t.textContent = msg; t.classList.add('show');
   clearTimeout(window._tt);
   window._tt = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-// 点击模态框外部关闭
 document.querySelectorAll('.modal-overlay').forEach(ov => {
   ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 });

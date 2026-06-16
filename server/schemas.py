@@ -209,6 +209,8 @@ class BrandProfileOut(BaseModel):
     positioning: Optional[str] = None
     org_structure: Optional[str] = None
     taboos: Optional[str] = None
+    competitive_landscape: Optional[str] = None
+    growth_opportunities: Optional[str] = None
     taboo_updated_by: Optional[str] = None
     taboo_updated_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
@@ -281,6 +283,8 @@ class ContactPatch(BaseModel):
 
 class BrandProfileUpdate(BaseModel):
     taboos: Optional[str] = None
+    competitive_landscape: Optional[str] = None
+    growth_opportunities: Optional[str] = None
     contacts: Optional[List[ContactPatch]] = None
 
 
@@ -443,6 +447,31 @@ class IntelBriefingOut(BaseModel):
     active_alerts: List[IntelAlertOut] = []
     latest_weekly: Optional[dict] = None
     stats: dict = {}
+    cached: bool = False
+
+
+class CsvImportRow(BaseModel):
+    brand_id: Optional[int] = None
+    title: str
+    summary: Optional[str] = None
+    source: Optional[str] = None
+    sentiment: Optional[str] = "neutral"
+    category: Optional[str] = None
+    keywords: Optional[str] = None
+    url: Optional[str] = None
+    published_at: Optional[str] = None
+
+
+class CsvImportRequest(BaseModel):
+    rows: List[CsvImportRow]
+
+
+class CsvImportResult(BaseModel):
+    total: int = 0
+    success: int = 0
+    skipped: int = 0
+    errors: List[dict] = []
+    imported_ids: List[int] = []
 
 
 class IntelStatsOut(BaseModel):
