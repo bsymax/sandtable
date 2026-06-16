@@ -119,12 +119,22 @@ def _default_alert_category(priority: str, category: Optional[str] = None) -> st
     return "风险预警" if priority == "P0" else "增长机会"
 
 
+def _briefing_data_for_cache(news_out, alerts_out, latest_weekly, stats: dict) -> dict:
+    """JSON 列可序列化（datetime 须 mode='json'）"""
+    return {
+        "recent_news": [n.model_dump(mode="json") for n in news_out],
+        "active_alerts": [a.model_dump(mode="json") for a in alerts_out],
+        "latest_weekly": latest_weekly,
+        "stats": stats,
+    }
+
+
 def _fmt_alert(a):
     return IntelAlertOut(
         id=a.id, brand_id=a.brand_id, brand_name=a.brand.name if a.brand else None,
         brand_name_key=a.brand.name_key if a.brand else None,
         brand_level=a.brand.level if a.brand else None,
-        news_id=a.news_id, metrics_id=a.metrics_id, visit_id=a.visit_id,
+        news_id=a.news_id, weekly_id=a.metrics_id, visit_id=a.visit_id,
         priority=a.priority,
         category=a.category or _default_alert_category(a.priority),
         title=a.title, description=a.description,
@@ -532,17 +542,21 @@ def get_brand_briefing(brand_key: str, db: Session = Depends(get_db)):
     if not brand:
         raise HTTPException(404, "品牌不存在")
 
-    cached = db.query(IntelBriefingCache).filter(IntelBriefingCache.brand_id == brand.id).first()
-    if cached and cached.expires_at and cached.expires_at > datetime.now() and cached.briefing_data:
-        d = cached.briefing_data
-        return IntelBriefingOut(
-            brand_id=brand.id, brand_name=brand.name, brand_level=brand.level,
-            recent_news=d.get("recent_news", []),
-            active_alerts=d.get("active_alerts", []),
-            latest_weekly=d.get("latest_weekly"),
-            stats=d.get("stats", {}),
-            cached=True,
-        )
+    cached = None
+    try:
+        cached = db.query(IntelBriefingCache).filter(IntelBriefingCache.brand_id == brand.id).first()
+        if cached and cached.expires_at and cached.expires_at > datetime.now() and cached.briefing_data:
+            d = cached.briefing_data
+            return IntelBriefingOut(
+                brand_id=brand.id, brand_name=brand.name, brand_level=brand.level,
+                recent_news=d.get("recent_news", []),
+                active_alerts=d.get("active_alerts", []),
+                latest_weekly=d.get("latest_weekly"),
+                stats=d.get("stats", {}),
+                cached=True,
+            )
+    except Exception:
+        db.rollback()
 
     two_weeks_ago = datetime.now() - timedelta(days=14)
     news = db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(
@@ -560,26 +574,29 @@ def get_brand_briefing(brand_key: str, db: Session = Depends(get_db)):
     ).order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).first()
 
     news_out, alerts_out, latest_weekly = _build_briefing_payload(brand, news, alerts, latest_w)
-    briefing_data = {
-        "recent_news": [n.model_dump() for n in news_out],
-        "active_alerts": [a.model_dump() for a in alerts_out],
-        "latest_weekly": latest_weekly,
-        "stats": {"total_news": len(news), "active_alerts": len(alerts)},
-    }
+    briefing_data = _briefing_data_for_cache(
+        news_out,
+        alerts_out,
+        latest_weekly,
+        {"total_news": len(news), "active_alerts": len(alerts)},
+    )
     expires_at = datetime.now() + timedelta(minutes=BRIEFING_CACHE_TTL)
-    if cached:
-        cached.briefing_data = briefing_data
-        cached.generated_at = datetime.now()
-        cached.expires_at = expires_at
-        cached.updated_at = datetime.now()
-    else:
-        db.add(IntelBriefingCache(
-            brand_id=brand.id,
-            briefing_data=briefing_data,
-            generated_at=datetime.now(),
-            expires_at=expires_at,
-        ))
-    db.commit()
+    try:
+        if cached:
+            cached.briefing_data = briefing_data
+            cached.generated_at = datetime.now()
+            cached.expires_at = expires_at
+            cached.updated_at = datetime.now()
+        else:
+            db.add(IntelBriefingCache(
+                brand_id=brand.id,
+                briefing_data=briefing_data,
+                generated_at=datetime.now(),
+                expires_at=expires_at,
+            ))
+        db.commit()
+    except Exception:
+        db.rollback()
 
     return IntelBriefingOut(
         brand_id=brand.id, brand_name=brand.name, brand_level=brand.level,

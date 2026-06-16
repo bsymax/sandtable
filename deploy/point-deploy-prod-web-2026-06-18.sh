@@ -32,6 +32,7 @@ scp "${SSH_OPTS[@]}" \
   "$ROOT/server/routers/profile.py" \
   "$ROOT/server/routers/brands.py" \
   "$ROOT/server/routers/intel.py" \
+  "$ROOT/server/routers/visits.py" \
   "root@${IP}:${REMOTE_SRV}/routers/"
 
 echo "==> [3/5] 上传 DB 迁移..."

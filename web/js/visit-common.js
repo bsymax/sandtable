@@ -138,7 +138,7 @@
     options = options || {};
     var showBrand = options.showBrand !== false;
     var onStatusChange = options.onStatusChange || 'updateCommitmentStatus';
-    var colSpan = showBrand ? 6 : 5;
+    var colSpan = showBrand ? 6 : (options.readOnly ? 4 : 5);
     if (!commitments.length) {
       return '<tr><td colspan="' + colSpan + '" style="text-align:center;padding:28px 16px;color:var(--text-muted);">' +
         '<div style="font-size:28px;margin-bottom:6px;">✅</div>' +
@@ -153,33 +153,37 @@
         '<td>' + (c.party === 'bd' ? '我方' : '品牌方') + '</td>' +
         '<td>' + commitmentStatusTag(c.status) + '</td>' +
         '<td>' + formatDate(c.deadline) + '</td>' +
-        '<td><select class="form-select" style="width:110px;padding:4px 8px;font-size:12px;" onchange="' +
-          onStatusChange + '(' + c.id + ', this.value)">' +
-          '<option value="pending"' + (c.status === 'pending' ? ' selected' : '') + '>待兑现</option>' +
-          '<option value="fulfilled"' + (c.status === 'fulfilled' ? ' selected' : '') + '>已兑现</option>' +
-          '<option value="broken"' + (c.status === 'broken' ? ' selected' : '') + '>未兑现</option>' +
-        '</select></td></tr>';
+        (options.readOnly ? '' :
+          '<td><select class="form-select" style="width:110px;padding:4px 8px;font-size:12px;" onchange="' +
+            onStatusChange + '(' + c.id + ', this.value)">' +
+            '<option value="pending"' + (c.status === 'pending' ? ' selected' : '') + '>待兑现</option>' +
+            '<option value="fulfilled"' + (c.status === 'fulfilled' ? ' selected' : '') + '>已兑现</option>' +
+            '<option value="broken"' + (c.status === 'broken' ? ' selected' : '') + '>未兑现</option>' +
+          '</select></td>') +
+        '</tr>';
     }).join('');
   }
 
   function renderVisitsCalendar(visits, options) {
     options = options || {};
     var onScheduled = options.onScheduledClick || 'fillRecordForm';
+    var showBrand = options.showBrand !== false;
+    var colSpan = options.colSpan != null ? options.colSpan : (showBrand ? 7 : 6);
     if (!visits.length) {
-      return '<tr><td colspan="7" style="text-align:center;padding:28px 16px;color:var(--text-muted);">' +
+      return '<tr><td colspan="' + colSpan + '" style="text-align:center;padding:28px 16px;color:var(--text-muted);">' +
         '<div style="font-size:32px;margin-bottom:8px;">📅</div>' +
         '<div style="font-size:13px;">' + (options.emptyMsg || '暂无拜访数据') + '</div>' +
-        '<div style="font-size:12px;margin-top:4px;color:var(--text-muted);">安排拜访后显示</div>' +
+        (showBrand ? '<div style="font-size:12px;margin-top:4px;color:var(--text-muted);">安排拜访后显示</div>' : '') +
         '</td></tr>';
     }
     return visits.map(function(v) {
       var actionCell;
       if (options.linkToVisit) {
-        actionCell = '<td><button class="btn-sm-outline" onclick="window.location.href=\'visit.html?brand=' +
+        actionCell = '<td><button type="button" class="btn-sm-outline" onclick="window.location.href=\'visit.html?brand=' +
           (options.brandKey || '') + '\'">' +
           (v.status === 'scheduled' ? '记录' : '查看') + '</button></td>';
       } else {
-        actionCell = '<td><button class="btn-sm-outline" onclick="' +
+        actionCell = '<td><button type="button" class="btn-sm-outline" onclick="' +
           (v.status === 'scheduled'
             ? onScheduled + '(' + v.id + ')'
             : 'window.alert(\'详情（演示）\')') +
@@ -187,7 +191,7 @@
       }
       return '<tr>' +
         '<td>' + formatDate(v.visit_date) + '</td>' +
-        '<td>' + (v.brand_name || '') + '</td>' +
+        (showBrand ? '<td>' + (v.brand_name || '') + '</td>' : '') +
         '<td>' + levelBadge(v.brand_level) + '</td>' +
         '<td>' + typeTag(v.visit_type) + '</td>' +
         '<td>' + truncate(v.purpose, 20) + '</td>' +
@@ -222,6 +226,23 @@
     return map;
   }
 
+  function filterVisitsForBrand(visits, brandId) {
+    if (brandId == null) return visits || [];
+    return (visits || []).filter(function(v) {
+      return v.brand_id == null || v.brand_id === brandId;
+    });
+  }
+
+  function filterCommitmentsForBrand(commitments, visits) {
+    var visitIds = {};
+    (visits || []).forEach(function(v) {
+      if (v && v.id != null) visitIds[v.id] = true;
+    });
+    return (commitments || []).filter(function(c) {
+      return c.visit_id != null && visitIds[c.visit_id];
+    });
+  }
+
   global.VisitCommon = {
     formatDate: formatDate,
     truncate: truncate,
@@ -236,5 +257,7 @@
     renderVisitsCalendar: renderVisitsCalendar,
     renderHealthRow: renderHealthRow,
     visitMapFromList: visitMapFromList,
+    filterVisitsForBrand: filterVisitsForBrand,
+    filterCommitmentsForBrand: filterCommitmentsForBrand,
   };
 })(window);

@@ -207,6 +207,7 @@ def get_record(record_id: int, db: Session = Depends(get_db)):
 def list_commitments(
     visit_id: Optional[int] = None,
     status: Optional[str] = None,
+    brand_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     q = db.query(Commitment)
@@ -214,6 +215,8 @@ def list_commitments(
         q = q.filter(Commitment.visit_id == visit_id)
     if status:
         q = q.filter(Commitment.status == status)
+    if brand_id:
+        q = q.join(Visit, Commitment.visit_id == Visit.id).filter(Visit.brand_id == brand_id)
     return q.order_by(desc(Commitment.created_at)).all()
 
 

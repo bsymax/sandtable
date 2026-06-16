@@ -762,10 +762,15 @@ function updateAITodoTable(todos) {
 function loadCommitments() {
   var brandId = getModuleFilterBrandId('filter-commitments-brand');
   var commitParams = brandId ? { brand_id: brandId } : {};
-  var visitParams = brandId ? { brand_id: brandId } : {};
-  Promise.all([Api.listCommitments(commitParams), Api.listVisits(visitParams)]).then(function(results) {
+  Promise.all([Api.listCommitments(commitParams), Api.listVisits(brandId ? { brand_id: brandId } : {})]).then(function(results) {
     var commitments = results[0];
-    var visitMap = VC.visitMapFromList(results[1]);
+    var visits = results[1];
+    var visitMap = VC.visitMapFromList(visits);
+    if (brandId && VC.filterCommitmentsForBrand) {
+      commitments = VC.filterCommitmentsForBrand(commitments, visits);
+    } else if (brandId) {
+      commitments = commitments.filter(function(c) { return visitMap[c.visit_id]; });
+    }
     document.getElementById('commitments-table').innerHTML =
       VC.renderCommitmentsTable(commitments, visitMap);
   }).catch(function() {

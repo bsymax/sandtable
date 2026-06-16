@@ -758,6 +758,7 @@ function renderCompletenessRing(data) {
 
 function loadVisitHistory(key, brandId) {
   var mainBase = (typeof M1_MAIN_API_BASE !== 'undefined' && M1_MAIN_API_BASE) ? M1_MAIN_API_BASE : API_BASE;
+  var VC = window.VisitCommon;
   return Promise.all([
     apiReqOptional('/api/brands/' + key + '/reminder', mainBase),
     apiReqOptional('/api/visits?brand_id=' + brandId, mainBase),
@@ -765,11 +766,36 @@ function loadVisitHistory(key, brandId) {
     apiReqOptional('/api/commitments?brand_id=' + brandId, mainBase)
   ]).then(function(results) {
     gVisitReminder = results[0] || {};
+    var rawVisits = results[1] || [];
+    var visits = VC && VC.filterVisitsForBrand
+      ? VC.filterVisitsForBrand(rawVisits, brandId)
+      : filterVisitsForBrand(rawVisits, brandId);
+    var commitments = VC && VC.filterCommitmentsForBrand
+      ? VC.filterCommitmentsForBrand(results[3] || [], visits)
+      : filterCommitmentsForBrand(results[3] || [], visits);
     gVisitHistory = {
-      visits: results[1] || [],
+      visits: visits,
       records: results[2] || [],
-      commitments: results[3] || []
+      commitments: commitments
     };
+  });
+}
+
+function filterVisitsForBrand(visits, brandId) {
+  if (brandId == null) return visits || [];
+  return (visits || []).filter(function(v) {
+    return v.brand_id == null || v.brand_id === brandId;
+  });
+}
+
+/** 与 visit.html 承诺跟踪一致：承诺归属 visit_id，按当前品牌 visits 筛（兼容 API 未过滤 brand_id） */
+function filterCommitmentsForBrand(commitments, visits) {
+  var visitIds = {};
+  (visits || []).forEach(function(v) {
+    if (v && v.id != null) visitIds[v.id] = true;
+  });
+  return (commitments || []).filter(function(c) {
+    return c.visit_id != null && visitIds[c.visit_id];
   });
 }
 
@@ -969,27 +995,32 @@ function truncate(s, n) {
   return s.length > n ? s.slice(0, n) + '…' : s;
 }
 
-function commitIcon(s) {
-  if (s === 'done') return '<span class="tag tag-green">已兑现 ✓</span>';
-  if (s === 'fail') return '<span class="tag tag-red">未兑现 ✗</span>';
-  return '<span class="tag tag-amber">进行中 ●</span>';
-}
-
-function mapCommitStatus(s) {
-  if (s === 'fulfilled') return 'done';
-  if (s === 'broken') return 'fail';
-  return 'doing';
-}
-
-function formatIsoDate(d) {
-  if (!d) return '—';
-  var s = String(d).slice(0, 10);
-  return s.length === 10 ? s.slice(5) : s;
-}
-
 function formatTimelineDate(d) {
   if (!d) return '—';
   return String(d).slice(0, 10);
+}
+
+function renderVisitCalendarForProfile(visits, brandKey) {
+  var VC = window.VisitCommon;
+  var rows = VC && VC.renderVisitsCalendar
+    ? VC.renderVisitsCalendar(visits, { linkToVisit: true, brandKey: brandKey, colSpan: 6, showBrand: false })
+    : '<tr><td colspan="6" style="color:var(--text-muted);">暂无拜访数据</td></tr>';
+  return '<div class="card-body no-padding" style="padding:0 16px">' +
+    '<table><tr><th>日期</th><th>等级</th><th>类型</th><th>目的</th><th>状态</th><th>操作</th></tr>' +
+    rows + '</table></div>';
+}
+
+function renderCommitmentsForProfile(commitments, visits) {
+  var VC = window.VisitCommon;
+  var visitMap = VC && VC.visitMapFromList ? VC.visitMapFromList(visits) : {};
+  var rows = VC && VC.renderCommitmentsTable
+    ? VC.renderCommitmentsTable(commitments, visitMap, { showBrand: false, readOnly: true })
+    : '';
+  if (!rows && !(commitments || []).length) {
+    rows = '<tr><td colspan="4" style="color:var(--text-muted);">暂无承诺</td></tr>';
+  }
+  return '<div class="card-body no-padding" style="padding:0 16px">' +
+    '<table><tr><th>承诺内容</th><th>承诺方</th><th>状态</th><th>截止</th></tr>' + rows + '</table></div>';
 }
 
 function renderHistoryTab(key, brand) {
@@ -1009,38 +1040,16 @@ function renderHistoryTab(key, brand) {
       ? '距上次拜访 <strong>' + days + '天</strong>（超约定周期 ' + cycleDays + '天 · 标红）'
       : '距上次拜访 <strong>' + days + '天</strong>（周期内）');
 
-  var records = (vh.records || []).slice().sort(function(a, b) {
-    return String(b.visit_date || '').localeCompare(String(a.visit_date || ''));
-  });
-  var tl = records.map(function(r) {
-    return '<div class="profile-tl-item good"><div class="tl-time">' + formatTimelineDate(r.visit_date) + '</div>' +
-      '<div class="tl-title">' + (r.topics || brand.name + ' 拜访') + '</div>' +
-      '<div class="tl-desc">' + truncate(r.participants || r.topics || '', 40) + '</div>' +
-      (r.commitments_raw ? '<details class="profile-tl-details"><summary>展开完整纪要</summary><div class="tl-full">' + r.commitments_raw + '</div></details>' : '') +
-      '</div>';
-  }).join('');
-
-  if (gBriefing && gBriefing.active_alerts) {
-    gBriefing.active_alerts.filter(function(a) { return a.priority === 'P0'; }).slice(0, 3).forEach(function(a) {
-      var d = a.created_at ? String(a.created_at).slice(0, 10) : '';
-      tl += '<div class="profile-tl-item warn"><div class="tl-time">' + formatTimelineDate(d) + '</div>' +
-        '<div class="tl-title">情报入库：' + truncate(a.title, 28) + '</div>' +
-        '<div class="tl-desc">' + a.priority + ' · ' + (a.category || '预警') + '</div>' +
-        (a.description ? '<details class="profile-tl-details"><summary>展开完整纪要</summary><div class="tl-full">' + a.description + '</div></details>' : '') +
-        '</div>';
-    });
-  }
-
-  var commits = (vh.commitments || []).map(function(c) {
-    return '<tr><td>' + c.content + '</td><td>' + commitIcon(mapCommitStatus(c.status)) + '</td><td>' + formatIsoDate(c.deadline) + '</td></tr>';
-  }).join('');
-
+  var visits = vh.visits || [];
   var pending = (vh.commitments || []).filter(function(c) { return c.status === 'pending'; });
   var topics = pending.length
     ? pending.slice(0, 3).map(function(c) { return '跟进：' + c.content; })
     : (h.suggest && h.suggest.topics ? h.suggest.topics : ['维护日常关系', '同步京东侧资源与排期']);
   var suggestDays = overdue ? 3 : (h.suggest ? h.suggest.days : 7);
 
+  var records = (vh.records || []).slice().sort(function(a, b) {
+    return String(b.visit_date || '').localeCompare(String(a.visit_date || ''));
+  });
   var latestRecord = records[0];
   var tempTrend = latestRecord && latestRecord.relation_change === 'up' ? '↑'
     : latestRecord && latestRecord.relation_change === 'down' ? '↓' : (h.tempTrend || '→');
@@ -1048,10 +1057,12 @@ function renderHistoryTab(key, brand) {
 
   return '<div class="history-status-bar"><span class="' + statusCls + '">' + statusText + '</span>' +
     '<span>关系温度 <strong>' + tempVal + '°</strong> · 趋势 ' + tempTrend + '</span>' +
-    '<span style="color:var(--text-muted);font-size:12px;">数据来自拜访模块 API</span></div>' +
+    '<span style="color:var(--text-muted);font-size:12px;">与 visit.html 同源 · 请在拜访页日历选同品牌对比</span></div>' +
     '<div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
-    '<div class="card"><div class="card-header"><h3>拜访时间轴</h3></div><div class="card-body"><div class="profile-timeline">' + (tl || '<p style="color:var(--text-muted);font-size:12px;">暂无拜访记录</p>') + '</div></div></div>' +
-    '<div class="card"><div class="card-header"><h3>承诺追踪</h3></div><div class="card-body no-padding" style="padding:0 16px"><table><tr><th>待办项</th><th>状态</th><th>截止</th></tr>' + (commits || '<tr><td colspan="3" style="color:var(--text-muted);">暂无承诺</td></tr>') + '</table></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>拜访时间轴</h3><span class="card-meta">同 visit 拜访日历 · /api/visits?brand_id= · ' + visits.length + ' 条</span></div>' +
+    renderVisitCalendarForProfile(visits, key) + '</div>' +
+    '<div class="card"><div class="card-header"><h3>承诺追踪</h3><span class="card-meta">同 visit 承诺跟踪 · visit_id 筛 · ' + (vh.commitments || []).length + ' 条</span></div>' +
+    renderCommitmentsForProfile(vh.commitments || [], visits) + '</div></div>' +
     '<div class="visit-suggest-ai"><h4>🤖 AI 下次拜访建议</h4><p style="font-size:13px;margin:0 0 8px">建议 <strong>' + suggestDays + '天内</strong> 安排拜访（综合数据异动 + 拜访周期 + 待办未闭环）：</p><ul>' + topics.map(function(t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' +
     '<div class="profile-footer-actions"><button class="btn-sm-outline" onclick="goVisit(\'' + key + '\')">📝 安排拜访</button></div>';
 }
@@ -1124,19 +1135,120 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function isStrategyFieldEmpty(val, placeholder) {
+  if (!val || !String(val).trim()) return true;
+  var t = String(val).trim();
+  if (t === placeholder) return true;
+  if (t.indexOf('（待补全') === 0) return true;
+  return false;
+}
+
+/** D-J-1：库内无文案时，用 metrics + briefing + BRAND_EXTRA 拼规则解读（非 LLM） */
+function buildStrategyFallback(data, briefing, key) {
+  var m = data && data.metrics;
+  var prof = data && data.profile;
+  var extra = BRAND_EXTRA[key] || {};
+  var compLines = [];
+  var oppLines = [];
+
+  if (prof && prof.positioning) {
+    compLines.push('【定位】' + truncate(prof.positioning, 90));
+  }
+  if (m) {
+    if (m.jd_share != null) {
+      var jdLine = '【渠道】JD 市占 ' + m.jd_share + '%';
+      if (m.jd_share_wow != null) {
+        jdLine += '（环比 ' + (m.jd_share_wow > 0 ? '+' : '') + m.jd_share_wow + 'pp）';
+      }
+      compLines.push(jdLine);
+    }
+    if (m.channel_growth_jd != null && m.channel_growth_douyin != null &&
+        m.channel_growth_douyin > m.channel_growth_jd + 10) {
+      compLines.push(
+        '【压力】抖音增速 ' + m.channel_growth_douyin + '% 明显高于 JD ' +
+        m.channel_growth_jd + '%，需关注站外资源倾斜对 JD 份额的挤压。'
+      );
+    } else if (m.channel_growth_jd != null && m.channel_growth_jd < -5) {
+      compLines.push('【压力】JD 渠道增速 ' + m.channel_growth_jd + '%，增长承压，需对齐货盘与价格策略。');
+    }
+    if (m.gmv_wow != null && m.gmv_wow < -5) {
+      compLines.push('【经营】本期 GMV 周环比 ' + m.gmv_wow + '%，需跟踪主要竞对促销与排期。');
+    } else if (m.gmv != null && m.gmv_wow != null) {
+      compLines.push('【经营】本期 GMV ' + m.gmv + ' 万，周环比 ' + (m.gmv_wow > 0 ? '+' : '') + m.gmv_wow + '%。');
+    }
+  }
+
+  var riskAdded = false;
+  if (briefing && briefing.active_alerts) {
+    briefing.active_alerts.forEach(function(a) {
+      if (riskAdded || a.priority !== 'P0' || a.category !== '风险预警') return;
+      compLines.push('【情报】' + (a.title || truncate(a.description, 40) || 'P0 风险预警'));
+      riskAdded = true;
+    });
+  }
+  if (!riskAdded && extra.risks && extra.risks.length) {
+    compLines.push('【风险】' + extra.risks[0].title + '：' + truncate(extra.risks[0].body, 55));
+  }
+
+  if (m && m.gmv_wow != null && m.gmv_wow > 5) {
+    oppLines.push('【经营】GMV 周环比 +' + m.gmv_wow + '%，可趁势争取楼层、搜索专区或联合投放资源。');
+  }
+  if (m && m.jd_share != null && m.jd_share >= 20) {
+    oppLines.push('【品类】JD 市占 ' + m.jd_share + '% 具备议价基础，可谈 618 专区或新品首发排期。');
+  }
+  if (m && m.channel_growth_douyin != null && m.channel_growth_douyin > 15) {
+    oppLines.push('【渠道】抖音增速 +' + m.channel_growth_douyin + '%，可推进同价同发或搜索词换资源。');
+  }
+
+  var oppAdded = false;
+  if (briefing && briefing.active_alerts) {
+    briefing.active_alerts.forEach(function(a) {
+      if (oppAdded || a.priority !== 'P0' || a.category !== '增长机会') return;
+      oppLines.push('【情报】' + (a.title || truncate(a.description, 40) || 'P0 增长机会'));
+      oppAdded = true;
+    });
+  }
+  if (!oppAdded && extra.opps && extra.opps.length) {
+    extra.opps.slice(0, 2).forEach(function(o) {
+      oppLines.push('【机会】' + o.title + '：' + truncate(o.body, 55));
+    });
+  }
+  var p0 = getP0Gaps(key);
+  if (p0.length) {
+    oppLines.push('【供给】P0 缺口 ' + p0.length + ' 项（如「' + p0[0].sku + '」），补齐后可拉动 GMV。');
+  }
+
+  if (!compLines.length) {
+    compLines.push('【解读】结合品类格局与渠道市占，关注主要竞对在同品类的 JD/抖音动作；可编辑保存为正式竞争分析。');
+  }
+  if (!oppLines.length) {
+    oppLines.push('【解读】结合 GMV 趋势与待办事项，梳理可争取的楼层、首发与同价同发资源；可编辑保存为正式机会清单。');
+  }
+
+  return {
+    competitive_landscape: compLines.join('\n'),
+    growth_opportunities: oppLines.join('\n')
+  };
+}
+
 function renderStrategyTab(data) {
   var p = data.profile || {};
-  var comp = p.competitive_landscape || '（待补全竞争格局分析）';
-  var opp = p.growth_opportunities || '（待补全增长机会）';
+  var fb = buildStrategyFallback(data, gBriefing, currentKey);
+  var autoComp = isStrategyFieldEmpty(p.competitive_landscape, '（待补全竞争格局分析）');
+  var autoOpp = isStrategyFieldEmpty(p.growth_opportunities, '（待补全增长机会）');
+  var comp = autoComp ? fb.competitive_landscape : p.competitive_landscape;
+  var opp = autoOpp ? fb.growth_opportunities : p.growth_opportunities;
+  var compMeta = autoComp ? '规则解读 · 基于经营/情报 · 可编辑保存' : 'M2 可编辑 · 保存后刷新仍在';
+  var oppMeta = autoOpp ? '规则解读 · 基于经营/情报 · 可编辑保存' : 'M2 可编辑';
   return '<div class="profile-strategy-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px;">' +
-    '<div class="card"><div class="card-header"><h3>竞争格局</h3><span class="card-meta">M2 可编辑 · 保存后刷新仍在</span>' +
+    '<div class="card"><div class="card-header"><h3>竞争格局</h3><span class="card-meta">' + compMeta + '</span>' +
     '<button class="btn-sm-outline no-print" style="margin-left:auto;" onclick="editStrategy(\'comp\')">编辑</button></div>' +
     '<div class="card-body"><div class="profile-strategy-box" id="comp-box">' +
     '<div class="strategy-view" id="comp-view" style="white-space:pre-wrap;">' + escapeHtml(comp) + '</div>' +
     '<div class="strategy-edit"><textarea class="form-textarea" id="comp-input" rows="8">' + escapeHtml(comp) + '</textarea>' +
     '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveStrategy()">保存</button>' +
     '<button class="btn-sm-outline" onclick="cancelStrategy(\'comp\')">取消</button></div></div></div></div></div>' +
-    '<div class="card"><div class="card-header"><h3>增长机会</h3><span class="card-meta">M2 可编辑</span>' +
+    '<div class="card"><div class="card-header"><h3>增长机会</h3><span class="card-meta">' + oppMeta + '</span>' +
     '<button class="btn-sm-outline no-print" style="margin-left:auto;" onclick="editStrategy(\'opp\')">编辑</button></div>' +
     '<div class="card-body"><div class="profile-strategy-box" id="opp-box">' +
     '<div class="strategy-view" id="opp-view" style="white-space:pre-wrap;">' + escapeHtml(opp) + '</div>' +
