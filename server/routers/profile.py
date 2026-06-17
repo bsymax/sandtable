@@ -16,11 +16,13 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from deps_auth import AuthUser, get_current_user_optional, require_name_key
-from models import Brand, BrandContact, BrandProfile, BrandMetrics
+from llm_prompts import blurb_fallback, parse_strategy_json, strategy_fallback
+from llm_service import complete
+from models import Brand, BrandContact, BrandProfile, BrandMetrics, IntelAlert
 from completeness import calc_completeness
 from schemas import (
     BrandProfileDetailOut, BrandOut, BrandProfileOut, ContactOut, BrandMetricsOut,
-    BrandProfileUpdate,
+    BrandProfileUpdate, AiStrategyOut, AiBlurbOut,
 )
 
 router = APIRouter()
@@ -148,24 +150,84 @@ def update_brand_profile(
     return _build_profile_response(brand, profile, contacts, metrics)
 
 
-@router.post("/api/brands/profile/{name_key}/ai/strategy", tags=["品牌档案"])
+@router.post("/api/brands/profile/{name_key}/ai/strategy", response_model=AiStrategyOut, tags=["品牌档案"])
 async def ai_strategy(
     name_key: str,
     db: Session = Depends(get_db),
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
-    """Tab2 竞争与机会 · LLM 骨架（M3-B 联调；当前返回 fallback）"""
+    """Tab2 竞争与机会 · LLM ON 时生成；失败降级档案内文案"""
     require_name_key(user, name_key)
     brand = db.query(Brand).filter(Brand.name_key == name_key).first()
     if not brand:
         raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
     profile = db.query(BrandProfile).filter(BrandProfile.brand_id == brand.id).first()
-    landscape = profile.competitive_landscape if profile else None
-    opportunities = profile.growth_opportunities if profile else None
-    return {
-        "source": "fallback",
-        "name_key": name_key,
-        "competitive_landscape": landscape or "暂无竞争格局描述，请在 Tab2 手工维护。",
-        "growth_opportunities": opportunities or "暂无增长机会描述，请在 Tab2 手工维护。",
-        "message": "LLM 未启用或联调中，已返回档案内现有文案",
-    }
+    metrics = (
+        db.query(BrandMetrics)
+        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == "weekly")
+        .order_by(BrandMetrics.period_value.desc())
+        .first()
+    )
+    fb_landscape, fb_opportunities = strategy_fallback(
+        profile.competitive_landscape if profile else None,
+        profile.growth_opportunities if profile else None,
+    )
+    ctx = f"品牌：{brand.name}（{brand.level}级）\n"
+    if metrics and metrics.gmv is not None:
+        ctx += f"周 GMV {metrics.gmv} 万，环比 {metrics.gmv_wow}%\n"
+    ctx += f"现有竞争格局：{fb_landscape}\n现有增长机会：{fb_opportunities}\n"
+    ctx += '请输出 JSON：{"competitive_landscape":"...","growth_opportunities":"..."}'
+
+    raw = await complete(
+        "你是品牌竞争分析助手，输出简洁中文 JSON，不要 markdown 外壳。",
+        ctx,
+        max_tokens=600,
+    )
+    parsed = parse_strategy_json(raw) if raw else None
+    if parsed:
+        return AiStrategyOut(
+            source="llm",
+            name_key=name_key,
+            competitive_landscape=parsed.get("competitive_landscape") or fb_landscape,
+            growth_opportunities=parsed.get("growth_opportunities") or fb_opportunities,
+        )
+    return AiStrategyOut(
+        source="fallback",
+        name_key=name_key,
+        competitive_landscape=fb_landscape,
+        growth_opportunities=fb_opportunities,
+        message="LLM 未启用或调用失败，已返回档案内现有文案",
+    )
+
+
+@router.post("/api/brands/profile/{name_key}/ai/blurb", response_model=AiBlurbOut, tags=["品牌档案"])
+async def ai_blurb(
+    name_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """Tab1 规则段 · LLM ON 时一段话解读"""
+    require_name_key(user, name_key)
+    brand = db.query(Brand).filter(Brand.name_key == name_key).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
+    metrics = (
+        db.query(BrandMetrics)
+        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == "weekly")
+        .order_by(BrandMetrics.period_value.desc())
+        .first()
+    )
+    alert_n = db.query(IntelAlert).filter(
+        IntelAlert.brand_id == brand.id,
+        IntelAlert.priority.in_(["P0", "P1"]),
+        IntelAlert.status != "closed",
+    ).count()
+    fallback = blurb_fallback(brand.name, metrics, alert_n)
+    text = await complete(
+        "你是品牌经营解读助手，一段话概括风险与机会，简体中文，可含少量 HTML strong 标签。",
+        fallback.replace("（规则版解读 · LLM 未启用）", ""),
+        max_tokens=300,
+    )
+    if text:
+        return AiBlurbOut(source="llm", name_key=name_key, summary=text.strip())
+    return AiBlurbOut(source="fallback", name_key=name_key, summary=fallback)

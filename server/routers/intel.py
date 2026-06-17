@@ -25,7 +25,9 @@ from schemas import (
     IntelAlertOut, IntelAlertCreate, IntelAlertUpdate,
     IntelBriefingOut, IntelStatsOut,
     CsvImportRow, CsvImportRequest, CsvImportResult,
+    AiBriefingSummaryOut,
 )
+from llm_service import complete
 
 router = APIRouter()
 
@@ -642,6 +644,33 @@ def refresh_briefing(brand_key: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "品牌不存在")
     _invalidate_briefing_cache(brand.id, db)
     return {"message": f"品牌 {brand.name} 简报缓存已清除", "brand_id": brand.id}
+
+
+@router.post("/api/intel/briefing/{brand_key}/ai/summary", response_model=AiBriefingSummaryOut, tags=["情报-简报"])
+async def ai_briefing_summary(
+    brand_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """Feed/briefing LLM 摘要槽位 · 失败降级规则句"""
+    require_name_key(user, brand_key)
+    brand = db.query(Brand).filter(Brand.name_key == brand_key).first()
+    if not brand:
+        raise HTTPException(404, "品牌不存在")
+    alerts = db.query(IntelAlert).filter(
+        IntelAlert.brand_id == brand.id,
+        IntelAlert.status.in_(["pending", "confirmed"]),
+    ).all()
+    p0 = [a for a in alerts if a.priority == "P0"]
+    fallback = f"【{brand.name}】当前 {len(alerts)} 条活跃预警"
+    if p0:
+        fallback += f"，其中 P0：{p0[0].title}"
+    fallback += "（规则版 · LLM 未启用）"
+    ctx = fallback.replace("（规则版 · LLM 未启用）", "") + "\n请用 2 句话写采销行动建议。"
+    text = await complete("品牌情报简报助手，简体中文。", ctx, max_tokens=200)
+    if text:
+        return AiBriefingSummaryOut(source="llm", brand_key=brand_key, summary=text.strip())
+    return AiBriefingSummaryOut(source="fallback", brand_key=brand_key, summary=fallback)
 
 
 @router.get("/api/intel/stats", response_model=IntelStatsOut, tags=["情报-统计"])

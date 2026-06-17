@@ -522,3 +522,48 @@ class MeOut(BaseModel):
     display_name: str
     role: str
     brands: List[UserBrandOut]
+
+
+# ==============================
+# M3 LLM
+# ==============================
+class LlmStatusOut(BaseModel):
+    enabled: bool
+    configured: bool
+    llm_enabled_flag: bool
+    model: str
+    timeout_sec: float
+    gateway_url_set: bool
+
+
+class DashboardSummaryOut(BaseModel):
+    source: str  # llm | fallback
+    summary: str
+
+
+class AiStrategyOut(BaseModel):
+    source: str
+    name_key: str
+    competitive_landscape: str
+    growth_opportunities: str
+    message: Optional[str] = None
+
+
+class AiBlurbOut(BaseModel):
+    source: str
+    name_key: str
+    summary: str
+
+
+class AiExtractOut(BaseModel):
+    source: str
+    record_id: int
+    todos: List[dict] = []
+    commitments: List[dict] = []
+    message: Optional[str] = None
+
+
+class AiBriefingSummaryOut(BaseModel):
+    source: str
+    brand_key: str
+    summary: str

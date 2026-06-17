@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import SERVER_HOST, SERVER_PORT
 from database import engine
 from models import Base
-from routers import brands, visits, profile, intel, auth
+from routers import brands, visits, profile, intel, auth, llm_api, dashboard
 
 # ---------- 建表（已存在则跳过） ----------
 Base.metadata.create_all(bind=engine)
@@ -41,6 +41,8 @@ app.add_middleware(
 # ---------- 挂载模块路由 ----------
 # profile 必须先于 brands：/api/brands/profile/{x} 不能被 /api/brands/{name_key} 抢先匹配
 app.include_router(auth.router)
+app.include_router(llm_api.router)
+app.include_router(dashboard.router)
 app.include_router(profile.router)
 app.include_router(brands.router)
 app.include_router(visits.router)

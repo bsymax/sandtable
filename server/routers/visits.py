@@ -26,8 +26,9 @@ from schemas import (
     RecordCreate, RecordOut,
     CommitmentOut, CommitmentUpdate,
     TodoOut, TodoUpdate,
-    HealthItem, ApiResponse,
+    HealthItem, ApiResponse, AiExtractOut,
 )
+from llm_service import complete
 
 router = APIRouter()
 
@@ -245,6 +246,61 @@ def get_record(
     if record.visit:
         require_brand_id(user, record.visit.brand_id)
     return _format_record(record, record.visit)
+
+
+@router.post("/api/records/{record_id}/ai/extract", response_model=AiExtractOut, tags=["拜访记录"])
+async def ai_extract_record(
+    record_id: int,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """纪要 → 待办/承诺抽取（M3-B；LLM 失败降级规则解析，须前端人工确认后落库）"""
+    record = db.query(VisitRecord).filter(VisitRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(404, "记录不存在")
+    visit = record.visit
+    if visit:
+        require_brand_id(user, visit.brand_id)
+
+    rule_todos = []
+    rule_commits = []
+    if record.commitments_raw:
+        for line in record.commitments_raw.splitlines():
+            line = line.strip().lstrip("-•·").strip()
+            if len(line) >= 4:
+                rule_commits.append({"title": line, "priority": "P1"})
+
+    ctx = f"拜访纪要：\n{record.topics or ''}\n承诺原文：\n{record.commitments_raw or ''}\n"
+    ctx += '输出 JSON：{"todos":[{"title":"","priority":"P1|P2"}],"commitments":[{"title":"","priority":"P1"}]}'
+    raw = await complete(
+        "从拜访纪要抽取待办与承诺，简体中文，仅输出 JSON",
+        ctx,
+        max_tokens=500,
+    )
+    if raw:
+        try:
+            import json
+            import re
+            text = raw.strip()
+            m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+            if m:
+                text = m.group(1)
+            data = json.loads(text)
+            return AiExtractOut(
+                source="llm",
+                record_id=record_id,
+                todos=data.get("todos") or rule_todos,
+                commitments=data.get("commitments") or rule_commits,
+            )
+        except Exception:
+            pass
+    return AiExtractOut(
+        source="fallback",
+        record_id=record_id,
+        todos=rule_todos,
+        commitments=rule_commits,
+        message="LLM 未启用或解析失败，已返回规则切行结果，请人工确认",
+    )
 
 
 # ================================================================
