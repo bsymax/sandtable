@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS user_brands (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NOT NULL,
+  user_id INT NOT NULL,
   brand_id INT UNSIGNED NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_user_brand (user_id, brand_id),

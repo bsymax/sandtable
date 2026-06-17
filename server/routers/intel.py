@@ -19,15 +19,16 @@ from sqlalchemy import desc, func, case, or_
 from database import get_db
 from deps_auth import AuthUser, filter_brand_query, filter_by_brand_ids, get_current_user_optional, require_brand_id, require_name_key
 from models import Brand, Visit, BrandMetrics, IntelNews, IntelAlert, IntelBriefingCache
+from llm_prompts import briefing_llm_prompt, feed_llm_prompt
+from llm_service import complete, llm_enabled
 from schemas import (
     IntelNewsOut, IntelNewsCreate, IntelNewsUpdate,
     IntelWeeklyReportOut, IntelWeeklyReportCreate, IntelWeeklyReportUpdate,
     IntelAlertOut, IntelAlertCreate, IntelAlertUpdate,
-    IntelBriefingOut, IntelStatsOut,
+    IntelBriefingOut, IntelBriefingRefreshOut, IntelStatsOut,
     CsvImportRow, CsvImportRequest, CsvImportResult,
-    AiBriefingSummaryOut,
+    AiBriefingSummaryOut, IntelFeedAiSummaryOut,
 )
-from llm_service import complete
 
 router = APIRouter()
 
@@ -122,14 +123,46 @@ def _default_alert_category(priority: str, category: Optional[str] = None) -> st
     return "风险预警" if priority == "P0" else "增长机会"
 
 
-def _briefing_data_for_cache(news_out, alerts_out, latest_weekly, stats: dict) -> dict:
+def _briefing_data_for_cache(news_out, alerts_out, latest_weekly, stats: dict, llm_summary: Optional[str] = None) -> dict:
     """JSON 列可序列化（datetime 须 mode='json'）"""
-    return {
+    data = {
         "recent_news": [n.model_dump(mode="json") for n in news_out],
         "active_alerts": [a.model_dump(mode="json") for a in alerts_out],
         "latest_weekly": latest_weekly,
         "stats": stats,
     }
+    if llm_summary is not None:
+        data["llm_summary"] = llm_summary
+    return data
+
+
+async def _generate_briefing_llm(brand, news, alerts, latest_w) -> Optional[str]:
+    news_titles = [n.title for n in news]
+    alert_titles = [f"[{a.priority}] {a.title}" for a in alerts]
+    weekly_text = ""
+    if latest_w:
+        parts = []
+        if latest_w.competitor_moves:
+            parts.append(f"竞品：{latest_w.competitor_moves}")
+        if latest_w.risk_points:
+            parts.append(f"风险：{latest_w.risk_points}")
+        if latest_w.opportunities:
+            parts.append(f"机会：{latest_w.opportunities}")
+        weekly_text = "；".join(parts)
+    prompt = briefing_llm_prompt(brand.name, news_titles, alert_titles, weekly_text)
+    return await complete(
+        "你是品牌情报分析助手。输出简洁、专业、可操作。",
+        prompt,
+        max_tokens=200,
+    )
+
+
+def _resolve_llm_summary(cached, briefing_data: Optional[dict]) -> Optional[str]:
+    if briefing_data and briefing_data.get("llm_summary"):
+        return briefing_data.get("llm_summary")
+    if cached and getattr(cached, "llm_summary", None):
+        return cached.llm_summary
+    return None
 
 
 def _fmt_alert(a):
@@ -561,7 +594,7 @@ def weekly_summary(db: Session = Depends(get_db)):
 #  简报 & 统计
 # ================================================================
 @router.get("/api/intel/briefing/{brand_key}", response_model=IntelBriefingOut, tags=["情报-简报"])
-def get_brand_briefing(
+async def get_brand_briefing(
     brand_key: str,
     db: Session = Depends(get_db),
     user: Optional[AuthUser] = Depends(get_current_user_optional),
@@ -582,6 +615,7 @@ def get_brand_briefing(
                 active_alerts=d.get("active_alerts", []),
                 latest_weekly=d.get("latest_weekly"),
                 stats=d.get("stats", {}),
+                llm_summary=_resolve_llm_summary(cached, d),
                 cached=True,
             )
     except Exception:
@@ -603,24 +637,28 @@ def get_brand_briefing(
     ).order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).first()
 
     news_out, alerts_out, latest_weekly = _build_briefing_payload(brand, news, alerts, latest_w)
+    llm_summary = await _generate_briefing_llm(brand, news, alerts, latest_w)
+    stats = {"total_news": len(news), "active_alerts": len(alerts)}
     briefing_data = _briefing_data_for_cache(
-        news_out,
-        alerts_out,
-        latest_weekly,
-        {"total_news": len(news), "active_alerts": len(alerts)},
+        news_out, alerts_out, latest_weekly, stats, llm_summary=llm_summary
     )
     expires_at = datetime.now() + timedelta(minutes=BRIEFING_CACHE_TTL)
+    now = datetime.now()
     try:
         if cached:
             cached.briefing_data = briefing_data
-            cached.generated_at = datetime.now()
+            cached.generated_at = now
             cached.expires_at = expires_at
-            cached.updated_at = datetime.now()
+            cached.updated_at = now
+            cached.llm_summary = llm_summary
+            cached.llm_generated_at = now if llm_summary else None
         else:
             db.add(IntelBriefingCache(
                 brand_id=brand.id,
                 briefing_data=briefing_data,
-                generated_at=datetime.now(),
+                llm_summary=llm_summary,
+                llm_generated_at=now if llm_summary else None,
+                generated_at=now,
                 expires_at=expires_at,
             ))
         db.commit()
@@ -632,18 +670,86 @@ def get_brand_briefing(
         recent_news=news_out,
         active_alerts=alerts_out,
         latest_weekly=latest_weekly,
-        stats=briefing_data["stats"],
+        stats=stats,
+        llm_summary=llm_summary,
         cached=False,
     )
 
 
 @router.post("/api/intel/briefing/{brand_key}/refresh", tags=["情报-简报"])
-def refresh_briefing(brand_key: str, db: Session = Depends(get_db)):
+def refresh_briefing(
+    brand_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    require_name_key(user, brand_key)
     brand = db.query(Brand).filter(Brand.name_key == brand_key).first()
     if not brand:
         raise HTTPException(404, "品牌不存在")
     _invalidate_briefing_cache(brand.id, db)
     return {"message": f"品牌 {brand.name} 简报缓存已清除", "brand_id": brand.id}
+
+
+@router.post(
+    "/api/intel/briefing/{brand_key}/ai/refresh",
+    response_model=IntelBriefingRefreshOut,
+    tags=["情报-简报"],
+)
+async def ai_refresh_briefing(
+    brand_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """强制 LLM 重新生成品牌简报摘要并写入缓存"""
+    require_name_key(user, brand_key)
+    if not llm_enabled():
+        raise HTTPException(503, "LLM 未启用（LLM_ENABLED=false），请使用 M2 规则版简报")
+
+    brand = db.query(Brand).filter(Brand.name_key == brand_key).first()
+    if not brand:
+        raise HTTPException(404, "品牌不存在")
+
+    two_weeks_ago = datetime.now() - timedelta(days=14)
+    news = db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(
+        IntelNews.brand_id == brand.id,
+        IntelNews.published_at >= two_weeks_ago,
+    ).order_by(desc(IntelNews.published_at)).limit(10).all()
+    alerts = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(
+        IntelAlert.brand_id == brand.id,
+        IntelAlert.status.in_(["pending", "confirmed"]),
+    ).all()
+    latest_w = _weekly_metrics_query(db).filter(
+        BrandMetrics.brand_id == brand.id
+    ).order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).first()
+
+    llm_summary = await _generate_briefing_llm(brand, news, alerts, latest_w)
+    if not llm_summary:
+        raise HTTPException(502, "LLM 调用失败，请稍后重试或使用 M2 规则版")
+
+    now = datetime.now()
+    cached = db.query(IntelBriefingCache).filter(IntelBriefingCache.brand_id == brand.id).first()
+    if cached:
+        cached.llm_summary = llm_summary
+        cached.llm_generated_at = now
+        if cached.briefing_data and isinstance(cached.briefing_data, dict):
+            cached.briefing_data = {**cached.briefing_data, "llm_summary": llm_summary}
+        if not cached.expires_at or cached.expires_at <= now:
+            cached.expires_at = now + timedelta(minutes=BRIEFING_CACHE_TTL)
+    else:
+        db.add(IntelBriefingCache(
+            brand_id=brand.id,
+            llm_summary=llm_summary,
+            llm_generated_at=now,
+            expires_at=now + timedelta(minutes=BRIEFING_CACHE_TTL),
+        ))
+    db.commit()
+
+    return IntelBriefingRefreshOut(
+        brand_id=brand.id,
+        brand_name=brand.name,
+        llm_summary=llm_summary,
+        generated_at=now,
+    )
 
 
 @router.post("/api/intel/briefing/{brand_key}/ai/summary", response_model=AiBriefingSummaryOut, tags=["情报-简报"])
@@ -671,6 +777,45 @@ async def ai_briefing_summary(
     if text:
         return AiBriefingSummaryOut(source="llm", brand_key=brand_key, summary=text.strip())
     return AiBriefingSummaryOut(source="fallback", brand_key=brand_key, summary=fallback)
+
+
+@router.get(
+    "/api/intel/feed/ai-summary/{item_type}/{item_id}",
+    response_model=IntelFeedAiSummaryOut,
+    tags=["情报-AI"],
+)
+async def get_feed_ai_summary(
+    item_type: str,
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """单条新闻/预警 LLM 一句话摘要；失败返回 original_summary"""
+    if item_type == "news":
+        item = db.query(IntelNews).filter(IntelNews.id == item_id).first()
+        if not item:
+            raise HTTPException(404, "新闻不存在")
+        require_brand_id(user, item.brand_id)
+        original = item.summary or item.title
+        prompt = feed_llm_prompt(item.title, item.summary or "", "news")
+    elif item_type == "alert":
+        item = db.query(IntelAlert).filter(IntelAlert.id == item_id).first()
+        if not item:
+            raise HTTPException(404, "预警不存在")
+        require_brand_id(user, item.brand_id)
+        original = item.description or item.title
+        prompt = feed_llm_prompt(item.title, item.description or "", "alert")
+    else:
+        raise HTTPException(400, "item_type 必须为 news 或 alert")
+
+    ai_summary = await complete("品牌情报助手，简体中文。", prompt, max_tokens=80)
+    return IntelFeedAiSummaryOut(
+        item_id=item_id,
+        item_type=item_type,
+        ai_summary=ai_summary,
+        original_summary=original,
+        llm_enabled=llm_enabled(),
+    )
 
 
 @router.get("/api/intel/stats", response_model=IntelStatsOut, tags=["情报-统计"])

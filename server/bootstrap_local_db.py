@@ -46,6 +46,17 @@ def main():
         )
         print("OK: brand_profiles.growth_opportunities")
 
+    if not _has_column(cur, "intel_briefing_cache", "llm_summary"):
+        cur.execute(
+            "ALTER TABLE intel_briefing_cache ADD COLUMN llm_summary TEXT NULL COMMENT 'M3: LLM 简报摘要' AFTER briefing_data"
+        )
+        print("OK: intel_briefing_cache.llm_summary")
+    if not _has_column(cur, "intel_briefing_cache", "llm_generated_at"):
+        cur.execute(
+            "ALTER TABLE intel_briefing_cache ADD COLUMN llm_generated_at DATETIME NULL COMMENT 'M3: LLM 摘要生成时间' AFTER llm_summary"
+        )
+        print("OK: intel_briefing_cache.llm_generated_at")
+
     conn.commit()
     conn.close()
     print("bootstrap_local_db 完成")

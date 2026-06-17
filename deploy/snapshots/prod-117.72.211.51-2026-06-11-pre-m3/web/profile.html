@@ -133,11 +133,6 @@ table tr.jd-row td { background:var(--blue-50); }
 .profile-chart-canvas { position:relative; height:220px; }
 .profile-ai-oneline, #profile-ai-blurb { font-size:13px; line-height:1.65; padding:10px 14px; background:var(--blue-50); border:1px solid #bfdbfe; border-radius:8px; grid-column:1/-1; }
 .profile-ai-oneline strong, #profile-ai-blurb strong { color:var(--blue-600); }
-.profile-ai-blurb-wrap { display:flex; align-items:flex-start; gap:8px; flex-wrap:wrap; }
-.profile-ai-blurb-lead { flex-shrink:0; line-height:1.65; }
-.profile-ai-blurb-text { flex:1 1 240px; min-width:0; }
-.profile-ai-blurb-wrap.is-loading .profile-ai-blurb-text { color:var(--text-muted); }
-.profile-ai-blurb-degrade { display:block; font-size:11px; color:#92400e; margin-top:6px; }
 .profile-gap-panel { display:none; margin-bottom:16px; border:1px solid #fecaca; background:var(--red-50); border-radius:8px; overflow:hidden; }
 .profile-gap-panel.open { display:block; }
 .profile-gap-panel .gap-head { padding:10px 14px; font-size:12px; font-weight:600; color:var(--red-500); border-bottom:1px solid #fecaca; }
@@ -186,20 +181,6 @@ table tr.jd-row td { background:var(--blue-50); }
 .profile-strategy-box.editing .strategy-view { display:none; }
 .profile-strategy-box.editing .strategy-edit { display:block; }
 .profile-strategy-box .strategy-edit { display:none; }
-.profile-strategy-box.is-loading .strategy-view { color:var(--text-muted); }
-.strategy-source-badge { display:inline-flex; align-items:center; font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px; margin-left:6px; white-space:nowrap; vertical-align:middle; }
-.strategy-source-badge.src-ai { background:var(--blue-500); color:#fff; }
-.strategy-source-badge.src-rule { background:#f1f5f9; color:var(--text-secondary); border:1px solid var(--border); }
-.strategy-source-badge.src-db { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; }
-.strategy-source-badge.src-loading { background:#fffbeb; color:#b45309; border:1px solid #fcd34d; }
-.strategy-degrade-banner { display:none; margin:0 16px 12px; padding:10px 14px; font-size:12px; line-height:1.55; color:#92400e; background:var(--amber-50,#fff8e6); border:1px solid #fcd34d; border-radius:8px; }
-.strategy-degrade-banner.show { display:block; }
-.strategy-degrade-hint { font-size:11px; color:var(--text-muted); margin-top:8px; }
-.strategy-card-header { flex-wrap:wrap; row-gap:8px; }
-.strategy-card-header h3 { flex:0 0 auto; margin-right:8px; }
-.strategy-card-meta { flex:1 1 240px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; justify-content:flex-end; min-width:0; font-size:11px; color:var(--text-muted); line-height:1.4; }
-.strategy-meta-text { font-size:11px; color:var(--text-muted); }
-.strategy-card-header .strategy-edit-btn { margin-left:0 !important; flex-shrink:0; }
 @media print {
   #m1s-sidebar, .topbar, .m1-banner, .page-title, .page-subtitle,
   #profile-tabs, .profile-inner-tabs, .no-print, #loading-overlay,
@@ -215,9 +196,7 @@ table tr.jd-row td { background:var(--blue-50); }
   #pane-intro, #pane-strategy { border-top:1px dashed #ccc; margin-top:8px; padding-top:12px; }
   .person-card-editable .person-edit-fields,
   .profile-rule-box .rule-edit,
-  .profile-strategy-box .strategy-edit,
-  .strategy-degrade-banner, .strategy-source-badge { display:none !important; }
-  .profile-ai-blurb-degrade { display:none !important; }
+  .profile-strategy-box .strategy-edit { display:none !important; }
   .profile-chart-canvas { height:160px !important; }
 }
 </style>
@@ -248,7 +227,11 @@ table tr.jd-row td { background:var(--blue-50); }
   <div id="error-banner" class="error-banner"></div>
 
   <div class="tab-bar" id="profile-tabs">
-    <div class="tab-item active" data-key="midea">加载中…</div>
+    <div class="tab-item active" data-key="midea">美的</div>
+    <div class="tab-item" data-key="joyoung">九阳</div>
+    <div class="tab-item" data-key="supor">苏泊尔</div>
+    <div class="tab-item" data-key="bear">小熊电器</div>
+    <div class="tab-item" data-key="morphy">摩飞</div>
   </div>
 
   <div id="profile-mount" class="profile-brand-shell"></div>
@@ -259,8 +242,6 @@ table tr.jd-row td { background:var(--blue-50); }
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
 <script src="js/api-base.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/m3-config.js"></script>
 <script src="js/visit-common.js"></script>
 <script>
 var API_BASE = M1_API_BASE;
@@ -271,8 +252,6 @@ var BRAND_TABS = [
   { key:'bear', label:'小熊电器' },
   { key:'morphy', label:'摩飞' }
 ];
-/** 登录后由 /api/brands 过滤；未登录等同 BRAND_TABS */
-var visibleBrandTabs = BRAND_TABS.slice();
 var LEVEL_LABEL = { S:'S-战略级', A:'A-核心级', B:'B-成长级', C:'C-观察级' };
 var BENCH_TOP = { margin:24.8, cvr:5.6, adRate:4.2 };
 var BRAND_EXTRA = {
@@ -388,78 +367,6 @@ var gBriefing = null;
 var gVisitReminder = null;
 var gVisitHistory = { visits: [], records: [], commitments: [] };
 var chartStore = {};
-var STRATEGY_API_TIMEOUT_MS = 20000;
-var STRATEGY_MOCK_DELAY_MS = 2800;
-var STRATEGY_LOADING_TEXT = '⏳ 正在生成 AI 解读，请稍候…';
-var BLURB_LOADING_TEXT = '⏳ 正在生成 AI 解读，请稍候…';
-var gStrategyState = null;
-var gStrategyLoadToken = 0;
-var gStrategyUserEdited = {};
-var gBlurbState = null;
-var gBlurbLoadToken = 0;
-
-/** M3：与 visit/intel 一致 — 默认规则版一屏可见；真 LLM 由 M3.LLM_ROUTES 控制 */
-function isProfileDevMock() {
-  return new URLSearchParams(window.location.search).get('llm') === 'mock';
-}
-
-function isBlurbLlmOn() {
-  if (isProfileDevMock()) return true;
-  return M3.isRouteEnabled('profile_blurb');
-}
-
-function isStrategyLlmOn() {
-  if (isProfileDevMock()) return true;
-  return M3.isRouteEnabled('profile_strategy');
-}
-
-function isProfileLlmGlobalOn() {
-  return M3.isLLMEnabled() || isProfileDevMock();
-}
-
-function strategySourceBadge(source) {
-  var cls = 'strategy-source-badge';
-  if (source === 'ai') cls += ' src-ai';
-  else if (source === 'db') cls += ' src-db';
-  else if (source === 'stored') cls += ' src-rule';
-  else if (source === 'loading') cls += ' src-loading';
-  else cls += ' src-rule';
-  var labels = {
-    ai: '🤖 AI 生成',
-    db: '✏️ 人工编辑',
-    stored: '📄 库内文案',
-    loading: '⏳ AI 生成中…',
-    fallback: '📋 规则解读',
-    error: '📋 规则解读'
-  };
-  return '<span class="' + cls + '" data-source="' + source + '">' + (labels[source] || labels.fallback) + '</span>';
-}
-
-function strategyMetaText(source, side) {
-  var text = '';
-  if (source === 'db') text = '人工编辑 · 保存后刷新仍在';
-  else if (source === 'stored') text = '种子/库内文案 · 可编辑保存';
-  else if (source === 'ai') text = 'AI 生成 · 可编辑保存为正式文案';
-  else if (source === 'loading') text = '正在请求 AI 解读…';
-  else if (source === 'error') text = 'AI 不可用 · 已降级规则解读 · 可编辑保存';
-  else text = '规则解读 · 基于经营/情报 · 可编辑保存';
-  return '<span class="strategy-meta-text">' + text + '</span>';
-}
-
-function isStrategyUserEdited(key, side) {
-  var u = gStrategyUserEdited[key];
-  if (!u) return false;
-  return side === 'comp' ? !!u.comp : !!u.opp;
-}
-
-/** 空库且 LLM 路由开 → 请求 AI；否则规则 fallback */
-function strategyFieldNeedsLlm(p, key, side) {
-  if (isStrategyUserEdited(key, side)) return false;
-  var val = side === 'comp' ? p.competitive_landscape : p.growth_opportunities;
-  var ph = side === 'comp' ? '（待补全竞争格局分析）' : '（待补全增长机会）';
-  if (!isStrategyFieldEmpty(val, ph)) return false;
-  return isStrategyLlmOn();
-}
 
 var DEMO_GMV_TRENDS = {
   midea: [607, 624, 647, 630, 635, 618, 601, 578, 555, 532, 508, 487],
@@ -502,49 +409,6 @@ function prepareMetricsHistory(history, key, latest) {
   });
 }
 
-/** 最新周指标可能缺类目 JSON（如 W24），从近几周历史补齐供图表/表格使用 */
-function enrichMetricsFromHistory(metrics, history) {
-  if (!metrics && history && history.length) {
-    return Object.assign({}, history[history.length - 1]);
-  }
-  if (!metrics) return null;
-  var merged = Object.assign({}, metrics);
-  var hist = history || [];
-  for (var i = hist.length - 1; i >= 0; i--) {
-    var row = hist[i];
-    if (!row) continue;
-    if (!merged.category_distribution && row.category_distribution) {
-      merged.category_distribution = row.category_distribution;
-    }
-    if (!merged.category_share && row.category_share) {
-      merged.category_share = row.category_share;
-    }
-    if (merged.jd_share == null && row.jd_share != null) merged.jd_share = row.jd_share;
-    if (merged.tmall_share == null && row.tmall_share != null) merged.tmall_share = row.tmall_share;
-    if (merged.douyin_share == null && row.douyin_share != null) merged.douyin_share = row.douyin_share;
-    if (merged.pdd_share == null && row.pdd_share != null) merged.pdd_share = row.pdd_share;
-    if (merged.channel_growth_jd == null && row.channel_growth_jd != null) merged.channel_growth_jd = row.channel_growth_jd;
-    if (merged.channel_growth_tmall == null && row.channel_growth_tmall != null) merged.channel_growth_tmall = row.channel_growth_tmall;
-    if (merged.channel_growth_douyin == null && row.channel_growth_douyin != null) merged.channel_growth_douyin = row.channel_growth_douyin;
-    if (merged.category_distribution && merged.category_share) break;
-  }
-  return merged;
-}
-
-function scheduleDashboardCharts() {
-  if (!gData) return;
-  var metrics = enrichMetricsFromHistory(gData.metrics, gMetricsHistory);
-  var delay = currentPTab === 'dashboard' ? 0 : 80;
-  setTimeout(function() {
-    initCharts(currentKey, gMetricsHistory, metrics);
-    if (currentPTab === 'dashboard') {
-      Object.keys(chartStore).forEach(function(k) {
-        if (chartStore[k] && chartStore[k].resize) chartStore[k].resize();
-      });
-    }
-  }, delay);
-}
-
 window.goVisit = function(key) {
   window.location.href = 'visit.html?brand=' + (key || currentKey);
 };
@@ -552,13 +416,9 @@ window.goIntel = function(key) {
   window.location.href = 'intel.html?brand=' + (key || currentKey);
 };
 
-function profileAuthHeaders() {
-  return (window.SandAuth && SandAuth.authHeaders) ? SandAuth.authHeaders() : { 'Content-Type': 'application/json' };
-}
-
 function apiReq(path, opts) {
   opts = opts || {};
-  var fetchOpts = { method: opts.method || 'GET', headers: profileAuthHeaders() };
+  var fetchOpts = { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json' } };
   if (opts.body && fetchOpts.method !== 'GET') fetchOpts.body = JSON.stringify(opts.body);
   var base = opts.base != null ? opts.base : API_BASE;
   return fetch(base + path, fetchOpts).then(function(r) {
@@ -667,125 +527,6 @@ function buildProfileAiBlurb(data, briefing) {
 
   if (chunks.length <= 1 && extra.ai) return extra.ai;
   return chunks.join(' ');
-}
-
-function buildBlurbStateFromData(data, key, briefing) {
-  var fallbackHtml = buildProfileAiBlurb(data, briefing);
-  if (!isBlurbLlmOn()) {
-    return {
-      html: fallbackHtml,
-      source: 'fallback',
-      degradeHint: null,
-      isHtml: true
-    };
-  }
-  return {
-    html: escapeHtml(BLURB_LOADING_TEXT),
-    source: 'loading',
-    degradeHint: null,
-    isHtml: false
-  };
-}
-
-function renderProfileAiBlurbShell(data) {
-  var state = gBlurbState || buildBlurbStateFromData(data, currentKey, gBriefing);
-  var loadingCls = state.source === 'loading' ? ' is-loading' : '';
-  var degradeHtml = state.degradeHint
-    ? '<span class="profile-ai-blurb-degrade">' + escapeHtml(state.degradeHint) + '</span>'
-    : '';
-  var bodyHtml = state.isHtml ? state.html : escapeHtml(state.html);
-  return '<div id="profile-ai-blurb" class="profile-ai-oneline">' +
-    '<div class="profile-ai-blurb-wrap' + loadingCls + '" id="profile-ai-blurb-wrap">' +
-    '<span class="profile-ai-blurb-lead">🤖</span>' +
-    '<span id="profile-ai-blurb-badge">' + strategySourceBadge(state.source) + '</span>' +
-    '<span class="profile-ai-blurb-text" id="profile-ai-blurb-text">' + bodyHtml + '</span>' +
-    degradeHtml +
-    '</div></div>';
-}
-
-function updateBlurbDom() {
-  if (!gBlurbState) return;
-  var wrap = document.getElementById('profile-ai-blurb-wrap');
-  var badge = document.getElementById('profile-ai-blurb-badge');
-  var textEl = document.getElementById('profile-ai-blurb-text');
-  if (!wrap || !badge || !textEl) return;
-  wrap.classList.toggle('is-loading', gBlurbState.source === 'loading');
-  badge.innerHTML = strategySourceBadge(gBlurbState.source);
-  if (gBlurbState.isHtml) {
-    textEl.innerHTML = gBlurbState.html;
-  } else {
-    textEl.textContent = gBlurbState.html;
-  }
-  var oldHint = wrap.querySelector('.profile-ai-blurb-degrade');
-  if (oldHint) oldHint.remove();
-  if (gBlurbState.degradeHint) {
-    var hint = document.createElement('span');
-    hint.className = 'profile-ai-blurb-degrade';
-    hint.textContent = gBlurbState.degradeHint;
-    wrap.appendChild(hint);
-  }
-}
-
-function fetchProfileBlurbAi(key, data, briefing) {
-  if (isProfileDevMock()) {
-    return new Promise(function(resolve) {
-      setTimeout(function() {
-        var name = (data.brand && data.brand.name) ? data.brand.name : key;
-        resolve({
-          blurb: '<strong>【AI 模拟 · ' + escapeHtml(name) + '】</strong> ' + buildProfileAiBlurb(data, briefing),
-          source: 'llm'
-        });
-      }, STRATEGY_MOCK_DELAY_MS);
-    });
-  }
-
-  var mainBase = (typeof M1_MAIN_API_BASE !== 'undefined' && M1_MAIN_API_BASE) ? M1_MAIN_API_BASE : API_BASE;
-  var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  var timer = controller ? setTimeout(function() { controller.abort(); }, STRATEGY_API_TIMEOUT_MS) : null;
-
-  return fetch(mainBase + '/api/brands/profile/' + key + '/ai/blurb', {
-    method: 'POST',
-    headers: profileAuthHeaders(),
-    body: '{}',
-    signal: controller ? controller.signal : undefined
-  }).then(function(r) {
-    return r.json().then(function(body) {
-      if (!r.ok) throw new Error(body.detail || body.message || 'blurb API 失败');
-      return body;
-    });
-  }).finally(function() {
-    if (timer) clearTimeout(timer);
-  });
-}
-
-function loadProfileBlurbContent(key, data) {
-  gBlurbState = buildBlurbStateFromData(data, key, gBriefing);
-  updateBlurbDom();
-
-  if (!isBlurbLlmOn()) return Promise.resolve();
-
-  var token = ++gBlurbLoadToken;
-  return fetchProfileBlurbAi(key, data, gBriefing).then(function(res) {
-    if (token !== gBlurbLoadToken) return;
-    var text = res.blurb || res.summary || res.text || '';
-    if (text) {
-      gBlurbState.html = text;
-      gBlurbState.isHtml = text.indexOf('<') >= 0;
-    } else {
-      gBlurbState.html = buildProfileAiBlurb(data, gBriefing);
-      gBlurbState.isHtml = true;
-    }
-    gBlurbState.source = (res.source === 'llm' || res.source === 'ai') ? 'ai' : 'fallback';
-    gBlurbState.degradeHint = null;
-    updateBlurbDom();
-  }).catch(function(err) {
-    if (token !== gBlurbLoadToken) return;
-    gBlurbState.html = buildProfileAiBlurb(data, gBriefing);
-    gBlurbState.isHtml = true;
-    gBlurbState.source = 'fallback';
-    gBlurbState.degradeHint = 'LLM 暂不可用，已显示规则解读。';
-    updateBlurbDom();
-  });
 }
 
 function showToast(msg) {
@@ -1076,17 +817,13 @@ function loadBrand(key) {
   ]).then(function(results) {
     gData = results[0];
     gMetricsHistory = (results[1] || []).slice().reverse();
-    gData.metrics = enrichMetricsFromHistory(gData.metrics, gMetricsHistory);
     gBriefing = results[2];
     return loadVisitHistory(key, gData.brand.id).then(function() {
       hideError();
       renderBrand(gData);
-      var blurbTask = loadProfileBlurbContent(key, gData);
-      var strategyTask = loadStrategyContent(key, gData);
-      Promise.all([blurbTask, strategyTask]);
     });
   }).catch(function(e) {
-    showError('加载失败：' + e.message + '（请确认后端 8000 已启动）');
+    showError('加载失败：' + e.message + '（请确认 backend 已启动：8001 档案 API，8000 可选用于 briefing/拜访）');
   }).finally(function() {
     document.getElementById('loading-overlay').classList.add('hidden');
   });
@@ -1331,7 +1068,7 @@ function renderHistoryTab(key, brand) {
 }
 
 function renderDashboard(data) {
-  var m = enrichMetricsFromHistory(data.metrics, gMetricsHistory);
+  var m = data.metrics;
   return renderKpiCards(m, currentKey) + renderGapPanel(currentKey) +
     '<div class="profile-chart-grid">' +
     '<div class="profile-chart-box"><h4>GMV 趋势 · 近12周（异常段标红）</h4><div class="profile-chart-canvas"><canvas id="chart-gmv-' + currentKey + '"></canvas></div></div>' +
@@ -1494,206 +1231,42 @@ function buildStrategyFallback(data, briefing, key) {
   };
 }
 
-function buildStrategyStateFromData(data, key) {
-  var p = data.profile || {};
-  var fb = buildStrategyFallback(data, gBriefing, key || currentKey);
-  var brandKey = key || currentKey;
-
-  function sideState(side) {
-    if (isStrategyUserEdited(brandKey, side)) {
-      return {
-        text: side === 'comp' ? p.competitive_landscape : p.growth_opportunities,
-        source: 'db',
-        needsLlm: false
-      };
-    }
-    var val = side === 'comp' ? p.competitive_landscape : p.growth_opportunities;
-    var ph = side === 'comp' ? '（待补全竞争格局分析）' : '（待补全增长机会）';
-    if (isStrategyFieldEmpty(val, ph)) {
-      if (isStrategyLlmOn()) {
-        return { text: STRATEGY_LOADING_TEXT, source: 'loading', needsLlm: true };
-      }
-      return {
-        text: side === 'comp' ? fb.competitive_landscape : fb.growth_opportunities,
-        source: 'fallback',
-        needsLlm: false
-      };
-    }
-    return {
-      text: side === 'comp' ? p.competitive_landscape : p.growth_opportunities,
-      source: 'stored',
-      needsLlm: false
-    };
-  }
-
-  return {
-    comp: sideState('comp'),
-    opp: sideState('opp'),
-    banner: null,
-    degraded: false
-  };
-}
-
-function updateStrategyDom() {
-  if (!gStrategyState) return;
-  var pane = document.getElementById('pane-strategy');
-  if (!pane) return;
-
-  var compView = document.getElementById('comp-view');
-  var oppView = document.getElementById('opp-view');
-  var compInput = document.getElementById('comp-input');
-  var oppInput = document.getElementById('opp-input');
-  var compBox = document.getElementById('comp-box');
-  var oppBox = document.getElementById('opp-box');
-  var compMeta = document.getElementById('comp-meta');
-  var oppMeta = document.getElementById('opp-meta');
-  var banner = document.getElementById('strategy-degrade-banner');
-
-  if (compView) {
-    compView.textContent = gStrategyState.comp.text;
-    if (compInput && !compBox.classList.contains('editing')) compInput.value = gStrategyState.comp.text;
-  }
-  if (oppView) {
-    oppView.textContent = gStrategyState.opp.text;
-    if (oppInput && !oppBox.classList.contains('editing')) oppInput.value = gStrategyState.opp.text;
-  }
-  if (compBox) compBox.classList.toggle('is-loading', gStrategyState.comp.source === 'loading');
-  if (oppBox) oppBox.classList.toggle('is-loading', gStrategyState.opp.source === 'loading');
-  if (compMeta) {
-    compMeta.innerHTML = strategyMetaText(gStrategyState.comp.source, 'comp') + strategySourceBadge(gStrategyState.comp.source);
-  }
-  if (oppMeta) {
-    oppMeta.innerHTML = strategyMetaText(gStrategyState.opp.source, 'opp') + strategySourceBadge(gStrategyState.opp.source);
-  }
-  if (banner) {
-    if (gStrategyState.banner) {
-      banner.textContent = gStrategyState.banner;
-      banner.classList.add('show');
-    } else {
-      banner.textContent = '';
-      banner.classList.remove('show');
-    }
-  }
-}
-
-function fetchStrategyAi(key, data) {
-  if (isProfileDevMock()) {
-    return new Promise(function(resolve) {
-      setTimeout(function() {
-        var fb = buildStrategyFallback(data, gBriefing, key);
-        resolve({
-          competitive_landscape: '【AI 模拟 · ' + (data.brand && data.brand.name ? data.brand.name : key) + '】\n' + fb.competitive_landscape,
-          growth_opportunities: '【AI 模拟 · 增长机会】\n' + fb.growth_opportunities,
-          source: 'llm',
-          cached: false
-        });
-      }, STRATEGY_MOCK_DELAY_MS);
-    });
-  }
-
-  var mainBase = (typeof M1_MAIN_API_BASE !== 'undefined' && M1_MAIN_API_BASE) ? M1_MAIN_API_BASE : API_BASE;
-  var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  var timer = controller ? setTimeout(function() { controller.abort(); }, STRATEGY_API_TIMEOUT_MS) : null;
-
-  return fetch(mainBase + '/api/brands/profile/' + key + '/ai/strategy', {
-    method: 'POST',
-    headers: profileAuthHeaders(),
-    body: '{}',
-    signal: controller ? controller.signal : undefined
-  }).then(function(r) {
-    return r.json().then(function(body) {
-      if (!r.ok) throw new Error(body.detail || body.message || 'strategy API 失败');
-      return body;
-    });
-  }).finally(function() {
-    if (timer) clearTimeout(timer);
-  });
-}
-
-function loadStrategyContent(key, data) {
-  gStrategyState = buildStrategyStateFromData(data, key);
-  updateStrategyDom();
-
-  var needComp = gStrategyState.comp.needsLlm;
-  var needOpp = gStrategyState.opp.needsLlm;
-  if (!needComp && !needOpp) {
-    updateStrategyDom();
-    return Promise.resolve();
-  }
-
-  var token = ++gStrategyLoadToken;
-  return fetchStrategyAi(key, data).then(function(res) {
-    if (token !== gStrategyLoadToken) return;
-    if (needComp) {
-      gStrategyState.comp.text = res.competitive_landscape || gStrategyState.comp.text;
-      gStrategyState.comp.source = (res.source === 'llm' || res.source === 'ai') ? 'ai' : 'fallback';
-    }
-    if (needOpp) {
-      gStrategyState.opp.text = res.growth_opportunities || gStrategyState.opp.text;
-      gStrategyState.opp.source = (res.source === 'llm' || res.source === 'ai') ? 'ai' : 'fallback';
-    }
-    gStrategyState.banner = null;
-    gStrategyState.degraded = false;
-    updateStrategyDom();
-  }).catch(function(err) {
-    if (token !== gStrategyLoadToken) return;
-    var fb = buildStrategyFallback(data, gBriefing, key);
-    if (needComp) {
-      gStrategyState.comp.text = fb.competitive_landscape;
-      gStrategyState.comp.source = 'fallback';
-    }
-    if (needOpp) {
-      gStrategyState.opp.text = fb.growth_opportunities;
-      gStrategyState.opp.source = 'fallback';
-    }
-    gStrategyState.degraded = true;
-    gStrategyState.banner = 'LLM 暂不可用（' + (err && err.message ? err.message : '请求失败') + '），已自动显示规则解读。';
-    updateStrategyDom();
-  });
-}
-
 function renderStrategyTab(data) {
-  gStrategyState = buildStrategyStateFromData(data, currentKey);
-  var comp = gStrategyState.comp.text;
-  var opp = gStrategyState.opp.text;
-  var bannerHtml = gStrategyState.banner
-    ? '<div id="strategy-degrade-banner" class="strategy-degrade-banner show">' + escapeHtml(gStrategyState.banner) + '</div>'
-    : '';
-  return bannerHtml +
-    '<div class="profile-strategy-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px;">' +
-    '<div class="card"><div class="card-header strategy-card-header"><h3>竞争格局</h3><div class="strategy-card-meta" id="comp-meta">' +
-    strategyMetaText(gStrategyState.comp.source, 'comp') + strategySourceBadge(gStrategyState.comp.source) +
-    '</div><button class="btn-sm-outline no-print strategy-edit-btn" onclick="editStrategy(\'comp\')">编辑</button></div>' +
-    '<div class="card-body"><div class="profile-strategy-box' + (gStrategyState.comp.source === 'loading' ? ' is-loading' : '') + '" id="comp-box">' +
+  var p = data.profile || {};
+  var fb = buildStrategyFallback(data, gBriefing, currentKey);
+  var autoComp = isStrategyFieldEmpty(p.competitive_landscape, '（待补全竞争格局分析）');
+  var autoOpp = isStrategyFieldEmpty(p.growth_opportunities, '（待补全增长机会）');
+  var comp = autoComp ? fb.competitive_landscape : p.competitive_landscape;
+  var opp = autoOpp ? fb.growth_opportunities : p.growth_opportunities;
+  var compMeta = autoComp ? '规则解读 · 基于经营/情报 · 可编辑保存' : 'M2 可编辑 · 保存后刷新仍在';
+  var oppMeta = autoOpp ? '规则解读 · 基于经营/情报 · 可编辑保存' : 'M2 可编辑';
+  return '<div class="profile-strategy-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px;">' +
+    '<div class="card"><div class="card-header"><h3>竞争格局</h3><span class="card-meta">' + compMeta + '</span>' +
+    '<button class="btn-sm-outline no-print" style="margin-left:auto;" onclick="editStrategy(\'comp\')">编辑</button></div>' +
+    '<div class="card-body"><div class="profile-strategy-box" id="comp-box">' +
     '<div class="strategy-view" id="comp-view" style="white-space:pre-wrap;">' + escapeHtml(comp) + '</div>' +
     '<div class="strategy-edit"><textarea class="form-textarea" id="comp-input" rows="8">' + escapeHtml(comp) + '</textarea>' +
     '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveStrategy()">保存</button>' +
     '<button class="btn-sm-outline" onclick="cancelStrategy(\'comp\')">取消</button></div></div></div></div></div>' +
-    '<div class="card"><div class="card-header strategy-card-header"><h3>增长机会</h3><div class="strategy-card-meta" id="opp-meta">' +
-    strategyMetaText(gStrategyState.opp.source, 'opp') + strategySourceBadge(gStrategyState.opp.source) +
-    '</div><button class="btn-sm-outline no-print strategy-edit-btn" onclick="editStrategy(\'opp\')">编辑</button></div>' +
-    '<div class="card-body"><div class="profile-strategy-box' + (gStrategyState.opp.source === 'loading' ? ' is-loading' : '') + '" id="opp-box">' +
+    '<div class="card"><div class="card-header"><h3>增长机会</h3><span class="card-meta">' + oppMeta + '</span>' +
+    '<button class="btn-sm-outline no-print" style="margin-left:auto;" onclick="editStrategy(\'opp\')">编辑</button></div>' +
+    '<div class="card-body"><div class="profile-strategy-box" id="opp-box">' +
     '<div class="strategy-view" id="opp-view" style="white-space:pre-wrap;">' + escapeHtml(opp) + '</div>' +
     '<div class="strategy-edit"><textarea class="form-textarea" id="opp-input" rows="8">' + escapeHtml(opp) + '</textarea>' +
     '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveStrategy()">保存</button>' +
     '<button class="btn-sm-outline" onclick="cancelStrategy(\'opp\')">取消</button></div></div></div></div></div></div>';
 }
 
-function renderBrand(data, opts) {
-  opts = opts || {};
+function renderBrand(data) {
   var b = data.brand;
   var lv = (b.level || 'B').toLowerCase();
-  if (!opts.preserveBlurb) {
-    gBlurbState = buildBlurbStateFromData(data, currentKey, gBriefing);
-  } else if (!gBlurbState) {
-    gBlurbState = buildBlurbStateFromData(data, currentKey, gBriefing);
-  }
+  var extra = BRAND_EXTRA[currentKey] || {};
   var mount = document.getElementById('profile-mount');
   mount.innerHTML =
     '<div class="profile-top-bar">' +
     '<div class="profile-top-left"><h2 class="profile-brand-name">' + b.name + '</h2><span class="level-badge level-' + lv + '">' + (LEVEL_LABEL[b.level] || b.level) + '</span></div>' +
     renderCompletenessRing(data) +
-    renderProfileAiBlurbShell(data) +
+    '<div id="profile-ai-blurb" class="profile-ai-oneline">🤖 ' + buildProfileAiBlurb(data, gBriefing) + '</div>' +
     '<div class="profile-top-meta"><span>负责采销：' + (b.responsible || '—') + '</span>' +
     '<span>档案更新：' + ((data.profile && data.profile.taboo_updated_at) ? String(data.profile.taboo_updated_at).slice(0, 10) : '—') + '</span>' +
     '<span>数据说明：JD口径 · 近12周 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 10) + '</span>' +
@@ -1719,7 +1292,7 @@ function renderBrand(data, opts) {
       document.querySelectorAll('.profile-pane').forEach(function(p) { p.classList.remove('active'); });
       document.getElementById('pane-' + currentPTab).classList.add('active');
       if (currentPTab === 'dashboard') {
-        scheduleDashboardCharts();
+        setTimeout(function() { initCharts(currentKey, gMetricsHistory, data.metrics); }, 0);
       }
       if (currentPTab === 'intel') {
         document.getElementById('pane-intel').innerHTML = renderIntelTab(currentKey);
@@ -1727,14 +1300,11 @@ function renderBrand(data, opts) {
       if (currentPTab === 'history') {
         refreshHistoryTab();
       }
-      if (currentPTab === 'strategy') {
-        updateStrategyDom();
-      }
     };
   });
 
   if (currentPTab === 'dashboard') {
-    scheduleDashboardCharts();
+    setTimeout(function() { initCharts(currentKey, gMetricsHistory, data.metrics); }, 0);
   }
 }
 
@@ -1755,7 +1325,7 @@ window.saveContact = function(id) {
   };
   apiReq('/api/brands/profile/' + currentKey, { method:'PUT', body: payload }).then(function(data) {
     gData = data;
-    renderBrand(data, { preserveBlurb: true });
+    renderBrand(data);
     showToast('联系人已保存');
   }).catch(function(e) { showToast('保存失败：' + e.message); });
 };
@@ -1772,7 +1342,7 @@ window.saveTaboos = function() {
   apiReq('/api/brands/profile/' + currentKey, { method:'PUT', body: { taboos: text } }).then(function(data) {
     gData = data;
     currentPTab = 'intro';
-    renderBrand(data, { preserveBlurb: true });
+    renderBrand(data);
     showToast('潜规则已保存');
   }).catch(function(e) { showToast('保存失败：' + e.message); });
 };
@@ -1797,76 +1367,37 @@ window.saveStrategy = function() {
     growth_opportunities: document.getElementById('opp-input').value.trim()
   };
   apiReq('/api/brands/profile/' + currentKey, { method:'PUT', body: payload }).then(function(data) {
-    gStrategyUserEdited[currentKey] = { comp: true, opp: true };
     gData = data;
-    gStrategyState = buildStrategyStateFromData(data, currentKey);
     currentPTab = 'strategy';
-    renderBrand(data, { preserveBlurb: true });
+    renderBrand(data);
     showToast('竞争/机会已保存');
   }).catch(function(e) { showToast('保存失败：' + e.message); });
 };
 
-function bindProfileBrandTabClicks() {
-  document.querySelectorAll('#profile-tabs .tab-item[data-key]').forEach(function(tab) {
-    tab.onclick = function() {
-      document.querySelectorAll('#profile-tabs .tab-item[data-key]').forEach(function(t) { t.classList.remove('active'); });
-      this.classList.add('active');
-      currentKey = this.dataset.key;
-      currentPTab = 'dashboard';
-      loadBrand(currentKey);
-    };
-  });
-}
-
-function renderProfileBrandTabs(brands) {
-  var container = document.getElementById('profile-tabs');
-  if (!brands || !brands.length) {
-    container.innerHTML = '<div class="tab-item" style="cursor:default;color:#999;">无负责品牌</div>';
-    visibleBrandTabs = [];
-    return;
-  }
-  visibleBrandTabs = brands.map(function(b) {
-    return { key: b.name_key, label: b.name };
-  });
-  container.innerHTML = visibleBrandTabs.map(function(t) {
-    return '<div class="tab-item" data-key="' + t.key + '">' + t.label + '</div>';
-  }).join('');
-  bindProfileBrandTabClicks();
-}
-
-function setActiveProfileTab(key) {
-  document.querySelectorAll('#profile-tabs .tab-item[data-key]').forEach(function(tab) {
-    tab.classList.toggle('active', tab.dataset.key === key);
-  });
-}
-
-function initProfilePage() {
-  apiReq('/api/brands').then(function(brands) {
-    renderProfileBrandTabs(brands);
-    var keys = brands.map(function(b) { return b.name_key; });
-    if (!keys.length) {
-      showError('当前账号无负责品牌，请联系管理员分配 user_brands');
-      return;
-    }
-    var params = new URLSearchParams(window.location.search);
-    var brandKey = params.get('brand');
-    if (brandKey && keys.indexOf(brandKey) !== -1) {
-      currentKey = brandKey;
-    } else {
-      currentKey = keys[0];
-      if (brandKey && keys.indexOf(brandKey) === -1) {
-        showToast('无权访问该品牌，已显示「' + brands[0].name + '」');
-      }
-    }
-    setActiveProfileTab(currentKey);
+document.querySelectorAll('#profile-tabs .tab-item').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('#profile-tabs .tab-item').forEach(function(t) { t.classList.remove('active'); });
+    this.classList.add('active');
+    currentKey = this.dataset.key;
+    currentPTab = 'dashboard';
     loadBrand(currentKey);
-  }).catch(function(e) {
-    showError('品牌列表加载失败：' + e.message);
   });
-}
+});
 
 (function init() {
-  initProfilePage();
+  // 支持 ?brand=midea 从工作台直达指定品牌
+  var params = new URLSearchParams(window.location.search);
+  var brandKey = params.get('brand');
+  var validKeys = BRAND_TABS.map(function (t) { return t.key; });
+  if (brandKey && validKeys.indexOf(brandKey) !== -1) {
+    document.querySelectorAll('.tab-item[data-key]').forEach(function (tab) {
+      tab.classList.toggle('active', tab.dataset.key === brandKey);
+    });
+    currentKey = brandKey;
+    loadBrand(brandKey);
+  } else {
+    loadBrand('midea');
+  }
 })();
 </script>
 <script src="js/shell.js"></script>

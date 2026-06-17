@@ -16,7 +16,12 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from deps_auth import AuthUser, get_current_user_optional, require_name_key
-from llm_prompts import blurb_fallback, parse_strategy_json, strategy_fallback
+from llm_prompts import (
+    blurb_fallback,
+    build_strategy_llm_context,
+    parse_strategy_json,
+    resolve_strategy_baseline,
+)
 from llm_service import complete
 from models import Brand, BrandContact, BrandProfile, BrandMetrics, IntelAlert
 from completeness import calc_completeness
@@ -168,18 +173,30 @@ async def ai_strategy(
         .order_by(BrandMetrics.period_value.desc())
         .first()
     )
-    fb_landscape, fb_opportunities = strategy_fallback(
+    alerts = (
+        db.query(IntelAlert)
+        .filter(
+            IntelAlert.brand_id == brand.id,
+            IntelAlert.status != "closed",
+            IntelAlert.priority.in_(["P0", "P1"]),
+        )
+        .order_by(IntelAlert.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    fb_landscape, fb_opportunities = resolve_strategy_baseline(
         profile.competitive_landscape if profile else None,
         profile.growth_opportunities if profile else None,
+        brand,
+        profile,
+        metrics,
+        alerts,
     )
-    ctx = f"品牌：{brand.name}（{brand.level}级）\n"
-    if metrics and metrics.gmv is not None:
-        ctx += f"周 GMV {metrics.gmv} 万，环比 {metrics.gmv_wow}%\n"
-    ctx += f"现有竞争格局：{fb_landscape}\n现有增长机会：{fb_opportunities}\n"
-    ctx += '请输出 JSON：{"competitive_landscape":"...","growth_opportunities":"..."}'
+    ctx = build_strategy_llm_context(brand, profile, metrics, fb_landscape, fb_opportunities)
 
     raw = await complete(
-        "你是品牌竞争分析助手，输出简洁中文 JSON，不要 markdown 外壳。",
+        "你是京东采销的品牌竞争分析助手。根据经营数据与情报撰写简洁中文分析。"
+        "禁止输出「暂无」「请在 Tab2 手工维护」等占位语；必须给出可执行要点。",
         ctx,
         max_tokens=600,
     )

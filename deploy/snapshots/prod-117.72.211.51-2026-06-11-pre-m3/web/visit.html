@@ -295,18 +295,18 @@ table tr:hover td { background:#f8fafd; }
               </div>
             </div>
             <div class="visit-field"><label class="form-label">下次拜访建议时间</label><input type="date" class="form-input" id="record-next-visit"></div>
-            <button class="btn-primary" id="btn-record" onclick="submitRecord()">💾 保存 & AI 抽取</button>
+            <button class="btn-primary" id="btn-record" onclick="submitRecord()">💾 保存 & 生成待办</button>
             <div id="recordConfirm" class="visit-confirm"></div>
             <div id="recordError" class="visit-error"></div>
           </div>
         </div>
       </div>
       <div class="card">
-        <div class="card-header"><h3>🤖 AI 提取待办与承诺</h3><span class="tag" id="m3-llm-status-tag" style="background:var(--amber-50);color:var(--amber-500);">M3 规则版</span></div>
+        <div class="card-header"><h3>🤖 AI 提取待办（保存后自动创建）</h3><span class="tag tag-green">M7</span></div>
         <div class="card-body">
-          <div id="m3-ai-panel" style="font-size:13px;color:var(--text-secondary);">
-            <p style="text-align:center;padding:16px 0;color:var(--text-muted);">选择拜访并在左侧填写纪要后，AI 将自动抽取</p>
-          </div>
+          <table><thead><tr><th>优先级</th><th>待办事项</th><th>截止</th><th>负责人</th></tr></thead>
+            <tbody id="ai-todo-table"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);">保存记录后自动生成</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -385,12 +385,8 @@ table tr:hover td { background:#f8fafd; }
 <!-- Toast -->
 <div class="toast" id="appToast"></div>
 
-<!-- ========== M3 配置与 LLM 前端（培翛 · Max 合并） ========== -->
-<script src="js/m3-config.js"></script>
-<script src="js/m3-mock-llm.js"></script>
 <!-- ========== API 封装（内联） ========== -->
 <script src="js/api-base.js"></script>
-<script src="js/auth.js"></script>
 <script src="js/visit-common.js"></script>
 <script>
 var API_BASE = M1_API_BASE;
@@ -398,8 +394,7 @@ var VC = window.VisitCommon;
 
 function apiReq(path, opts) {
   opts = opts || {};
-  var headers = (window.SandAuth && SandAuth.authHeaders) ? SandAuth.authHeaders() : { 'Content-Type': 'application/json' };
-  var fetchOpts = { method: opts.method || 'GET', headers: headers };
+  var fetchOpts = { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json' } };
   if (opts.body && fetchOpts.method !== 'GET') fetchOpts.body = JSON.stringify(opts.body);
   return fetch(API_BASE + path, fetchOpts).then(function(r) {
     return r.json().then(function(data) { if (!r.ok) throw new Error(data.detail || '请求失败'); return data; });
@@ -434,15 +429,12 @@ var Api = {
 };
 
 function fillModuleBrandFilters() {
-  var brandsToShow = M3.USE_MOCK_AUTH
-    ? gBrands.filter(function(b) { return M3.isResponsibleFor(b.name_key); })
-    : gBrands;
   ['filter-records-brand', 'filter-commitments-brand', 'filter-history-brand'].forEach(function(id) {
     var sel = document.getElementById(id);
     if (!sel) return;
     var cur = sel.value;
     sel.innerHTML = '<option value="">全部品牌</option>' +
-      brandsToShow.map(function(b) {
+      gBrands.map(function(b) {
         return '<option value="' + b.name_key + '">' + b.name + '</option>';
       }).join('');
     if (cur && gBrandMap[cur]) sel.value = cur;
@@ -508,17 +500,12 @@ function loadBrands() {
     gBrandMap = {};
     data.forEach(function(b) { gBrandMap[b.name_key] = b; });
 
-    var brandsToShow = M3.USE_MOCK_AUTH
-      ? data.filter(function(b) { return M3.isResponsibleFor(b.name_key); })
-      : data;
+    // 填充下拉框
     var sel = document.getElementById('visit-brand-select');
     sel.innerHTML = '';
-    brandsToShow.forEach(function(b) {
+    data.forEach(function(b) {
       sel.innerHTML += '<option value="' + b.name_key + '">' + b.name + '（' + b.level + '级）</option>';
     });
-    if (M3.USE_MOCK_AUTH && brandsToShow.length === 0) {
-      sel.innerHTML = '<option value="">无权限品牌（请联系 Max 分配）</option>';
-    }
     // 支持从工作台带品牌跳入：visit.html?brand=midea
     var urlBrand = new URLSearchParams(window.location.search).get('brand');
     if (urlBrand && gBrandMap[urlBrand]) sel.value = urlBrand;
@@ -638,16 +625,7 @@ document.getElementById('visit-brand-select').addEventListener('change', functio
   container.innerHTML = '<p style="color:var(--text-muted);">加载提醒数据...</p>';
 
   Api.brandRemind(nameKey).then(function(data) {
-    var html = VC.buildReminderHTML(data);
-    container.innerHTML = html;
-    M3LLM.getReminderSummary(data).then(function(summary) {
-      if (summary) {
-        var banner = document.createElement('div');
-        banner.style.cssText = 'margin-bottom:10px;padding:8px 12px;background:linear-gradient(135deg,#e8f2ff,#fff);border:1px solid #93c5fd;border-radius:6px;font-size:12px;';
-        banner.textContent = summary;
-        container.insertBefore(banner, container.firstChild);
-      }
-    });
+    container.innerHTML = VC.buildReminderHTML(data);
   }).catch(function(e) {
     container.innerHTML = '<p style="color:var(--red-500);">⚠️ 无法加载提醒数据</p>';
   });
@@ -725,69 +703,43 @@ function submitRecord() {
 
   var tempRadio = document.querySelector('input[name="recordTemp"]:checked');
   var btn = document.getElementById('btn-record');
-  btn.disabled = true; btn.textContent = 'AI 抽取中...';
+  btn.disabled = true; btn.textContent = '保存中...';
   hideMsg('recordConfirm', 'recordError');
 
-  var recSel = document.getElementById('record-visit-select');
-  var recSelText = recSel.options[recSel.selectedIndex] ? recSel.options[recSel.selectedIndex].text : '';
-  var recBrandParts = recSelText.split(' · ');
-  var recBrandName = recBrandParts.length > 1 ? recBrandParts[1].trim() : '';
+  // 解析承诺行生成待办
+  var lines = commitmentsRaw.split('\n').filter(function(l) { return l.trim().startsWith('-'); });
+  var todos = [];
+  var priorities = ['P0','P0','P1','P2'];
+  lines.forEach(function(line, i) {
+    var text = line.replace(/^-\s*/, '').replace(/【.*】/, '').trim().substring(0, 30);
+    todos.push({ priority: priorities[Math.min(i,3)], title: text });
+  });
 
-  M3LLM.extractTodosFromMinutes(commitmentsRaw, recBrandName).then(function(result) {
-    var todos = result.todos;
-    var extractedCommits = result.commitments;
+  var payload = {
+    visit_id: visitId,
+    participants: document.getElementById('record-participants').value.trim() || null,
+    topics: document.getElementById('record-topics').value.trim() || null,
+    commitments_raw: commitmentsRaw,
+    undone_items: document.getElementById('record-undone').value.trim() || null,
+    relation_change: tempRadio ? tempRadio.value : 'flat',
+    next_visit_date: document.getElementById('record-next-visit').value || null,
+    todos: todos,
+  };
 
-    updateM3AIPanel(todos, extractedCommits);
-
-    var finalCommitmentsRaw = commitmentsRaw;
-    if (extractedCommits && extractedCommits.length > 0) {
-      var commitLines = extractedCommits.map(function(c) {
-        var partyLabel = c.party === 'bd' ? '我方承诺' : '品牌方承诺';
-        return '\n' + partyLabel + '\n- ' + c.content;
-      }).join('');
-      finalCommitmentsRaw = commitmentsRaw + commitLines;
-    }
-
-    var payload = {
-      visit_id: visitId,
-      participants: document.getElementById('record-participants').value.trim() || null,
-      topics: document.getElementById('record-topics').value.trim() || null,
-      commitments_raw: finalCommitmentsRaw,
-      undone_items: document.getElementById('record-undone').value.trim() || null,
-      relation_change: tempRadio ? tempRadio.value : 'flat',
-      next_visit_date: document.getElementById('record-next-visit').value || null,
-      todos: todos,
-    };
-
-    btn.textContent = '保存中...';
-    return Api.createRecord(payload).then(function(record) {
-      var done = function(finalTodos, finalCommits) {
-        showMsg('recordConfirm', '✅ 已保存！AI 抽取 <b>' + finalTodos.length + '条待办</b>、<b>' + (finalCommits ? finalCommits.length : 0) + '条承诺</b>，已同步数据库。');
-        loadRecentRecords();
-        loadCommitments();
-        loadCalendar();
-        loadHealth();
-        loadScheduledVisits();
-        loadCompletedVisitsForRecord();
-        showToast('记录已保存');
-      };
-
-      if (M3.isRouteEnabled('record_extract') && record.id && M3LLM.extractFromSavedRecord) {
-        return M3LLM.extractFromSavedRecord(record.id).then(function(apiResult) {
-          if (apiResult && apiResult.todos && apiResult.todos.length) {
-            updateM3AIPanel(apiResult.todos, apiResult.commitments || []);
-            done(apiResult.todos, apiResult.commitments);
-          } else {
-            done(todos, extractedCommits);
-          }
-        });
-      }
-      done(todos, extractedCommits);
-    });
+  Api.createRecord(payload).then(function(record) {
+    showMsg('recordConfirm', '✅ 已保存！自动生成 <b>' + todos.length + '条待办</b>，已同步数据库。');
+    updateAITodoTable(todos);
+    loadRecentRecords();
+    loadCommitments();
+    loadCalendar();
+    loadHealth();
+    loadScheduledVisits();             // 刷新「近期拜访安排」表格
+    loadCompletedVisitsForRecord();    // 刷新「拜访后记录」下拉框
+    showToast('记录已保存');
   }).catch(function(e) {
     showMsg('recordError', '❌ 保存失败：' + e.message);
   }).finally(function() {
-    btn.disabled = false; btn.textContent = '💾 保存 & AI 抽取';
+    btn.disabled = false; btn.textContent = '💾 保存 & 生成待办';
   });
 }
 
@@ -796,56 +748,14 @@ function fillRecordForm(visitId) {
   document.getElementById('record-visit-select').value = visitId;
 }
 
-function updateM3AIPanel(todos, commitments) {
-  var panel = document.getElementById('m3-ai-panel');
-  if (!panel) return;
-
-  var pClasses = {P0:'tag-red', P1:'tag-amber', P2:'tag-blue', P3:'tag-gray'};
-  var html = '';
-
-  html += '<div style="margin-bottom:12px;"><b style="font-size:13px;">📋 待办事项</b>';
-  if (!todos || !todos.length) {
-    html += '<p style="color:var(--text-muted);font-size:12px;margin-top:4px;">未抽取出待办</p>';
-  } else {
-    html += '<table style="margin-top:6px;"><thead><tr><th>优先级</th><th>待办事项</th><th>截止</th><th>负责人</th></tr></thead><tbody>';
-    html += todos.map(function(t) {
-      return '<tr><td><span class="tag ' + (pClasses[t.priority] || 'tag-gray') + '">' + t.priority + '</span></td>' +
-        '<td>' + t.title + '</td><td>' + (t.deadline || '—') + '</td><td>' + (t.assignee || '采销') + '</td></tr>';
-    }).join('');
-    html += '</tbody></table>';
-  }
-  html += '</div>';
-
-  html += '<div><b style="font-size:13px;">✅ 承诺事项</b>';
-  if (!commitments || !commitments.length) {
-    html += '<p style="color:var(--text-muted);font-size:12px;margin-top:4px;">未抽取出承诺（可从左侧手动输入）</p>';
-  } else {
-    html += '<table style="margin-top:6px;"><thead><tr><th>承诺方</th><th>内容</th></tr></thead><tbody>';
-    html += commitments.map(function(c) {
-      return '<tr><td>' + (c.party === 'bd' ? '我方' : '品牌方') + '</td><td>' + (c.content || '') + '</td></tr>';
-    }).join('');
-    html += '</tbody></table>';
-  }
-  html += '</div>';
-
-  var statusTag = document.getElementById('m3-llm-status-tag');
-  if (statusTag) {
-    if (M3.isLLMEnabled()) {
-      statusTag.textContent = 'M3 LLM';
-      statusTag.style.background = 'var(--green-50)';
-      statusTag.style.color = 'var(--green-500)';
-    } else {
-      statusTag.textContent = 'M3 规则版';
-      statusTag.style.background = 'var(--amber-50)';
-      statusTag.style.color = 'var(--amber-500)';
-    }
-  }
-
-  panel.innerHTML = html;
-}
-
 function updateAITodoTable(todos) {
-  updateM3AIPanel(todos, []);
+  var tbody = document.getElementById('ai-todo-table');
+  if (!todos.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">无待办</td></tr>'; return; }
+  var pClasses = {P0:'tag-red', P1:'tag-amber', P2:'tag-blue', P3:'tag-gray'};
+  tbody.innerHTML = todos.map(function(t) {
+    return '<tr><td><span class="tag ' + (pClasses[t.priority] || 'tag-gray') + '">' + t.priority + '</span></td>' +
+      '<td>' + t.title + '</td><td>' + (t.deadline || '—') + '</td><td>' + (t.assignee || '采销') + '</td></tr>';
+  }).join('');
 }
 
 // ===== 承诺跟踪 =====

@@ -58,16 +58,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 
 /* Page */
 .page-title { font-size:20px; font-weight:700; margin-bottom:4px; letter-spacing:-.3px; }
-.page-subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:0; }
-.intel-page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:20px; }
-.intel-page-headings { flex:0 0 auto; }
-.ai-briefing-hero { flex:1; min-width:260px; max-width:810px; background:linear-gradient(135deg,#faf5ff,#f3e8ff); border:1px solid #d8b4fe; border-radius:8px; padding:12px 14px; }
-.ai-briefing-hero-head { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px; font-size:12px; font-weight:600; color:#7c3aed; }
-.ai-briefing-hero-head .hero-meta { font-size:11px; font-weight:400; color:var(--text-muted); margin-left:auto; }
-.ai-briefing-hero-body { font-size:13px; line-height:1.65; color:#3b0764; }
-.ai-briefing-text { white-space:pre-wrap; }
-.ai-briefing-placeholder { font-size:12px; line-height:1.6; color:var(--text-secondary); }
-.ai-briefing-placeholder strong { color:#7c3aed; }
+.page-subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:20px; }
 
 /* Stat cards */
 .stat-card { background:#fff; border-radius:8px; border:1px solid var(--border); padding:18px 20px; box-shadow:var(--shadow-sm); }
@@ -163,17 +154,12 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 @media (max-width: 960px) {
   .grid-2, .grid-4 { grid-template-columns:1fr; }
   .content { padding:16px 18px; }
-  .intel-page-header { flex-direction:column; }
-  .ai-briefing-hero { max-width:none; width:100%; }
 }
 
 .m1-banner { background:linear-gradient(90deg,#0f172a,#1e3a5f); color:#e2e8f0; padding:10px 16px; border-radius:8px; font-size:12px; margin-bottom:16px; line-height:1.6; }
 .m1-banner strong { color:#93c5fd; }
 .m1-scope-tag { display:inline-block; background:#3b82f6; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-right:8px; vertical-align:middle; }
 .m2-scope-tag { display:inline-block; background:#0e7c4b; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-right:4px; vertical-align:middle; }
-.m3-scope-tag { display:inline-block; background:#7c3aed; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-right:4px; vertical-align:middle; }
-.ai-badge { display:inline-block; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-left:6px; vertical-align:middle; }
-.ai-badge.rule { background:#94a3b8; }
 
 .news-card { padding:14px; border:1px solid var(--border); border-radius:6px; margin-bottom:8px; background:#fafbfd; transition:background .15s; }
 .news-card:hover { background:#fff; }
@@ -217,26 +203,11 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
   <div class="m1-banner">
     <span class="m1-scope-tag">情报席</span>
     <span class="m2-scope-tag">M2</span>
-    <span class="m3-scope-tag">M3·LLM</span>
-    外部新闻抓取 + 内部周报 + <strong>AI 智能摘要</strong> · CSV 批量导入 · 分页浏览 · 简报缓存 · LLM 可降级。
+    外部新闻抓取 + 内部周报 + <strong>AI预警建议</strong> · CSV批量导入 · 录入模板 · 分页浏览 · 简报缓存。
   </div>
 
-  <div class="intel-page-header">
-    <div class="intel-page-headings">
-      <div class="page-title">品牌情报流</div>
-      <div class="page-subtitle">外部情报 + 内部周报 · 交叉分析预警</div>
-    </div>
-    <div class="ai-briefing-hero" id="ai-briefing-card">
-      <div class="ai-briefing-hero-head">
-        <span>🤖 AI 品牌简报 <span class="ai-badge" id="ai-briefing-badge">M3</span></span>
-        <button class="btn-sm-outline" type="button" onclick="refreshAiBriefing()">🔄 刷新</button>
-        <span class="hero-meta" id="ai-briefing-meta"></span>
-      </div>
-      <div class="ai-briefing-hero-body" id="ai-briefing-body">
-        <div class="ai-briefing-placeholder">在下方筛选栏选择<strong>具体品牌</strong>，此处显示 AI 简报（LLM 关时为规则版摘要）</div>
-      </div>
-    </div>
-  </div>
+  <div class="page-title">品牌情报流</div>
+  <div class="page-subtitle">外部情报 + 内部周报 · 交叉分析预警</div>
 
   <!-- 统计卡片 -->
   <div class="grid-4" style="margin-bottom:20px;" id="stats-row">
@@ -542,7 +513,6 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 <div id="appToast" class="toast"></div>
 
 <script src="js/api-base.js"></script>
-<script src="js/auth.js"></script>
 <script>
 const API = M1_API_BASE;
 const PAGE_SIZE = 20;
@@ -550,11 +520,6 @@ let allAlerts = [], allNews = [], allWeeklies = [], brands = [];
 let alertsOffset = 0, newsOffset = 0;
 let alertsHasMore = false, newsHasMore = false;
 let csvTab = 'file';
-
-function intelHeaders(extra) {
-  var h = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
-  return (window.SandAuth && SandAuth.authHeaders) ? SandAuth.authHeaders(h) : h;
-}
 
 function brandKeyById(id) {
   const b = brands.find(x => x.id == id);
@@ -567,7 +532,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadBrands();
   parseUrlBrand();
   setupFilters();
-  await Promise.all([loadStats(), loadAlerts(true), loadNews(true), loadWeeklySummary(), loadAiBriefing()]);
+  await Promise.all([loadStats(), loadAlerts(true), loadNews(true), loadWeeklySummary()]);
   document.getElementById('alert-form-priority').addEventListener('change', function() {
     document.getElementById('alert-form-category').value = this.value === 'P0' ? '风险预警' : '增长机会';
   });
@@ -584,7 +549,7 @@ function parseUrlBrand() {
 
 async function loadBrands() {
   try {
-    const res = await fetch(`${API}/api/brands`, { headers: intelHeaders() });
+    const res = await fetch(`${API}/api/brands`);
     brands = await res.json();
     const selIds = ['filter-brand','alert-form-brand','news-form-brand','weekly-form-brand','csv-default-brand'];
     selIds.forEach(id => {
@@ -597,7 +562,7 @@ async function loadBrands() {
 
 async function loadStats() {
   try {
-    const res = await fetch(`${API}/api/intel/stats`, { headers: intelHeaders() });
+    const res = await fetch(`${API}/api/intel/stats`);
     const s = await res.json();
     document.getElementById('stat-total-news').textContent = s.total_news_week;
     document.getElementById('stat-p0').textContent = s.p0_count;
@@ -621,7 +586,7 @@ async function loadAlerts(reset = false) {
     if (level) url += `&priority=${level}`;
     if (cat) url += `&category=${encodeURIComponent(cat)}`;
     if (status) url += `&status=${status}`;
-    const res = await fetch(url, { headers: intelHeaders() });
+    const res = await fetch(url);
     const data = await res.json();
     if (reset) allAlerts = data;
     else allAlerts = allAlerts.concat(data);
@@ -688,7 +653,7 @@ async function loadNews(reset = false) {
     const brand = document.getElementById('filter-brand').value;
     let url = `${API}/api/intel/news?limit=${PAGE_SIZE}&offset=${newsOffset}`;
     if (brand) url += `&brand_id=${brand}`;
-    const res = await fetch(url, { headers: intelHeaders() });
+    const res = await fetch(url);
     const data = await res.json();
     if (reset) allNews = data;
     else allNews = allNews.concat(data);
@@ -732,7 +697,7 @@ function renderNews(news) {
 async function loadWeeklySummary() {
   const container = document.getElementById('weekly-summary');
   try {
-    const res = await fetch(`${API}/api/intel/weekly/latest`, { headers: intelHeaders() });
+    const res = await fetch(`${API}/api/intel/weekly/latest`);
     allWeeklies = await res.json();
     if (!allWeeklies.length) { container.innerHTML = '<p style="color:var(--text-muted)">暂无周报数据</p>'; return; }
     container.innerHTML = allWeeklies.map(w => `
@@ -748,92 +713,10 @@ async function loadWeeklySummary() {
   } catch(e) { container.innerHTML = '<p style="color:var(--text-muted)">加载失败</p>'; }
 }
 
-async function loadAiBriefing() {
-  const body = document.getElementById('ai-briefing-body');
-  const meta = document.getElementById('ai-briefing-meta');
-  const badge = document.getElementById('ai-briefing-badge');
-  const brandId = document.getElementById('filter-brand').value;
-  function setBadge(mode) {
-    if (!badge) return;
-    badge.textContent = mode === 'llm' ? 'LLM' : mode === 'rule' ? '规则' : 'M3';
-    badge.classList.toggle('rule', mode === 'rule');
-  }
-  if (!brandId) {
-    body.innerHTML = '<div class="ai-briefing-placeholder">在下方筛选栏选择<strong>具体品牌</strong>，此处显示 AI 简报（LLM 关时为规则版摘要）</div>';
-    meta.textContent = '';
-    setBadge('m3');
-    return;
-  }
-  const b = brands.find(x => x.id == brandId);
-  if (!b) {
-    body.innerHTML = '<div class="ai-briefing-placeholder">品牌数据加载中…</div>';
-    meta.textContent = '';
-    setBadge('m3');
-    return;
-  }
-  body.innerHTML = '<div class="loading" style="padding:8px 0;text-align:left;">🤖 分析中…</div>';
-  meta.textContent = '';
-  try {
-    const res = await fetch(`${API}/api/intel/briefing/${b.name_key}`, { headers: intelHeaders() });
-    if (!res.ok) throw new Error('briefing failed');
-    const data = await res.json();
-    if (data.llm_summary) {
-      body.innerHTML = '<div class="ai-briefing-text">' + data.llm_summary + '</div>';
-      meta.textContent = data.cached ? '⚡ 来自缓存' : '🆕 实时生成';
-      setBadge('llm');
-    } else {
-      body.innerHTML = '<div class="ai-briefing-text">' + (data.stats?.total_news || 0) + ' 条近期新闻 · ' + (data.stats?.active_alerts || 0) + ' 条活跃预警（规则版摘要）</div>';
-      meta.textContent = 'M2 规则版';
-      setBadge('rule');
-    }
-  } catch (e) {
-    body.innerHTML = '<div class="loading">⚠️ AI 简报加载失败</div>';
-    setBadge('m3');
-  }
-}
-
-async function refreshAiBriefing() {
-  const brandId = document.getElementById('filter-brand').value;
-  if (!brandId) { showToast('请先选择品牌'); return; }
-  const b = brands.find(x => x.id == brandId);
-  if (!b) return;
-  const body = document.getElementById('ai-briefing-body');
-  const badge = document.getElementById('ai-briefing-badge');
-  body.innerHTML = '<div class="loading">🤖 正在生成 AI 摘要...</div>';
-  showToast('正在调用 LLM...');
-  try {
-    const res = await fetch(`${API}/api/intel/briefing/${b.name_key}/ai/refresh`, {
-      method: 'POST',
-      headers: intelHeaders(),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      if (res.status === 503) {
-        body.innerHTML = '<div class="ai-briefing-placeholder">LLM 未启用，请设置 LLM_ENABLED=true 后重试</div>';
-        if (badge) { badge.textContent = '规则'; badge.classList.add('rule'); }
-        showToast('LLM 未启用');
-      } else {
-        throw new Error(err.detail || 'LLM failed');
-      }
-      return;
-    }
-    const data = await res.json();
-    if (data.llm_summary) {
-      body.innerHTML = '<div class="ai-briefing-text">' + data.llm_summary + '</div>';
-      document.getElementById('ai-briefing-meta').textContent = '🆕 刚刚刷新';
-      if (badge) { badge.textContent = 'LLM'; badge.classList.remove('rule'); }
-      showToast('✅ AI 摘要已刷新');
-    }
-  } catch (e) {
-    body.innerHTML = '<div class="loading">⚠️ LLM 调用失败，已降级 M2 规则版</div>';
-    showToast('LLM 失败，已降级');
-  }
-}
-
 // ---- Filters ----
 function setupFilters() {
   ['filter-brand','filter-level','filter-category','filter-status'].forEach(id => {
-    document.getElementById(id).addEventListener('change', () => { loadAlerts(true); loadNews(true); loadAiBriefing(); });
+    document.getElementById(id).addEventListener('change', () => { loadAlerts(true); loadNews(true); });
   });
   document.getElementById('filter-search').addEventListener('input', function() {
     const search = this.value.toLowerCase();

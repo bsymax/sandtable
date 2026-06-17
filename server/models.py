@@ -286,6 +286,8 @@ class IntelBriefingCache(Base):
     id            = Column(Integer, primary_key=True, autoincrement=True)
     brand_id      = Column(Integer, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
     briefing_data = Column(JSON, default=None)
+    llm_summary     = Column(Text, comment="M3: LLM 生成的简报摘要")
+    llm_generated_at = Column(DateTime, comment="M3: LLM 摘要生成时间")
     generated_at  = Column(DateTime, server_default=func.now())
     expires_at    = Column(DateTime)
     created_at    = Column(DateTime, server_default=func.now())
@@ -338,3 +340,39 @@ class UserSession(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     user = relationship("User", back_populates="sessions")
+
+
+class DwImportBatch(Base):
+    __tablename__ = "dw_import_batch"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    batch_key     = Column(String(36), nullable=False, unique=True)
+    source        = Column(Enum("csv", "api", "manual"), nullable=False, default="csv")
+    source_name   = Column(String(255))
+    status        = Column(Enum("running", "success", "partial", "failed"), nullable=False, default="running")
+    total_rows    = Column(Integer, nullable=False, default=0)
+    inserted      = Column(Integer, nullable=False, default=0)
+    updated       = Column(Integer, nullable=False, default=0)
+    skipped       = Column(Integer, nullable=False, default=0)
+    failed        = Column(Integer, nullable=False, default=0)
+    error_summary = Column(Text)
+    started_at    = Column(DateTime, server_default=func.now())
+    finished_at   = Column(DateTime)
+    created_at    = Column(DateTime, server_default=func.now())
+
+    logs = relationship("SyncLog", back_populates="batch", cascade="all, delete-orphan")
+
+
+class SyncLog(Base):
+    __tablename__ = "sync_log"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    batch_id     = Column(Integer, ForeignKey("dw_import_batch.id", ondelete="CASCADE"), nullable=False)
+    brand_id     = Column(Integer)  # brands.id 为 UNSIGNED，ORM 不写 FK 避免类型冲突
+    name_key     = Column(String(32))
+    period_value = Column(String(16))
+    action       = Column(Enum("insert", "update", "skip", "error"), nullable=False)
+    message      = Column(String(512))
+    created_at   = Column(DateTime, server_default=func.now())
+
+    batch = relationship("DwImportBatch", back_populates="logs")

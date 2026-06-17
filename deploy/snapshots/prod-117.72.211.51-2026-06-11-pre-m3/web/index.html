@@ -37,12 +37,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 .m1-banner strong { color:#93c5fd; }
 .m1-scope-tag { display:inline-block; background:#3b82f6; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; margin-right:8px; }
 .page-title { font-size:20px; font-weight:700; margin-bottom:4px; }
-.page-subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:12px; }
-#dashboard-summary-line { font-size:13px; line-height:1.65; padding:12px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; margin-bottom:20px; color:var(--text); }
-#dashboard-summary-line .summary-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; margin-right:8px; vertical-align:middle; }
-#dashboard-summary-line .summary-badge.ai { background:#3b82f6; color:#fff; }
-#dashboard-summary-line .summary-badge.rule { background:#f0f1f5; color:var(--text-secondary); }
-#dashboard-summary-line .summary-loading { color:var(--text-muted); }
+.page-subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:20px; }
 .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
 .card { background:var(--card-bg); border-radius:8px; border:1px solid var(--border); box-shadow:var(--shadow-sm); margin-bottom:20px; }
@@ -113,11 +108,11 @@ table td { padding:10px 16px; border-bottom:1px solid var(--border); }
 <div id="main">
   <div class="topbar">
     <div class="breadcrumb">品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">今日工作台</span></div>
-    <div class="topbar-right" id="wb-topbar-right">
+    <div class="topbar-right">
       <span id="wb-date">—</span>
       <span style="color:var(--text-muted);">|</span>
       <span>厨小事业部 · 采销二组</span>
-      <div class="user-avatar">访</div>
+      <div class="user-avatar">周</div>
     </div>
   </div>
 
@@ -127,10 +122,7 @@ table td { padding:10px 16px; border-bottom:1px solid var(--border); }
       工作台只读聚合：<strong>待办</strong> · <strong>承诺</strong> · <strong>P0/P1 情报</strong> · <strong>拜访健康度</strong>（数据来自 API，与三模块同库）
     </div>
     <div class="page-title">今日工作台</div>
-    <div class="page-subtitle">待办 · 承诺 · 情报 · 拜访健康度 — 一页聚合</div>
-    <div id="dashboard-summary-line" class="dashboard-summary-line" aria-live="polite">
-      <span class="summary-loading">正在生成今日摘要…</span>
-    </div>
+    <div class="page-subtitle">谈判教练入口 · 集成主编 S5（分支 wip/workbench-s5）</div>
 
     <div class="grid-4">
       <div class="stat-card">
@@ -179,13 +171,12 @@ table td { padding:10px 16px; border-bottom:1px solid var(--border); }
 </div>
 
 <script src="js/api-base.js"></script>
-<script src="js/auth.js"></script>
 <script>
 var WB_API = M1_API_BASE;
 
 function wbApi(path, opts) {
   opts = opts || {};
-  var fetchOpts = { method: opts.method || 'GET', headers: (window.SandAuth && SandAuth.authHeaders) ? SandAuth.authHeaders() : { 'Content-Type': 'application/json' } };
+  var fetchOpts = { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json' } };
   if (opts.body && fetchOpts.method !== 'GET') fetchOpts.body = JSON.stringify(opts.body);
   return fetch(WB_API + path, fetchOpts).then(function(r) {
     return r.json().then(function(data) {
@@ -317,25 +308,6 @@ function loadStats() {
   }).catch(function() {});
 }
 
-function renderSummaryLine(data) {
-  var el = document.getElementById('dashboard-summary-line');
-  if (!el || !data) return;
-  var badge = data.source === 'llm'
-    ? '<span class="summary-badge ai">AI</span>'
-    : '<span class="summary-badge rule">规则</span>';
-  el.innerHTML = badge + wbEsc(data.summary || '暂无摘要');
-}
-
-function loadSummaryLine() {
-  return wbApi('/api/dashboard/summary-line').then(renderSummaryLine).catch(function(e) {
-    var el = document.getElementById('dashboard-summary-line');
-    if (el) {
-      el.innerHTML = '<span class="summary-badge rule">规则</span><span style="color:var(--text-muted)">摘要加载失败：'
-        + wbEsc(e.message) + '（请查看下方卡片）</span>';
-    }
-  });
-}
-
 function loadWorkbench() {
   wbApi('/api/todos').then(renderTodos).catch(function(e) {
     document.getElementById('todo-list').innerHTML = '<p style="padding:16px;color:var(--red-500);font-size:13px;">待办加载失败：' + wbEsc(e.message) + '</p>';
@@ -369,17 +341,9 @@ document.getElementById('todo-list').addEventListener('click', function(e) {
 (function init() {
   var d = new Date();
   var days = ['日','一','二','三','四','五','六'];
-  var dateText = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' 周' + days[d.getDay()];
-  var wbDate = document.getElementById('wb-date');
-  if (wbDate) wbDate.textContent = dateText;
-  if (window.SandAuth) {
-    SandAuth.fetchMe().then(function (user) {
-      var right = document.getElementById('wb-topbar-right') || document.querySelector('.topbar-right');
-      if (right) SandAuth.renderTopbarRight(right, user);
-    });
-  }
+  document.getElementById('wb-date').textContent =
+    d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' 周' + days[d.getDay()];
   loadWorkbench();
-  loadSummaryLine();
 })();
 </script>
 </body>

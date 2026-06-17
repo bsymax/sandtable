@@ -448,6 +448,22 @@ class IntelBriefingOut(BaseModel):
     latest_weekly: Optional[dict] = None
     stats: dict = {}
     cached: bool = False
+    llm_summary: Optional[str] = None
+
+
+class IntelBriefingRefreshOut(BaseModel):
+    brand_id: int
+    brand_name: str
+    llm_summary: str
+    generated_at: Optional[datetime] = None
+
+
+class IntelFeedAiSummaryOut(BaseModel):
+    item_id: int
+    item_type: str
+    ai_summary: Optional[str] = None
+    original_summary: str
+    llm_enabled: bool
 
 
 class CsvImportRow(BaseModel):
@@ -567,3 +583,51 @@ class AiBriefingSummaryOut(BaseModel):
     source: str
     brand_key: str
     summary: str
+
+
+# ==============================
+# M3 数仓
+# ==============================
+class DwBatchOut(BaseModel):
+    id: int
+    batch_key: str
+    source: str
+    source_name: Optional[str] = None
+    status: str
+    total_rows: int
+    inserted: int
+    updated: int
+    skipped: int
+    failed: int
+    error_summary: Optional[str] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DwSyncLogOut(BaseModel):
+    id: int
+    batch_id: int
+    brand_id: Optional[int] = None
+    name_key: Optional[str] = None
+    period_value: Optional[str] = None
+    action: str
+    message: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DwStatusOut(BaseModel):
+    last_batch: Optional[DwBatchOut] = None
+    total_batches: int
+    total_sync_logs: int
+    brand_metrics_rows: int
+    sample_csv: str
+
+
+class DwImportResultOut(BaseModel):
+    batch: DwBatchOut
