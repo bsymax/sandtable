@@ -24,6 +24,18 @@ CORS_ORIGINS = [
     if o.strip()
 ]
 
+# ---------- M3 登录 / LLM ----------
+AUTH_SECRET = os.getenv("AUTH_SECRET", "sandtable-m3-dev-change-me")
+AUTH_SALT = os.getenv("AUTH_SALT", "sandtable-auth-salt")
+SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "72"))
+# false = M2 兼容（未登录仍可看全量）；true = 必须登录
+AUTH_REQUIRED = os.getenv("AUTH_REQUIRED", "false").lower() in ("1", "true", "yes")
+LLM_ENABLED = os.getenv("LLM_ENABLED", "false").lower() in ("1", "true", "yes")
+LLM_GATEWAY_URL = os.getenv("LLM_GATEWAY_URL", "")
+LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
+LLM_TIMEOUT_SEC = float(os.getenv("LLM_TIMEOUT_SEC", "25"))
+
 # SQLAlchemy 连接字符串（同步 + PyMySQL）
 DATABASE_URL = (
     f"mysql+pymysql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"

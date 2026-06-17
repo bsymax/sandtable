@@ -13,6 +13,13 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func, case
 
 from database import get_db
+from deps_auth import (
+    AuthUser,
+    filter_by_brand_ids,
+    filter_brand_query,
+    get_current_user_optional,
+    require_brand_id,
+)
 from models import Brand, Visit, VisitAttendee, VisitRecord, Commitment, Todo
 from schemas import (
     VisitCreate, VisitOut, VisitUpdate, VisitAttendeeOut,
@@ -29,8 +36,13 @@ router = APIRouter()
 #  拜访安排
 # ================================================================
 @router.post("/api/visits", response_model=VisitOut, tags=["拜访"])
-def create_visit(payload: VisitCreate, db: Session = Depends(get_db)):
+def create_visit(
+    payload: VisitCreate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """安排新拜访"""
+    require_brand_id(user, payload.brand_id)
     brand = db.query(Brand).filter(Brand.id == payload.brand_id).first()
     if not brand:
         raise HTTPException(404, "品牌不存在")
@@ -63,6 +75,7 @@ def list_visits(
     brand_id: Optional[int] = None,
     month: Optional[str] = Query(None, description="月份，如 2026-06"),
     db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     """拜访列表（支持筛选）"""
     q = db.query(Visit)
@@ -70,7 +83,10 @@ def list_visits(
     if status:
         q = q.filter(Visit.status == status)
     if brand_id:
+        require_brand_id(user, brand_id)
         q = q.filter(Visit.brand_id == brand_id)
+    else:
+        q = filter_by_brand_ids(q, Visit.brand_id, user)
     if month:
         q = q.filter(func.date_format(Visit.visit_date, "%Y-%m") == month)
 
@@ -79,19 +95,30 @@ def list_visits(
 
 
 @router.get("/api/visits/{visit_id}", response_model=VisitOut, tags=["拜访"])
-def get_visit(visit_id: int, db: Session = Depends(get_db)):
+def get_visit(
+    visit_id: int,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     visit = db.query(Visit).filter(Visit.id == visit_id).first()
     if not visit:
         raise HTTPException(404, "拜访不存在")
+    require_brand_id(user, visit.brand_id)
     return _format_visit(visit, visit.brand)
 
 
 @router.put("/api/visits/{visit_id}", response_model=VisitOut, tags=["拜访"])
-def update_visit(visit_id: int, payload: VisitUpdate, db: Session = Depends(get_db)):
+def update_visit(
+    visit_id: int,
+    payload: VisitUpdate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """更新拜访状态 / 时间"""
     visit = db.query(Visit).filter(Visit.id == visit_id).first()
     if not visit:
         raise HTTPException(404, "拜访不存在")
+    require_brand_id(user, visit.brand_id)
 
     update_data = payload.dict(exclude_unset=True)
     for k, v in update_data.items():
@@ -102,10 +129,15 @@ def update_visit(visit_id: int, payload: VisitUpdate, db: Session = Depends(get_
 
 
 @router.delete("/api/visits/{visit_id}", response_model=ApiResponse, tags=["拜访"])
-def delete_visit(visit_id: int, db: Session = Depends(get_db)):
+def delete_visit(
+    visit_id: int,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     visit = db.query(Visit).filter(Visit.id == visit_id).first()
     if not visit:
         raise HTTPException(404, "拜访不存在")
+    require_brand_id(user, visit.brand_id)
     db.delete(visit)
     db.commit()
     return ApiResponse(message="拜访已删除")
@@ -115,11 +147,16 @@ def delete_visit(visit_id: int, db: Session = Depends(get_db)):
 #  拜访记录
 # ================================================================
 @router.post("/api/records", response_model=RecordOut, tags=["拜访记录"])
-def create_record(payload: RecordCreate, db: Session = Depends(get_db)):
+def create_record(
+    payload: RecordCreate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """保存拜访后记录，自动生成待办"""
     visit = db.query(Visit).filter(Visit.id == payload.visit_id).first()
     if not visit:
         raise HTTPException(404, "拜访不存在")
+    require_brand_id(user, visit.brand_id)
 
     existing = db.query(VisitRecord).filter(VisitRecord.visit_id == payload.visit_id).first()
     if existing:
@@ -183,20 +220,30 @@ def list_records(
     brand_id: Optional[int] = None,
     limit: int = 20,
     db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     """近期拜访记录"""
     q = db.query(VisitRecord).join(Visit).order_by(desc(VisitRecord.created_at))
     if brand_id:
+        require_brand_id(user, brand_id)
         q = q.filter(Visit.brand_id == brand_id)
+    else:
+        q = filter_by_brand_ids(q, Visit.brand_id, user)
     records = q.limit(limit).all()
     return [_format_record(r, r.visit) for r in records]
 
 
 @router.get("/api/records/{record_id}", response_model=RecordOut, tags=["拜访记录"])
-def get_record(record_id: int, db: Session = Depends(get_db)):
+def get_record(
+    record_id: int,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     record = db.query(VisitRecord).filter(VisitRecord.id == record_id).first()
     if not record:
         raise HTTPException(404, "记录不存在")
+    if record.visit:
+        require_brand_id(user, record.visit.brand_id)
     return _format_record(record, record.visit)
 
 
@@ -209,22 +256,42 @@ def list_commitments(
     status: Optional[str] = None,
     brand_id: Optional[int] = None,
     db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     q = db.query(Commitment)
+    joined_visit = False
     if visit_id:
         q = q.filter(Commitment.visit_id == visit_id)
     if status:
         q = q.filter(Commitment.status == status)
+    if brand_id or (user and not user.is_admin):
+        q = q.join(Visit, Commitment.visit_id == Visit.id)
+        joined_visit = True
     if brand_id:
-        q = q.join(Visit, Commitment.visit_id == Visit.id).filter(Visit.brand_id == brand_id)
+        require_brand_id(user, brand_id)
+        q = q.filter(Visit.brand_id == brand_id)
+    elif user and not user.is_admin:
+        q = filter_by_brand_ids(q, Visit.brand_id, user)
+    if visit_id and user and not joined_visit:
+        visit = db.query(Visit).filter(Visit.id == visit_id).first()
+        if visit:
+            require_brand_id(user, visit.brand_id)
     return q.order_by(desc(Commitment.created_at)).all()
 
 
 @router.put("/api/commitments/{commitment_id}", response_model=CommitmentOut, tags=["承诺"])
-def update_commitment(commitment_id: int, payload: CommitmentUpdate, db: Session = Depends(get_db)):
+def update_commitment(
+    commitment_id: int,
+    payload: CommitmentUpdate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     c = db.query(Commitment).filter(Commitment.id == commitment_id).first()
     if not c:
         raise HTTPException(404, "承诺不存在")
+    visit = db.query(Visit).filter(Visit.id == c.visit_id).first()
+    if visit:
+        require_brand_id(user, visit.brand_id)
     if payload.status:
         c.status = payload.status
         if payload.status == "fulfilled":
@@ -245,8 +312,10 @@ def list_todos(
     priority: Optional[str] = None,
     assignee: Optional[str] = None,
     db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
-    q = db.query(Todo).options(joinedload(Todo.visit).joinedload(Visit.brand))
+    q = db.query(Todo).options(joinedload(Todo.visit).joinedload(Visit.brand)).join(Visit)
+    q = filter_by_brand_ids(q, Visit.brand_id, user)
     if status:
         q = q.filter(Todo.status == status)
     if priority:
@@ -261,12 +330,19 @@ def list_todos(
 
 
 @router.put("/api/todos/{todo_id}", response_model=TodoOut, tags=["待办"])
-def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)):
+def update_todo(
+    todo_id: int,
+    payload: TodoUpdate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     t = db.query(Todo).options(
         joinedload(Todo.visit).joinedload(Visit.brand)
     ).filter(Todo.id == todo_id).first()
     if not t:
         raise HTTPException(404, "待办不存在")
+    if t.visit:
+        require_brand_id(user, t.visit.brand_id)
     if payload.status:
         t.status = payload.status
         if payload.status == "done":
@@ -282,9 +358,13 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
 #  拜访频率健康度
 # ================================================================
 @router.get("/api/health", response_model=List[HealthItem], tags=["健康度"])
-def visit_health(db: Session = Depends(get_db)):
+def visit_health(
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """各品牌近 90 天拜访频率健康度"""
-    brands = db.query(Brand).filter(Brand.status == "active").all()
+    q = db.query(Brand).filter(Brand.status == "active")
+    brands = filter_brand_query(q, user).all()
     ninety_days_ago = date.today() - timedelta(days=90)
 
     result = []

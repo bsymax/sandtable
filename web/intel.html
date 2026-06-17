@@ -513,6 +513,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 <div id="appToast" class="toast"></div>
 
 <script src="js/api-base.js"></script>
+<script src="js/auth.js"></script>
 <script>
 const API = M1_API_BASE;
 const PAGE_SIZE = 20;
@@ -520,6 +521,11 @@ let allAlerts = [], allNews = [], allWeeklies = [], brands = [];
 let alertsOffset = 0, newsOffset = 0;
 let alertsHasMore = false, newsHasMore = false;
 let csvTab = 'file';
+
+function intelHeaders(extra) {
+  var h = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+  return (window.SandAuth && SandAuth.authHeaders) ? SandAuth.authHeaders(h) : h;
+}
 
 function brandKeyById(id) {
   const b = brands.find(x => x.id == id);
@@ -549,7 +555,7 @@ function parseUrlBrand() {
 
 async function loadBrands() {
   try {
-    const res = await fetch(`${API}/api/brands`);
+    const res = await fetch(`${API}/api/brands`, { headers: intelHeaders() });
     brands = await res.json();
     const selIds = ['filter-brand','alert-form-brand','news-form-brand','weekly-form-brand','csv-default-brand'];
     selIds.forEach(id => {
@@ -562,7 +568,7 @@ async function loadBrands() {
 
 async function loadStats() {
   try {
-    const res = await fetch(`${API}/api/intel/stats`);
+    const res = await fetch(`${API}/api/intel/stats`, { headers: intelHeaders() });
     const s = await res.json();
     document.getElementById('stat-total-news').textContent = s.total_news_week;
     document.getElementById('stat-p0').textContent = s.p0_count;
@@ -586,7 +592,7 @@ async function loadAlerts(reset = false) {
     if (level) url += `&priority=${level}`;
     if (cat) url += `&category=${encodeURIComponent(cat)}`;
     if (status) url += `&status=${status}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: intelHeaders() });
     const data = await res.json();
     if (reset) allAlerts = data;
     else allAlerts = allAlerts.concat(data);
@@ -653,7 +659,7 @@ async function loadNews(reset = false) {
     const brand = document.getElementById('filter-brand').value;
     let url = `${API}/api/intel/news?limit=${PAGE_SIZE}&offset=${newsOffset}`;
     if (brand) url += `&brand_id=${brand}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: intelHeaders() });
     const data = await res.json();
     if (reset) allNews = data;
     else allNews = allNews.concat(data);
@@ -697,7 +703,7 @@ function renderNews(news) {
 async function loadWeeklySummary() {
   const container = document.getElementById('weekly-summary');
   try {
-    const res = await fetch(`${API}/api/intel/weekly/latest`);
+    const res = await fetch(`${API}/api/intel/weekly/latest`, { headers: intelHeaders() });
     allWeeklies = await res.json();
     if (!allWeeklies.length) { container.innerHTML = '<p style="color:var(--text-muted)">暂无周报数据</p>'; return; }
     container.innerHTML = allWeeklies.map(w => `

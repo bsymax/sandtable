@@ -227,11 +227,7 @@ table tr.jd-row td { background:var(--blue-50); }
   <div id="error-banner" class="error-banner"></div>
 
   <div class="tab-bar" id="profile-tabs">
-    <div class="tab-item active" data-key="midea">美的</div>
-    <div class="tab-item" data-key="joyoung">九阳</div>
-    <div class="tab-item" data-key="supor">苏泊尔</div>
-    <div class="tab-item" data-key="bear">小熊电器</div>
-    <div class="tab-item" data-key="morphy">摩飞</div>
+    <div class="tab-item active" data-key="midea">加载中…</div>
   </div>
 
   <div id="profile-mount" class="profile-brand-shell"></div>
@@ -242,6 +238,7 @@ table tr.jd-row td { background:var(--blue-50); }
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
 <script src="js/api-base.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/visit-common.js"></script>
 <script>
 var API_BASE = M1_API_BASE;
@@ -252,6 +249,8 @@ var BRAND_TABS = [
   { key:'bear', label:'小熊电器' },
   { key:'morphy', label:'摩飞' }
 ];
+/** 登录后由 /api/brands 过滤；未登录等同 BRAND_TABS */
+var visibleBrandTabs = BRAND_TABS.slice();
 var LEVEL_LABEL = { S:'S-战略级', A:'A-核心级', B:'B-成长级', C:'C-观察级' };
 var BENCH_TOP = { margin:24.8, cvr:5.6, adRate:4.2 };
 var BRAND_EXTRA = {
@@ -418,7 +417,8 @@ window.goIntel = function(key) {
 
 function apiReq(path, opts) {
   opts = opts || {};
-  var fetchOpts = { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json' } };
+  var headers = (window.SandAuth && SandAuth.authHeaders) ? SandAuth.authHeaders() : { 'Content-Type': 'application/json' };
+  var fetchOpts = { method: opts.method || 'GET', headers: headers };
   if (opts.body && fetchOpts.method !== 'GET') fetchOpts.body = JSON.stringify(opts.body);
   var base = opts.base != null ? opts.base : API_BASE;
   return fetch(base + path, fetchOpts).then(function(r) {
@@ -823,7 +823,7 @@ function loadBrand(key) {
       renderBrand(gData);
     });
   }).catch(function(e) {
-    showError('加载失败：' + e.message + '（请确认 backend 已启动：8001 档案 API，8000 可选用于 briefing/拜访）');
+    showError('加载失败：' + e.message + '（请确认后端 8000 已启动）');
   }).finally(function() {
     document.getElementById('loading-overlay').classList.add('hidden');
   });
@@ -1374,30 +1374,67 @@ window.saveStrategy = function() {
   }).catch(function(e) { showToast('保存失败：' + e.message); });
 };
 
-document.querySelectorAll('#profile-tabs .tab-item').forEach(function(tab) {
-  tab.addEventListener('click', function() {
-    document.querySelectorAll('#profile-tabs .tab-item').forEach(function(t) { t.classList.remove('active'); });
-    this.classList.add('active');
-    currentKey = this.dataset.key;
-    currentPTab = 'dashboard';
-    loadBrand(currentKey);
+function setActiveProfileTab(key) {
+  document.querySelectorAll('#profile-tabs .tab-item[data-key]').forEach(function(tab) {
+    tab.classList.toggle('active', tab.dataset.key === key);
   });
-});
+}
+
+function bindProfileBrandTabClicks() {
+  document.querySelectorAll('#profile-tabs .tab-item[data-key]').forEach(function(tab) {
+    tab.onclick = function() {
+      document.querySelectorAll('#profile-tabs .tab-item[data-key]').forEach(function(t) { t.classList.remove('active'); });
+      this.classList.add('active');
+      currentKey = this.dataset.key;
+      currentPTab = 'dashboard';
+      loadBrand(currentKey);
+    };
+  });
+}
+
+function renderProfileBrandTabs(brands) {
+  var container = document.getElementById('profile-tabs');
+  if (!brands || !brands.length) {
+    container.innerHTML = '<div class="tab-item" style="cursor:default;color:#999;">无负责品牌</div>';
+    visibleBrandTabs = [];
+    return;
+  }
+  visibleBrandTabs = brands.map(function(b) {
+    return { key: b.name_key, label: b.name };
+  });
+  container.innerHTML = visibleBrandTabs.map(function(t) {
+    return '<div class="tab-item" data-key="' + t.key + '">' + t.label + '</div>';
+  }).join('');
+  bindProfileBrandTabClicks();
+}
+
+function initProfilePage() {
+  apiReq('/api/brands').then(function(brands) {
+    renderProfileBrandTabs(brands);
+    var keys = brands.map(function(b) { return b.name_key; });
+    if (!keys.length) {
+      showError('当前账号无负责品牌，请联系管理员分配 user_brands');
+      return;
+    }
+    var params = new URLSearchParams(window.location.search);
+    var brandKey = params.get('brand');
+    if (brandKey && keys.indexOf(brandKey) !== -1) {
+      currentKey = brandKey;
+    } else {
+      currentKey = keys[0];
+      if (brandKey && keys.indexOf(brandKey) === -1) {
+        showToast('无权访问该品牌，已显示「' + brands[0].name + '」');
+      }
+    }
+    setActiveProfileTab(currentKey);
+    loadBrand(currentKey);
+  }).catch(function(e) {
+    showError('品牌列表加载失败：' + e.message);
+  });
+}
 
 (function init() {
-  // 支持 ?brand=midea 从工作台直达指定品牌
-  var params = new URLSearchParams(window.location.search);
-  var brandKey = params.get('brand');
-  var validKeys = BRAND_TABS.map(function (t) { return t.key; });
-  if (brandKey && validKeys.indexOf(brandKey) !== -1) {
-    document.querySelectorAll('.tab-item[data-key]').forEach(function (tab) {
-      tab.classList.toggle('active', tab.dataset.key === brandKey);
-    });
-    currentKey = brandKey;
-    loadBrand(brandKey);
-  } else {
-    loadBrand('midea');
-  }
+  initProfilePage();
 })();
 </script>
 <script src="js/shell.js"></script>

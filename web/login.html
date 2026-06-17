@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 · 品牌沙盘 M3</title>
+<style>
+:root {
+  --bg:#f4f5f9; --card:#fff; --text:#1a1f36; --muted:#697386;
+  --border:#e3e8ee; --blue:#0d7aff;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:var(--font); background:var(--bg); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+.card { width:100%; max-width:420px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:32px; box-shadow:0 8px 24px rgba(15,23,42,.08); }
+h1 { font-size:22px; margin-bottom:8px; }
+.sub { color:var(--muted); font-size:13px; margin-bottom:24px; line-height:1.6; }
+label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; }
+input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; margin-bottom:16px; }
+button { width:100%; padding:12px; border:none; border-radius:8px; background:var(--blue); color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+button:disabled { opacity:.6; cursor:not-allowed; }
+.err { color:#cd3b32; font-size:13px; min-height:20px; margin-bottom:12px; }
+.tip { margin-top:20px; font-size:12px; color:var(--muted); line-height:1.7; background:#f8f9fc; border-radius:8px; padding:12px; }
+.tip code { background:#eef2ff; padding:1px 4px; border-radius:4px; }
+.back { display:inline-block; margin-top:16px; font-size:13px; color:var(--blue); text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>品牌沙盘登录</h1>
+  <p class="sub">M3-A 测试环境 · 登录后 API 按负责品牌过滤；未登录时行为同 M2（全品牌）</p>
+  <div class="err" id="err"></div>
+  <form id="login-form">
+    <label for="username">用户名</label>
+    <input id="username" name="username" autocomplete="username" placeholder="如 admin / zhou / demo" required>
+    <label for="password">密码</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" placeholder="演示密码 sand123" required>
+    <button type="submit" id="submit-btn">登录</button>
+  </form>
+  <div class="tip">
+    测试账号（密码均为 <code>sand123</code>）：<br>
+    <code>admin</code> 全品牌 · <code>zhou</code> 美的 · <code>demo</code> 美/九阳/苏泊尔 · <code>readonly</code> 小熊只读
+  </div>
+  <a class="back" href="index.html">← 暂不登录，进入工作台</a>
+</div>
+<script src="js/api-base.js"></script>
+<script src="js/auth.js"></script>
+<script>
+(function () {
+  var form = document.getElementById('login-form');
+  var err = document.getElementById('err');
+  var btn = document.getElementById('submit-btn');
+
+  SandAuth.fetchMe().then(function (user) {
+    if (user) window.location.href = 'index.html';
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    err.textContent = '';
+    btn.disabled = true;
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+    SandAuth.login(username, password)
+      .then(function () { window.location.href = 'index.html'; })
+      .catch(function (ex) { err.textContent = ex.message || '登录失败'; })
+      .finally(function () { btn.disabled = false; });
+  });
+})();
+</script>
+</body>
+</html>

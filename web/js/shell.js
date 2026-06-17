@@ -73,10 +73,11 @@
   function topbarRightHtml() {
     var d = new Date();
     var wd = ['日', '一', '二', '三', '四', '五', '六'];
-    return '<span id="m1s-top-date">' + d.toISOString().slice(0, 10) + ' 周' + wd[d.getDay()] + '</span>' +
+    var html = '<span id="m1s-top-date">' + d.toISOString().slice(0, 10) + ' 周' + wd[d.getDay()] + '</span>' +
       '<span style="color:#a3acba;">|</span>' +
       '<span>厨小事业部 · 采销二组</span>' +
-      '<div class="user-avatar">周</div>';
+      '<div class="user-avatar">访</div>';
+    return html;
   }
 
   function ensureMainWrapper() {
@@ -102,7 +103,15 @@
     var bc = topbar.querySelector('.breadcrumb');
     if (bc) bc.innerHTML = breadcrumbHtml(moduleName);
     var right = topbar.querySelector('.topbar-right');
-    if (right) right.innerHTML = topbarRightHtml();
+    if (right) {
+      right.innerHTML = topbarRightHtml();
+      if (window.SandAuth && window.SandAuth.renderTopbarRight) {
+        window.SandAuth.renderTopbarRight(right, window.SandAuth.getCachedUser());
+        window.SandAuth.fetchMe().then(function (user) {
+          window.SandAuth.renderTopbarRight(right, user);
+        });
+      }
+    }
   }
 
   function build() {

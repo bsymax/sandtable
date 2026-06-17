@@ -9,12 +9,13 @@
 """
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
+from deps_auth import AuthUser, get_current_user_optional, require_name_key
 from models import Brand, BrandContact, BrandProfile, BrandMetrics
 from completeness import calc_completeness
 from schemas import (
@@ -37,8 +38,13 @@ def _build_profile_response(brand, profile, contacts, metrics):
 
 
 @router.get("/api/brands/profile/{name_key}", response_model=BrandProfileDetailOut, tags=["品牌档案"])
-def get_brand_profile(name_key: str, db: Session = Depends(get_db)):
+def get_brand_profile(
+    name_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """品牌档案：基础信息 + 简介 + 联系人 + 最新一周经营指标 + 完整度评分"""
+    require_name_key(user, name_key)
     brand = db.query(Brand).filter(Brand.name_key == name_key).first()
     if not brand:
         raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
@@ -59,8 +65,10 @@ def list_brand_metrics(
     name_key: str,
     limit: int = Query(12, ge=1, le=52),
     db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     """返回最近 N 条周度经营指标（按 period_value 倒序）"""
+    require_name_key(user, name_key)
     brand = db.query(Brand).filter(Brand.name_key == name_key).first()
     if not brand:
         raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
@@ -76,8 +84,14 @@ def list_brand_metrics(
 
 
 @router.put("/api/brands/profile/{name_key}", response_model=BrandProfileDetailOut, tags=["品牌档案"])
-def update_brand_profile(name_key: str, payload: BrandProfileUpdate, db: Session = Depends(get_db)):
+def update_brand_profile(
+    name_key: str,
+    payload: BrandProfileUpdate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """更新品牌档案：潜规则 + 竞争/机会 + 关键联系人"""
+    require_name_key(user, name_key)
     brand = db.query(Brand).filter(Brand.name_key == name_key).first()
     if not brand:
         raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
@@ -132,3 +146,26 @@ def update_brand_profile(name_key: str, payload: BrandProfileUpdate, db: Session
         .first()
     )
     return _build_profile_response(brand, profile, contacts, metrics)
+
+
+@router.post("/api/brands/profile/{name_key}/ai/strategy", tags=["品牌档案"])
+async def ai_strategy(
+    name_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """Tab2 竞争与机会 · LLM 骨架（M3-B 联调；当前返回 fallback）"""
+    require_name_key(user, name_key)
+    brand = db.query(Brand).filter(Brand.name_key == name_key).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
+    profile = db.query(BrandProfile).filter(BrandProfile.brand_id == brand.id).first()
+    landscape = profile.competitive_landscape if profile else None
+    opportunities = profile.growth_opportunities if profile else None
+    return {
+        "source": "fallback",
+        "name_key": name_key,
+        "competitive_landscape": landscape or "暂无竞争格局描述，请在 Tab2 手工维护。",
+        "growth_opportunities": opportunities or "暂无增长机会描述，请在 Tab2 手工维护。",
+        "message": "LLM 未启用或联调中，已返回档案内现有文案",
+    }

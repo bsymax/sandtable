@@ -108,11 +108,11 @@ table td { padding:10px 16px; border-bottom:1px solid var(--border); }
 <div id="main">
   <div class="topbar">
     <div class="breadcrumb">品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">今日工作台</span></div>
-    <div class="topbar-right">
+    <div class="topbar-right" id="wb-topbar-right">
       <span id="wb-date">—</span>
       <span style="color:var(--text-muted);">|</span>
       <span>厨小事业部 · 采销二组</span>
-      <div class="user-avatar">周</div>
+      <div class="user-avatar">访</div>
     </div>
   </div>
 
@@ -171,12 +171,13 @@ table td { padding:10px 16px; border-bottom:1px solid var(--border); }
 </div>
 
 <script src="js/api-base.js"></script>
+<script src="js/auth.js"></script>
 <script>
 var WB_API = M1_API_BASE;
 
 function wbApi(path, opts) {
   opts = opts || {};
-  var fetchOpts = { method: opts.method || 'GET', headers: { 'Content-Type': 'application/json' } };
+  var fetchOpts = { method: opts.method || 'GET', headers: (window.SandAuth && SandAuth.authHeaders) ? SandAuth.authHeaders() : { 'Content-Type': 'application/json' } };
   if (opts.body && fetchOpts.method !== 'GET') fetchOpts.body = JSON.stringify(opts.body);
   return fetch(WB_API + path, fetchOpts).then(function(r) {
     return r.json().then(function(data) {
@@ -341,8 +342,15 @@ document.getElementById('todo-list').addEventListener('click', function(e) {
 (function init() {
   var d = new Date();
   var days = ['日','一','二','三','四','五','六'];
-  document.getElementById('wb-date').textContent =
-    d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' 周' + days[d.getDay()];
+  var dateText = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' 周' + days[d.getDay()];
+  var wbDate = document.getElementById('wb-date');
+  if (wbDate) wbDate.textContent = dateText;
+  if (window.SandAuth) {
+    SandAuth.fetchMe().then(function (user) {
+      var right = document.getElementById('wb-topbar-right') || document.querySelector('.topbar-right');
+      if (right) SandAuth.renderTopbarRight(right, user);
+    });
+  }
   loadWorkbench();
 })();
 </script>

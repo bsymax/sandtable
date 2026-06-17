@@ -6,23 +6,38 @@
 """
 
 from datetime import date, timedelta
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, noload
 from sqlalchemy import desc, case, or_
 
 from database import get_db
+from deps_auth import filter_brand_query, get_current_user_optional, require_name_key, AuthUser
 from models import Brand, BrandContact, Visit, Commitment, IntelAlert, BrandMetrics
 from schemas import BrandOut, BrandBrief, ContactOut
 
 router = APIRouter()
 
 
+def _brand_base_query(db: Session):
+    """列表/详情只读 brands 表字段，避免 selectin 拉取 profile/metrics 触发旧库缺列 500"""
+    return db.query(Brand).options(
+        noload(Brand.contacts),
+        noload(Brand.visits),
+        noload(Brand.profile),
+        noload(Brand.metrics),
+    )
+
 @router.get("/api/brands", response_model=List[BrandBrief], tags=["品牌"])
-def list_brands(db: Session = Depends(get_db)):
-    """品牌下拉列表（按等级排序）"""
-    return db.query(Brand).filter(Brand.status == "active").order_by(
+def list_brands(
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """品牌下拉列表（按等级排序）；登录后仅返回负责品牌"""
+    q = _brand_base_query(db).filter(Brand.status == "active")
+    q = filter_brand_query(q, user)
+    return q.order_by(
         case(
             (Brand.level == "S", 0),
             (Brand.level == "A", 1),
@@ -33,15 +48,25 @@ def list_brands(db: Session = Depends(get_db)):
 
 
 @router.get("/api/brands/detail", response_model=List[BrandOut], tags=["品牌"])
-def list_brands_detail(db: Session = Depends(get_db)):
+def list_brands_detail(
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """品牌列表（含完整度、温度等）"""
-    return db.query(Brand).filter(Brand.status == "active").order_by(Brand.id).all()
+    q = _brand_base_query(db).filter(Brand.status == "active")
+    q = filter_brand_query(q, user)
+    return q.order_by(Brand.id).all()
 
 
 @router.get("/api/brands/{name_key}", response_model=BrandOut, tags=["品牌"])
-def get_brand(name_key: str, db: Session = Depends(get_db)):
+def get_brand(
+    name_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """按 name_key 获取品牌详情"""
-    brand = db.query(Brand).filter(Brand.name_key == name_key, Brand.status == "active").first()
+    require_name_key(user, name_key)
+    brand = _brand_base_query(db).filter(Brand.name_key == name_key, Brand.status == "active").first()
     if not brand:
         raise HTTPException(404, "品牌不存在")
     return brand
@@ -56,9 +81,14 @@ def list_contacts(brand_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/api/brands/{name_key}/reminder", tags=["拜访提醒"])
-def brand_visit_reminder(name_key: str, db: Session = Depends(get_db)):
+def brand_visit_reminder(
+    name_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """获取品牌拜访前的提醒信息（档案 + 情报 + 承诺联动）"""
-    brand = db.query(Brand).filter(Brand.name_key == name_key).first()
+    require_name_key(user, name_key)
+    brand = _brand_base_query(db).filter(Brand.name_key == name_key).first()
     if not brand:
         raise HTTPException(404, "品牌不存在")
 

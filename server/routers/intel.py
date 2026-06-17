@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func, case, or_
 
 from database import get_db
+from deps_auth import AuthUser, filter_brand_query, filter_by_brand_ids, get_current_user_optional, require_brand_id, require_name_key
 from models import Brand, Visit, BrandMetrics, IntelNews, IntelAlert, IntelBriefingCache
 from schemas import (
     IntelNewsOut, IntelNewsCreate, IntelNewsUpdate,
@@ -171,10 +172,14 @@ def list_news(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     q = db.query(IntelNews).options(joinedload(IntelNews.brand))
     if brand_id:
+        require_brand_id(user, brand_id)
         q = q.filter(IntelNews.brand_id == brand_id)
+    else:
+        q = filter_by_brand_ids(q, IntelNews.brand_id, user)
     if sentiment:
         q = q.filter(IntelNews.sentiment == sentiment)
     if category:
@@ -184,7 +189,12 @@ def list_news(
 
 
 @router.post("/api/intel/news", response_model=IntelNewsOut, tags=["情报-新闻"])
-def create_news(payload: IntelNewsCreate, db: Session = Depends(get_db)):
+def create_news(
+    payload: IntelNewsCreate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    require_brand_id(user, payload.brand_id)
     fp = None
     if payload.url:
         fp = hashlib.sha256(payload.url.encode()).hexdigest()
@@ -328,10 +338,14 @@ def list_weekly(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     q = _weekly_metrics_query(db)
     if brand_id:
+        require_brand_id(user, brand_id)
         q = q.filter(BrandMetrics.brand_id == brand_id)
+    else:
+        q = filter_by_brand_ids(q, BrandMetrics.brand_id, user)
     rows = q.order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).offset(offset).limit(limit).all()
     return [_fmt_weekly(r) for r in rows]
 
@@ -375,8 +389,12 @@ def update_weekly(weekly_id: int, payload: IntelWeeklyReportUpdate, db: Session 
 
 
 @router.get("/api/intel/weekly/latest", response_model=List[IntelWeeklyReportOut], tags=["情报-周报"])
-def latest_weekly(db: Session = Depends(get_db)):
-    brands = db.query(Brand).filter(Brand.status == "active").all()
+def latest_weekly(
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    q = db.query(Brand).filter(Brand.status == "active")
+    brands = filter_brand_query(q, user).all()
     result = []
     for b in brands:
         latest = _weekly_metrics_query(db).filter(
@@ -399,10 +417,14 @@ def list_alerts(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     q = db.query(IntelAlert).options(joinedload(IntelAlert.brand))
     if brand_id:
+        require_brand_id(user, brand_id)
         q = q.filter(IntelAlert.brand_id == brand_id)
+    else:
+        q = filter_by_brand_ids(q, IntelAlert.brand_id, user)
     if priority:
         q = q.filter(IntelAlert.priority == priority)
     if category:
@@ -537,7 +559,12 @@ def weekly_summary(db: Session = Depends(get_db)):
 #  简报 & 统计
 # ================================================================
 @router.get("/api/intel/briefing/{brand_key}", response_model=IntelBriefingOut, tags=["情报-简报"])
-def get_brand_briefing(brand_key: str, db: Session = Depends(get_db)):
+def get_brand_briefing(
+    brand_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    require_name_key(user, brand_key)
     brand = db.query(Brand).filter(Brand.name_key == brand_key).first()
     if not brand:
         raise HTTPException(404, "品牌不存在")
@@ -618,13 +645,24 @@ def refresh_briefing(brand_key: str, db: Session = Depends(get_db)):
 
 
 @router.get("/api/intel/stats", response_model=IntelStatsOut, tags=["情报-统计"])
-def intel_stats(db: Session = Depends(get_db)):
+def intel_stats(
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     one_week_ago = datetime.now() - timedelta(days=7)
-    total_news = db.query(func.count(IntelNews.id)).filter(IntelNews.created_at >= one_week_ago).scalar() or 0
-    p0 = db.query(func.count(IntelAlert.id)).filter(IntelAlert.priority == "P0", IntelAlert.status != "closed").scalar() or 0
-    p1 = db.query(func.count(IntelAlert.id)).filter(IntelAlert.priority == "P1", IntelAlert.status != "closed").scalar() or 0
-    p2 = db.query(func.count(IntelAlert.id)).filter(IntelAlert.priority == "P2", IntelAlert.status != "closed").scalar() or 0
-    p3 = db.query(func.count(IntelAlert.id)).filter(IntelAlert.priority == "P3", IntelAlert.status != "closed").scalar() or 0
+    news_q = db.query(func.count(IntelNews.id)).filter(IntelNews.created_at >= one_week_ago)
+    alert_q = db.query(IntelAlert).filter(IntelAlert.status != "closed")
+    if user and not user.is_admin:
+        if not user.brand_ids:
+            return IntelStatsOut(total_news_week=0, total_alerts=0, p0_count=0, p1_count=0, p2_count=0, p3_count=0)
+        news_q = news_q.filter(IntelNews.brand_id.in_(user.brand_ids))
+        alert_q = alert_q.filter(IntelAlert.brand_id.in_(user.brand_ids))
+    total_news = news_q.scalar() or 0
+    alerts = alert_q.all()
+    p0 = sum(1 for a in alerts if a.priority == "P0")
+    p1 = sum(1 for a in alerts if a.priority == "P1")
+    p2 = sum(1 for a in alerts if a.priority == "P2")
+    p3 = sum(1 for a in alerts if a.priority == "P3")
     return IntelStatsOut(
         total_news_week=total_news, total_alerts=p0 + p1 + p2 + p3,
         p0_count=p0, p1_count=p1, p2_count=p2, p3_count=p3,

@@ -490,3 +490,35 @@ class ApiResponse(BaseModel):
     success: bool = True
     message: str = "ok"
     data: Optional[dict] = None
+
+
+# ==============================
+# M3 登录
+# ==============================
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+
+class UserBrandOut(BaseModel):
+    id: int
+    name: str
+    name_key: str
+    level: str
+
+
+class LoginOut(BaseModel):
+    token: str
+    user_id: int
+    username: str
+    display_name: str
+    role: str
+    brands: List[UserBrandOut]
+
+
+class MeOut(BaseModel):
+    user_id: int
+    username: str
+    display_name: str
+    role: str
+    brands: List[UserBrandOut]

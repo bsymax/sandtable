@@ -10,6 +10,7 @@ from sqlalchemy import (
     Column, Integer, String, Text, Date, Time, DateTime, Enum,
     ForeignKey, Boolean, Numeric, JSON, func,
 )
+from sqlalchemy.dialects.mysql import INTEGER
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -291,3 +292,49 @@ class IntelBriefingCache(Base):
     updated_at    = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     brand = relationship("Brand")
+
+
+# ---------- M3 登录 / 权限 ----------
+class User(Base):
+    __tablename__ = "users"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    username      = Column(String(64), nullable=False, unique=True)
+    password_hash = Column(String(128), nullable=False)
+    display_name  = Column(String(64), nullable=False)
+    role          = Column(
+        Enum("admin", "bd", "manager", "readonly"),
+        nullable=False,
+        default="bd",
+        comment="admin=全品牌；manager=团队；bd=负责品牌",
+    )
+    is_active     = Column(Boolean, default=True)
+    created_at    = Column(DateTime, server_default=func.now())
+    updated_at    = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    brands   = relationship("UserBrand", back_populates="user", lazy="selectin")
+    sessions = relationship("UserSession", back_populates="user", lazy="selectin")
+
+
+class UserBrand(Base):
+    __tablename__ = "user_brands"
+
+    id       = Column(Integer, primary_key=True, autoincrement=True)
+    user_id  = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    brand_id = Column(INTEGER(unsigned=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user  = relationship("User", back_populates="brands")
+    brand = relationship("Brand")
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token      = Column(String(128), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", back_populates="sessions")

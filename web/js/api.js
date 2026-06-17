@@ -22,6 +22,9 @@ function api(path, options) {
       headers[k] = options.headers[k];
     }
   }
+  if (window.SandAuth && window.SandAuth.authHeaders) {
+    headers = window.SandAuth.authHeaders(headers);
+  }
 
   var fetchOptions = {
     method: method,
