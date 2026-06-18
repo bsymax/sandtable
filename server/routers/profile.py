@@ -1,7 +1,7 @@
 """
 品牌档案模块路由（佳璇，2026-06-11 合并进主工程）
 - GET  /api/brands/profile/{name_key}   品牌档案（含完整度评分）
-- GET  /api/brands/metrics/{name_key}   近 N 周经营指标
+- GET  /api/brands/metrics/{name_key}   近 N 月经营指标
 - PUT  /api/brands/profile/{name_key}   更新潜规则 / 竞争格局 / 增长机会 / 关键联系人
 
 注意：本路由必须先于 routers/brands.py 注册（main.py 中 include 顺序），
@@ -9,13 +9,15 @@
 """
 
 from datetime import datetime
+import json
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
-from deps_auth import AuthUser, get_current_user_optional, require_name_key
+from config import DW_METRICS_PERIOD_TYPE
+from deps_auth import AuthUser, get_current_user_optional, require_name_key, require_writable
 from llm_prompts import (
     blurb_fallback,
     build_strategy_llm_context,
@@ -31,6 +33,46 @@ from schemas import (
 )
 
 router = APIRouter()
+
+_ROLE_SUFFIXES = ("总经理", "副总经理", "总监", "副总监", "经理", "主管", "负责人", "VP")
+
+
+def _parse_org_structure(raw: Optional[str]) -> dict:
+    if not raw:
+        return {"root": "", "lead": "", "nodes": []}
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return {
+                "root": data.get("root") or "",
+                "lead": data.get("lead") or "",
+                "nodes": list(data.get("nodes") or []),
+            }
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return {"root": "", "lead": "", "nodes": []}
+
+
+def _contact_org_label(name: str, title: Optional[str]) -> str:
+    title = (title or "").strip()
+    if not title:
+        return name
+    for suffix in _ROLE_SUFFIXES:
+        if suffix in title:
+            return f"{name} · {suffix}"
+    if len(title) <= 6:
+        return f"{name} · {title}"
+    return f"{name} · {title[-4:]}"
+
+
+def _sync_org_nodes_from_contacts(profile: BrandProfile, contacts: List[BrandContact]) -> None:
+    org = _parse_org_structure(profile.org_structure)
+    org["nodes"] = [
+        _contact_org_label(c.name, c.title)
+        for c in contacts
+        if c.is_active
+    ]
+    profile.org_structure = json.dumps(org, ensure_ascii=False)
 
 
 def _build_profile_response(brand, profile, contacts, metrics):
@@ -50,7 +92,7 @@ def get_brand_profile(
     db: Session = Depends(get_db),
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
-    """品牌档案：基础信息 + 简介 + 联系人 + 最新一周经营指标 + 完整度评分"""
+    """品牌档案：基础信息 + 简介 + 联系人 + 最新一月经营指标 + 完整度评分"""
     require_name_key(user, name_key)
     brand = db.query(Brand).filter(Brand.name_key == name_key).first()
     if not brand:
@@ -59,7 +101,7 @@ def get_brand_profile(
     profile = db.query(BrandProfile).filter(BrandProfile.brand_id == brand.id).first()
     metrics = (
         db.query(BrandMetrics)
-        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == "weekly")
+        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == DW_METRICS_PERIOD_TYPE)
         .order_by(BrandMetrics.period_value.desc())
         .first()
     )
@@ -74,7 +116,7 @@ def list_brand_metrics(
     db: Session = Depends(get_db),
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
-    """返回最近 N 条周度经营指标（按 period_value 倒序）"""
+    """返回最近 N 条月度经营指标（按 period_value 倒序）"""
     require_name_key(user, name_key)
     brand = db.query(Brand).filter(Brand.name_key == name_key).first()
     if not brand:
@@ -82,7 +124,7 @@ def list_brand_metrics(
 
     rows = (
         db.query(BrandMetrics)
-        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == "weekly")
+        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == DW_METRICS_PERIOD_TYPE)
         .order_by(BrandMetrics.period_value.desc())
         .limit(limit)
         .all()
@@ -98,6 +140,7 @@ def update_brand_profile(
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     """更新品牌档案：潜规则 + 竞争/机会 + 关键联系人"""
+    require_writable(user)
     require_name_key(user, name_key)
     brand = db.query(Brand).filter(Brand.name_key == name_key).first()
     if not brand:
@@ -118,6 +161,38 @@ def update_brand_profile(
     if payload.growth_opportunities is not None:
         profile.growth_opportunities = payload.growth_opportunities
 
+    contacts_changed = False
+
+    if payload.contacts_remove:
+        for cid in payload.contacts_remove:
+            contact = (
+                db.query(BrandContact)
+                .filter(BrandContact.id == cid, BrandContact.brand_id == brand.id)
+                .first()
+            )
+            if contact:
+                contact.is_active = False
+                contacts_changed = True
+
+    if payload.contacts_add:
+        for item in payload.contacts_add:
+            name = (item.name or "").strip()
+            if not name:
+                continue
+            db.add(
+                BrandContact(
+                    brand_id=brand.id,
+                    name=name,
+                    title=item.title,
+                    role_tag=item.role_tag or "日常对接",
+                    phone=item.phone,
+                    wechat=item.wechat,
+                    is_active=True,
+                )
+            )
+            contacts_changed = True
+        db.flush()
+
     if payload.contacts:
         for item in payload.contacts:
             contact = (
@@ -137,6 +212,15 @@ def update_brand_profile(
                 contact.phone = item.phone
             if item.wechat is not None:
                 contact.wechat = item.wechat
+            contacts_changed = True
+
+    if payload.org is not None:
+        org = _parse_org_structure(profile.org_structure)
+        if payload.org.root is not None:
+            org["root"] = payload.org.root.strip()
+        if payload.org.lead is not None:
+            org["lead"] = payload.org.lead.strip()
+        profile.org_structure = json.dumps(org, ensure_ascii=False)
 
     db.commit()
     db.refresh(profile)
@@ -146,9 +230,13 @@ def update_brand_profile(
         .filter(BrandContact.brand_id == brand.id, BrandContact.is_active == True)
         .all()
     )
+    if contacts_changed:
+        _sync_org_nodes_from_contacts(profile, contacts)
+        db.commit()
+        db.refresh(profile)
     metrics = (
         db.query(BrandMetrics)
-        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == "weekly")
+        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == DW_METRICS_PERIOD_TYPE)
         .order_by(BrandMetrics.period_value.desc())
         .first()
     )
@@ -169,7 +257,7 @@ async def ai_strategy(
     profile = db.query(BrandProfile).filter(BrandProfile.brand_id == brand.id).first()
     metrics = (
         db.query(BrandMetrics)
-        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == "weekly")
+        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == DW_METRICS_PERIOD_TYPE)
         .order_by(BrandMetrics.period_value.desc())
         .first()
     )
@@ -199,6 +287,9 @@ async def ai_strategy(
         "禁止输出「暂无」「请在 Tab2 手工维护」等占位语；必须给出可执行要点。",
         ctx,
         max_tokens=600,
+        db=db,
+        auth_user=user,
+        route="profile.ai.strategy",
     )
     parsed = parse_strategy_json(raw) if raw else None
     if parsed:
@@ -230,7 +321,7 @@ async def ai_blurb(
         raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
     metrics = (
         db.query(BrandMetrics)
-        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == "weekly")
+        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == DW_METRICS_PERIOD_TYPE)
         .order_by(BrandMetrics.period_value.desc())
         .first()
     )
@@ -244,6 +335,9 @@ async def ai_blurb(
         "你是品牌经营解读助手，一段话概括风险与机会，简体中文，可含少量 HTML strong 标签。",
         fallback.replace("（规则版解读 · LLM 未启用）", ""),
         max_tokens=300,
+        db=db,
+        auth_user=user,
+        route="profile.ai.blurb",
     )
     if text:
         return AiBlurbOut(source="llm", name_key=name_key, summary=text.strip())

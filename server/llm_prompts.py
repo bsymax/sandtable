@@ -264,11 +264,12 @@ def briefing_llm_prompt(
     news_titles: list,
     alert_titles: list,
     weekly_text: str,
+    gmv_info: str = "",
 ) -> str:
     news_str = "\n".join(f"- {t}" for t in news_titles[:5]) if news_titles else "（无最新新闻）"
     alert_str = "\n".join(f"- {t}" for t in alert_titles[:5]) if alert_titles else "（无活跃预警）"
     weekly_str = weekly_text or "（无最新周报）"
-    return f"""基于以下 {brand_name} 的最新情报，用一段话（≤150字）总结关键发现与建议：
+    prompt = f"""基于以下 {brand_name} 的最新情报，用一段话（≤150字）总结关键发现与建议：
 
 【最新新闻】
 {news_str}
@@ -277,11 +278,19 @@ def briefing_llm_prompt(
 {alert_str}
 
 【最新周报要点】
-{weekly_str}
+{weekly_str}"""
+    if gmv_info:
+        prompt += f"""
+
+【最新经营数据】
+{gmv_info}"""
+    prompt += """
 
 请简洁专业：
 1. 最值得关注的风险或机会（1-2 条）
-2. 建议的下一步动作"""
+2. 建议的下一步动作
+3. 如涉及数据，请引用具体数值"""
+    return prompt
 
 
 def feed_llm_prompt(item_title: str, item_body: str, item_type: str) -> str:

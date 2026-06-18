@@ -50,7 +50,7 @@
     '#m1s-sidebar .m1s-badge{margin-left:auto;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:#0e7c4b;color:#fff;}',
     'body.m1s-module{margin-left:' + SIDEBAR_W + 'px !important;}',
     'body.m1s-module #main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:100vh;}',
-    'body.m1s-module #main > .content{flex:1;overflow-y:auto;}',
+    'body.m1s-module #main > .content{flex:1;overflow-y:auto;max-width:1200px;width:100%;margin:0 auto;}',
     'body.m1s-module .topbar{height:56px;background:#fff;border-bottom:1px solid #e3e8ee;display:flex;align-items:center;padding:0 28px;gap:20px;flex-shrink:0;position:relative;top:auto;z-index:10;}',
     'body.m1s-module .topbar .breadcrumb{font-size:13px;color:#697386;}',
     'body.m1s-module .topbar .breadcrumb a{color:#2f6fed;text-decoration:none;}',

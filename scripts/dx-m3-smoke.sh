@@ -22,6 +22,10 @@ echo "==> D-X-M3 smoke @ $BASE"
 echo ""
 
 echo "-- 1. LLM 状态（应 enabled=false）--"
+if [ "${M4_SMOKE:-}" = "1" ]; then
+  echo "  SKIP M4 外网 LLM 可开启"
+  ok "M4 跳过 LLM 全关检查"
+else
 LLM=$(curl -s "$BASE/api/llm/status")
 echo "$LLM" | python3 -c "
 import sys,json
@@ -29,6 +33,7 @@ d=json.load(sys.stdin)
 assert d.get('enabled') is False, 'LLM 应关闭: '+str(d)
 print('enabled=false configured='+str(d.get('configured')))
 " && ok "LLM 全关" || bad "LLM 状态"
+fi
 
 echo ""
 echo "-- 2. 五路 API 降级（source=fallback 或 503/ai_summary=null）--"
@@ -71,8 +76,8 @@ PY
 }
 
 check_json "路1-工作台" "/api/dashboard/summary-line"
-check_json "路2-档案Tab1" "/api/brands/profile/midea/ai/blurb" POST
-check_json "路3-档案Tab2" "/api/brands/profile/midea/ai/strategy" POST
+check_json "路2-档案Tab1" "/api/brands/profile/jomoo/ai/blurb" POST
+check_json "路3-档案Tab2" "/api/brands/profile/jomoo/ai/strategy" POST
 RID=$(curl -s "$BASE/api/records?limit=1" -H "Authorization: Bearer $ADMIN" \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['id'] if d else '')")
 if [ -n "$RID" ]; then
@@ -80,8 +85,8 @@ if [ -n "$RID" ]; then
 else
   bad "路4-拜访纪要（无 record 样本）"
 fi
-check_json "路5-intel-summary" "/api/intel/briefing/midea/ai/summary" POST
-check_json "intel-refresh" "/api/intel/briefing/midea/ai/refresh" POST
+check_json "路5-intel-summary" "/api/intel/briefing/jomoo/ai/summary" POST
+check_json "intel-refresh" "/api/intel/briefing/jomoo/ai/refresh" POST
 NEWS_ID=$(curl -s "$BASE/api/intel/news?limit=1" -H "Authorization: Bearer $ADMIN" \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['id'] if d else '')" 2>/dev/null || echo "")
 if [ -n "$NEWS_ID" ]; then
@@ -95,9 +100,9 @@ BC=$(curl -s "$BASE/api/brands" -H "Authorization: Bearer $ZHOU" \
   | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
 [ "$BC" = "1" ] && ok "zhou 仅 1 品牌" || bad "zhou 品牌数=$BC 期望1"
 
-CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/brands/profile/joyoung" \
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/brands/profile/hegii" \
   -H "Authorization: Bearer $ZHOU")
-[ "$CODE" = "403" ] && ok "zhou 访问九阳档案 403" || bad "zhou joyoung HTTP $CODE 期望403"
+[ "$CODE" = "403" ] && ok "zhou 访问恒洁档案 403" || bad "zhou hegii HTTP $CODE 期望403"
 
 AC=$(curl -s "$BASE/api/brands" -H "Authorization: Bearer $ADMIN" \
   | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")

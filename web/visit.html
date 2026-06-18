@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>智能拜访助手 · 品牌沙盘 M2</title>
 <style>
 /* ======== CSS 变量与基础（与独立版完全一致） ======== */
@@ -167,6 +168,17 @@ table tr:hover td { background:#f8fafd; }
   <div class="page-title">智能拜访助手</div>
   <div class="page-subtitle">拜访全链路记录 · M2 提醒已接 briefing + 承诺 · 类型/目的可选</div>
 
+  <!-- M4: 数据截至日提示条 -->
+  <div id="m4-data-hint" style="display:none;background:linear-gradient(90deg,#e8f5ef,#fff);border:1px solid #86efac;border-radius:6px;padding:8px 16px;margin-bottom:16px;font-size:13px;color:var(--green-500);">
+    📊 <span id="m4-data-hint-text">经营数据已更新至 —</span>
+    <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">（来源：数仓 BI 导入）</span>
+  </div>
+
+  <!-- M4: readonly 角色提示 -->
+  <div id="m4-readonly-hint" style="display:none;background:linear-gradient(90deg,#fdecea,#fff);border:1px solid #fca5a5;border-radius:6px;padding:8px 16px;margin-bottom:16px;font-size:13px;color:var(--red-500);">
+    🔒 当前为只读模式。您可查看拜访数据，但无法新增或修改——可将此页用作联调冒烟检查清单。
+  </div>
+
   <!-- Tab bar -->
   <div class="tab-bar" id="visit-tabs">
     <div class="tab-item active" data-vtab="schedule">📝 安排拜访</div>
@@ -243,7 +255,7 @@ table tr:hover td { background:#f8fafd; }
             </div>
             <div style="display:flex;gap:8px;">
               <button class="btn-primary" id="btn-schedule" onclick="submitSchedule()">✅ 确认安排</button>
-              <button class="btn-outline" onclick="resetScheduleForm()">🔄 重置</button>
+              <button class="btn-outline" id="btn-schedule-reset" onclick="resetScheduleForm()">🔄 重置</button>
             </div>
             <div id="scheduleConfirm" class="visit-confirm"></div>
             <div id="scheduleError" class="visit-error"></div>
@@ -276,6 +288,7 @@ table tr:hover td { background:#f8fafd; }
       <div class="card">
         <div class="card-header"><h3>📋 拜访后记录</h3></div>
         <div class="card-body">
+          <div id="record-view-banner" class="visit-alert-banner" style="display:none;margin-bottom:12px;background:linear-gradient(90deg,#f0f4ff,#fff);border-color:#93c5fd;"></div>
           <div class="visit-form">
             <div class="visit-field">
               <label class="form-label">选择待记录的拜访</label>
@@ -296,6 +309,9 @@ table tr:hover td { background:#f8fafd; }
             </div>
             <div class="visit-field"><label class="form-label">下次拜访建议时间</label><input type="date" class="form-input" id="record-next-visit"></div>
             <button class="btn-primary" id="btn-record" onclick="submitRecord()">💾 保存 & AI 抽取</button>
+            <div id="btn-record-readonly-hint" style="display:none;font-size:12px;color:var(--text-muted);margin-top:4px;">
+              🔒 只读角色无法保存记录
+            </div>
             <div id="recordConfirm" class="visit-confirm"></div>
             <div id="recordError" class="visit-error"></div>
           </div>
@@ -391,10 +407,20 @@ table tr:hover td { background:#f8fafd; }
 <!-- ========== API 封装（内联） ========== -->
 <script src="js/api-base.js"></script>
 <script src="js/auth.js"></script>
-<script src="js/visit-common.js"></script>
+<script src="js/visit-common.js?v=20260618-visit-view-b"></script>
 <script>
 var API_BASE = M1_API_BASE;
 var VC = window.VisitCommon;
+(function ensureFreshVisitCommon() {
+  if (!VC || !VC.renderVisitsCalendar) return;
+  var src = VC.renderVisitsCalendar.toString();
+  if (src.indexOf('详情（演示）') === -1) return;
+  if (sessionStorage.getItem('vcReload')) return;
+  sessionStorage.setItem('vcReload', '1');
+  var u = new URL(window.location.href);
+  u.searchParams.set('_vc', String(Date.now()));
+  window.location.replace(u.toString());
+})();
 
 function apiReq(path, opts) {
   opts = opts || {};
@@ -421,6 +447,7 @@ var Api = {
     var q = []; for (var k in (p||{})) if (p[k] != null && p[k] !== '') q.push(k + '=' + encodeURIComponent(p[k]));
     return apiReq('/api/records' + (q.length ? '?' + q.join('&') : ''));
   },
+  getRecord:   function(id) { return apiReq('/api/records/' + id); },
   listTodos:   function(p) {
     var q = []; for (var k in (p||{})) if (p[k] != null && p[k] !== '') q.push(k + '=' + encodeURIComponent(p[k]));
     return apiReq('/api/todos' + (q.length ? '?' + q.join('&') : ''));
@@ -431,6 +458,9 @@ var Api = {
   },
   updateCommitment: function(id, d) { return apiReq('/api/commitments/' + id, { method:'PUT', body:d }); },
   health:      function() { return apiReq('/api/health'); },
+  dwLatestPeriod: function(nameKey) {
+    return apiReq('/api/dw/latest-period?name_key=' + encodeURIComponent(nameKey));
+  },
 };
 
 function fillModuleBrandFilters() {
@@ -467,10 +497,55 @@ function getModuleFilterBrandKey(selectId) {
 // ===== 全局数据缓存 =====
 var gBrands = [];        // [{id,name,name_key,level}]
 var gBrandMap = {};      // name_key → brand
+var gPendingRecordVisitId = null;
+var gPendingCalendarVisitId = null;
+var gPendingViewVisitId = null;
+var gRecordViewMode = false;
+
+function parseVisitUrlParams() {
+  var params = new URLSearchParams(window.location.search);
+  var visitRaw = params.get('visit');
+  return {
+    brand: params.get('brand'),
+    vtab: params.get('vtab'),
+    mode: params.get('mode'),
+    visit: visitRaw ? parseInt(visitRaw, 10) : null,
+  };
+}
+
+function applyVisitUrlParams() {
+  var p = parseVisitUrlParams();
+  if (!p.vtab && !p.visit) return;
+
+  if (p.brand && gBrandMap[p.brand]) {
+    var brandSel = document.getElementById('visit-brand-select');
+    if (brandSel) brandSel.value = p.brand;
+    if (p.vtab === 'history') {
+      var histFilter = document.getElementById('filter-history-brand');
+      if (histFilter) histFilter.value = p.brand;
+    }
+  }
+
+  if (p.visit) {
+    if (p.vtab === 'record' && p.mode === 'view') gPendingViewVisitId = p.visit;
+    else if (p.vtab === 'record') gPendingRecordVisitId = p.visit;
+    else if (p.vtab === 'history') gPendingCalendarVisitId = p.visit;
+  }
+
+  if (p.vtab && !(p.vtab === 'record' && p.mode === 'view')) switchVisitTab(p.vtab);
+}
+
+function highlightCalendarVisit(visitId) {
+  var row = document.querySelector('#calendar-table tr[data-visit-id="' + visitId + '"]');
+  if (!row) return;
+  row.style.background = 'linear-gradient(90deg,#fff8e6,#fff)';
+  row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
 
 // ===== 初始化 =====
 (function init() {
   setTodayDate();
+  m4InitReadonlyCheck();
   loadBrands();
   loadScheduledVisits();
   loadCompletedVisitsForRecord();
@@ -482,6 +557,37 @@ var gBrandMap = {};      // name_key → brand
 
   document.getElementById('loading-overlay').classList.add('hidden');
 })();
+
+function m4InitReadonlyCheck() {
+  if (M3.isWritable()) return;
+  var hint = document.getElementById('m4-readonly-hint');
+  if (hint) hint.style.display = 'block';
+  disableFormTab('schedule');
+  var btnRecord = document.getElementById('btn-record');
+  if (btnRecord) {
+    btnRecord.disabled = true;
+    btnRecord.title = '只读角色无法保存记录';
+    btnRecord.style.opacity = '0.5';
+  }
+  var btnRecordHint = document.getElementById('btn-record-readonly-hint');
+  if (btnRecordHint) btnRecordHint.style.display = 'block';
+}
+
+function disableFormTab(vtab) {
+  var panel = document.getElementById('vtab-' + vtab);
+  if (!panel) return;
+  var inputs = panel.querySelectorAll('input, textarea, select, button');
+  inputs.forEach(function(el) {
+    if (el.tagName === 'BUTTON' && el.id === 'btn-schedule-reset') return;
+    if (el.tagName === 'BUTTON') {
+      el.disabled = true;
+      el.style.opacity = '0.5';
+      el.title = '只读角色无法操作';
+    } else {
+      el.disabled = true;
+    }
+  });
+}
 
 function bindModuleBrandFilters() {
   document.getElementById('filter-records-brand').addEventListener('change', loadRecentRecords);
@@ -499,6 +605,30 @@ function setTodayDate() {
 
 function showLoading(show) {
   document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+}
+
+function loadDwPeriodForBrand(nameKey) {
+  var hint = document.getElementById('m4-data-hint');
+  var text = document.getElementById('m4-data-hint-text');
+  if (!nameKey) {
+    if (hint) hint.style.display = 'none';
+    return Promise.resolve(null);
+  }
+  return Api.dwLatestPeriod(nameKey).then(function(d) {
+    if (!d || !d.period_value) {
+      if (hint) hint.style.display = 'none';
+      return null;
+    }
+    if (hint && text) {
+      hint.style.display = 'block';
+      text.textContent = '经营数据已更新至 ' + M3.formatPeriodHint(d.period_value)
+        + (d.gmv != null ? ' · GMV ' + d.gmv + ' 万元' : '');
+    }
+    return d;
+  }).catch(function() {
+    if (hint) hint.style.display = 'none';
+    return null;
+  });
 }
 
 // ===== 加载品牌列表 =====
@@ -519,12 +649,19 @@ function loadBrands() {
     if (M3.USE_MOCK_AUTH && brandsToShow.length === 0) {
       sel.innerHTML = '<option value="">无权限品牌（请联系 Max 分配）</option>';
     }
-    // 支持从工作台带品牌跳入：visit.html?brand=midea
+    // 支持从工作台带品牌跳入：visit.html?brand=jomoo
     var urlBrand = new URLSearchParams(window.location.search).get('brand');
     if (urlBrand && gBrandMap[urlBrand]) sel.value = urlBrand;
     fillModuleBrandFilters();
+    if (sel.value) loadDwPeriodForBrand(sel.value);
     if (data.length > 0) {
       sel.dispatchEvent(new Event('change'));
+    }
+    applyVisitUrlParams();
+    if (gPendingViewVisitId) {
+      var viewId = gPendingViewVisitId;
+      gPendingViewVisitId = null;
+      viewVisitRecord(viewId);
     }
   }).catch(function(e) {
     document.getElementById('visit-brand-select').innerHTML = '<option value="">API 连接失败</option>';
@@ -557,6 +694,11 @@ function onPurposeSelectChange() {
 
 // ===== 安排拜访 =====
 function submitSchedule() {
+  if (!M3.isWritable()) {
+    showToast('🔒 只读角色无法安排拜访');
+    return;
+  }
+
   var nameKey = document.getElementById('visit-brand-select').value;
   if (!nameKey) { showToast('请选择品牌'); return; }
 
@@ -602,7 +744,7 @@ function submitSchedule() {
   }).catch(function(e) {
     showMsg('scheduleError', '❌ 提交失败：' + e.message);
   }).finally(function() {
-    btn.disabled = false;
+    if (M3.isWritable()) btn.disabled = false;
     btn.textContent = '✅ 确认安排';
   });
 }
@@ -633,11 +775,22 @@ function resetScheduleForm() {
 document.getElementById('visit-brand-select').addEventListener('change', function() {
   var nameKey = this.value;
   var container = document.getElementById('reminder-content');
-  if (!nameKey) { container.innerHTML = '<p>请选择品牌</p>'; return; }
+  if (!nameKey) {
+    loadDwPeriodForBrand(null);
+    container.innerHTML = '<p>请选择品牌</p>';
+    return;
+  }
 
   container.innerHTML = '<p style="color:var(--text-muted);">加载提醒数据...</p>';
 
-  Api.brandRemind(nameKey).then(function(data) {
+  loadDwPeriodForBrand(nameKey).then(function(dw) {
+    return Api.brandRemind(nameKey).then(function(data) {
+      if (dw && dw.period_value) {
+        data.dw_period_hint = M3.formatPeriodHint(dw.period_value);
+      }
+      return data;
+    });
+  }).then(function(data) {
     var html = VC.buildReminderHTML(data);
     container.innerHTML = html;
     M3LLM.getReminderSummary(data).then(function(summary) {
@@ -707,21 +860,37 @@ function loadScheduledVisits() {
 
 // ===== 加载待记录拜访（scheduled状态的拜访） =====
 function loadCompletedVisitsForRecord() {
+  var selectId = gPendingRecordVisitId;
+  gPendingRecordVisitId = null;
   Api.listVisits({ status: 'scheduled' }).then(function(visits) {
     var sel = document.getElementById('record-visit-select');
     sel.innerHTML = visits.length ? visits.map(function(v) {
       return '<option value="' + v.id + '">' + formatDate(v.visit_date) + ' · ' + (v.brand_name || '') + ' · ' + typeLabel(v.visit_type) + '</option>';
     }).join('') : '<option value="">暂无待记录的拜访（请先在「安排拜访」中创建）</option>';
+    if (selectId) sel.value = String(selectId);
   });
 }
 
 // ===== 提交拜访记录 =====
 function submitRecord() {
+  if (gRecordViewMode) {
+    showToast('当前为只读查看，请点击「返回录入」');
+    return;
+  }
+  if (!M3.isWritable()) {
+    showToast('🔒 只读角色无法保存记录');
+    return;
+  }
+
   var visitId = parseInt(document.getElementById('record-visit-select').value);
   if (!visitId) { showToast('请选择已完成拜访'); return; }
 
   var commitmentsRaw = document.getElementById('record-commitments').value.trim();
   if (!commitmentsRaw) { showToast('请填写承诺事项'); return; }
+
+  if (commitmentsRaw.length > M3LLM.MAX_MINUTES_CHARS) {
+    showToast('📋 纪要超过' + M3LLM.MAX_MINUTES_CHARS + '字符，AI 仅抽取前' + M3LLM.MAX_AI_INPUT_CHARS + '字符；完整内容仍会保存');
+  }
 
   var tempRadio = document.querySelector('input[name="recordTemp"]:checked');
   var btn = document.getElementById('btn-record');
@@ -736,8 +905,9 @@ function submitRecord() {
   M3LLM.extractTodosFromMinutes(commitmentsRaw, recBrandName).then(function(result) {
     var todos = result.todos;
     var extractedCommits = result.commitments;
+    var warning = result.warning;
 
-    updateM3AIPanel(todos, extractedCommits);
+    updateM3AIPanel(todos, extractedCommits, warning);
 
     var finalCommitmentsRaw = commitmentsRaw;
     if (extractedCommits && extractedCommits.length > 0) {
@@ -787,16 +957,83 @@ function submitRecord() {
   }).catch(function(e) {
     showMsg('recordError', '❌ 保存失败：' + e.message);
   }).finally(function() {
-    btn.disabled = false; btn.textContent = '💾 保存 & AI 抽取';
+    if (M3.isWritable()) btn.disabled = false;
+    btn.textContent = '💾 保存 & AI 抽取';
   });
 }
 
+function setRecordFormEditable(editable) {
+  gRecordViewMode = !editable;
+  var panel = document.getElementById('vtab-record');
+  if (!panel) return;
+  panel.querySelectorAll('#record-participants, #record-topics, #record-commitments, #record-undone, #record-next-visit, input[name="recordTemp"]').forEach(function(el) {
+    el.disabled = !editable;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') el.readOnly = !editable;
+  });
+  var visitSel = document.getElementById('record-visit-select');
+  if (visitSel) visitSel.disabled = !editable;
+  var visitWrap = visitSel && visitSel.closest('.visit-field');
+  if (visitWrap) visitWrap.style.display = editable ? '' : 'none';
+  var btn = document.getElementById('btn-record');
+  if (btn) btn.style.display = editable ? '' : 'none';
+  var roHint = document.getElementById('btn-record-readonly-hint');
+  if (roHint && editable) roHint.style.display = M3.isWritable() ? 'none' : 'block';
+  var banner = document.getElementById('record-view-banner');
+  if (banner && editable) banner.style.display = 'none';
+  if (editable) {
+    document.querySelectorAll('input[name="recordTemp"]').forEach(function(r) { r.disabled = false; });
+  }
+}
+
+function exitRecordViewMode() {
+  setRecordFormEditable(true);
+  loadCompletedVisitsForRecord();
+}
+
+function viewVisitRecord(visitId) {
+  Api.getVisit(visitId).then(function(visit) {
+    if (!visit.record_id) {
+      showToast('该拜访尚未保存记录');
+      if (visit.status === 'scheduled') fillRecordForm(visitId);
+      return;
+    }
+    return Api.getRecord(visit.record_id).then(function(rec) {
+      setRecordFormEditable(false);
+      switchVisitTab('record');
+      document.getElementById('record-participants').value = rec.participants || '';
+      document.getElementById('record-topics').value = rec.topics || '';
+      document.getElementById('record-commitments').value = rec.commitments_raw || '';
+      document.getElementById('record-undone').value = rec.undone_items || '';
+      document.getElementById('record-next-visit').value = rec.next_visit_date || '';
+      var temp = rec.relation_change || 'flat';
+      document.querySelectorAll('input[name="recordTemp"]').forEach(function(r) {
+        r.checked = r.value === temp;
+        r.disabled = true;
+      });
+      var banner = document.getElementById('record-view-banner');
+      if (banner) {
+        banner.style.display = 'block';
+        banner.innerHTML = '<div><b style="color:var(--blue-500);">📋 只读查看</b> · ' +
+          (rec.brand_name || visit.brand_name || '') + ' · ' + formatDate(rec.visit_date || visit.visit_date) +
+          ' · ' + typeLabel(rec.visit_type || visit.visit_type) +
+          ' · 目的：' + truncate(visit.purpose || '', 28) +
+          '</div><button type="button" class="btn-sm-outline" style="margin-top:8px;" onclick="exitRecordViewMode()">返回录入</button>';
+      }
+      document.getElementById('m3-ai-panel').innerHTML =
+        '<p style="color:var(--text-muted);font-size:12px;padding:8px 0;">已保存记录 · 如需修改请线下同步后重新录入（M4 暂不支持编辑历史纪要）</p>';
+    });
+  }).catch(function(e) { showToast('加载记录失败：' + e.message); });
+}
+window.viewVisitRecord = viewVisitRecord;
+
 function fillRecordForm(visitId) {
+  setRecordFormEditable(true);
+  document.querySelectorAll('input[name="recordTemp"]').forEach(function(r) { r.disabled = false; });
   switchVisitTab('record');
   document.getElementById('record-visit-select').value = visitId;
 }
 
-function updateM3AIPanel(todos, commitments) {
+function updateM3AIPanel(todos, commitments, warning) {
   var panel = document.getElementById('m3-ai-panel');
   if (!panel) return;
 
@@ -828,6 +1065,12 @@ function updateM3AIPanel(todos, commitments) {
   }
   html += '</div>';
 
+  if (warning) {
+    html += '<div style="margin-top:10px;padding:8px 12px;background:var(--amber-50);border:1px solid #fcd34d;border-radius:6px;font-size:12px;color:var(--amber-500);">⚠️ ' + warning + '</div>';
+  }
+
+  html += '<div style="margin-top:10px;padding:6px 12px;background:#e8f2ff;border:1px solid #93c5fd;border-radius:4px;font-size:11px;color:var(--blue-500);">💡 AI 抽取结果供参考，点击「保存」后正式落库（M4：确认后才写入待办/承诺）</div>';
+
   var statusTag = document.getElementById('m3-llm-status-tag');
   if (statusTag) {
     if (M3.isLLMEnabled()) {
@@ -845,7 +1088,7 @@ function updateM3AIPanel(todos, commitments) {
 }
 
 function updateAITodoTable(todos) {
-  updateM3AIPanel(todos, []);
+  updateM3AIPanel(todos, [], null);
 }
 
 // ===== 承诺跟踪 =====
@@ -862,13 +1105,17 @@ function loadCommitments() {
       commitments = commitments.filter(function(c) { return visitMap[c.visit_id]; });
     }
     document.getElementById('commitments-table').innerHTML =
-      VC.renderCommitmentsTable(commitments, visitMap);
+      VC.renderCommitmentsTable(commitments, visitMap, { readOnly: !M3.isWritable() });
   }).catch(function() {
     document.getElementById('commitments-table').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">加载失败</td></tr>';
   });
 }
 
 function updateCommitmentStatus(id, status) {
+  if (!M3.isWritable()) {
+    showToast('🔒 只读角色无法修改承诺状态');
+    return;
+  }
   Api.updateCommitment(id, { status: status }).then(function() {
     showToast('承诺状态已更新');
     loadCommitments();
@@ -888,11 +1135,23 @@ function loadRecentRecords() {
 
 // ===== 拜访日历 =====
 function loadCalendar() {
+  var highlightId = gPendingCalendarVisitId;
+  gPendingCalendarVisitId = null;
   var brandId = getModuleFilterBrandId('filter-history-brand');
   var params = brandId ? { brand_id: brandId } : {};
   Api.listVisits(params).then(function(visits) {
     var tbody = document.getElementById('calendar-table');
-    tbody.innerHTML = VC.renderVisitsCalendar(visits);
+    tbody.innerHTML = VC.renderVisitsCalendar(visits, { onCompletedClick: 'viewVisitRecord' });
+    if (tbody.innerHTML.indexOf('详情（演示）') !== -1) {
+      if (!sessionStorage.getItem('vcReload')) {
+        sessionStorage.setItem('vcReload', '1');
+        var u = new URL(window.location.href);
+        u.searchParams.set('_vc', String(Date.now()));
+        window.location.replace(u.toString());
+        return;
+      }
+    }
+    if (highlightId) highlightCalendarVisit(highlightId);
   });
 }
 

@@ -18,7 +18,7 @@ check() {
   fi
 }
 
-check "/api/brands" "midea" || check "/api/brands" "name"
+check "/api/brands" "jomoo" || check "/api/brands" "midea" || check "/api/brands" "name"
 check "/api/health" "brand"
 check "/" "工作台"
 check "/profile.html" "品牌"

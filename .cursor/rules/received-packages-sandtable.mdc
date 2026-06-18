@@ -1,0 +1,34 @@
+---
+description: 模块席交 Max 的 zip/文件夹统一放在 deliverables/received，合并时先读这里
+alwaysApply: true
+---
+
+# sandtable · 模块席收包目录
+
+## 路径约定
+
+三人交给 Max 的开发包/补丁，**以文件夹形式**放在：
+
+```
+deliverables/received/{owner}-{m}-{date}/
+```
+
+| 示例 | 谁 |
+|------|-----|
+| `deliverables/received/kaikai-m3-0622/` | 开开 M3 终包 |
+| `deliverables/received/jiaxuan-m2-0616/` | 佳璇 M2 |
+
+用户口述 **`received/kaikai-m3-0622`** = 上表完整路径（仓库根下无单独 `received/` 目录）。
+
+**不要**默认去 Desktop、`Downloads` 或 `deliverables/*-baseline` 找交包；baseline 是 Max **发给三人** 的开工包，与收包目录相反。
+
+## Agent 合并流程
+
+1. 先列 `deliverables/received/{包名}/`：`frontend/`、`backend/`（或 `server/`）、`PATCHLOG`、`synced-from-main/`
+2. 对照主工程同路径（`web/`、`server/routers/`）；**公共能力**（登录、LLM 中台、数仓）以 Max 主工程为准，模块席 mock（如 `X-User-Brand-Ids`）合并时改为 `deps_auth` Session
+3. **勿** `git add deliverables/`（已在 `.gitignore`）
+4. 合并后在主工程 smoke；更新 `docs/M3并行开发手册-正式版.md` 对应验收行
+
+## 命名
+
+保持模块席原名：`jiaxuan-m3-0622`、`peixiao-m3-patch-MMDD` 等；新包继续解压/整包放进 `deliverables/received/`。

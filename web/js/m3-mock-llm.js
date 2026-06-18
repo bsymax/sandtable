@@ -1,13 +1,18 @@
 /**
- * 品牌沙盘 M3 · 纪要/提醒 LLM 前端（培翛 · Max 合并版）
+ * 品牌沙盘 M4 · 纪要/提醒 LLM 前端（培翛 · M4 增强版）
  *
- * LLM 关：规则/mock 抽取（与 M2 可降级）
- * LLM 开 + record_extract：保存后调 POST /api/records/{id}/ai/extract
+ * M4 变更:
+ * - 纪要 LLM 边界加固：截断/JSON 失败降级
+ * - 确认后才落库：AI 抽取结果展示后，用户须确认再提交
+ * - LLM 失败自动降级规则版，不算 bug
  */
 (function (global) {
   'use strict';
 
   var M3 = global.M3;
+
+  var MAX_MINUTES_CHARS = 3000;
+  var MAX_AI_INPUT_CHARS = 2400;
 
   var TODO_TEMPLATES = [
     { keys: ['投放', '预算', '联合投放', '广告'],     priority: 'P0', title: '跟进联合投放方案确认',       assignee: '采销' },
@@ -32,12 +37,25 @@
     { keys: ['售后', '品质', '质量'],     party: 'brand', content: '售后/品质保障承诺' },
   ];
 
+  function _truncateMinutes(text) {
+    if (!text) return '';
+    if (text.length <= MAX_AI_INPUT_CHARS) return text;
+    return text.substring(0, MAX_AI_INPUT_CHARS) + '\n…[纪要内容较长，已截断至' + MAX_AI_INPUT_CHARS + '字符]';
+  }
+
   function mockExtractTodos(text, brandName) {
     if (!text || !text.trim()) {
-      return { todos: [], commitments: [] };
+      return { todos: [], commitments: [], source: 'rule', warning: null };
     }
 
-    var lower = text.toLowerCase();
+    var truncated = _truncateMinutes(text);
+    var useText = truncated;
+    var warning = null;
+    if (text.length > MAX_AI_INPUT_CHARS) {
+      warning = '纪要超过' + MAX_AI_INPUT_CHARS + '字符，已截断处理；完整内容仍会保存到数据库';
+    }
+
+    var lower = useText.toLowerCase();
     var matchedTodos = [];
     var matchedCommits = [];
 
@@ -107,6 +125,8 @@
     return {
       todos: matchedTodos.slice(0, 6),
       commitments: matchedCommits.slice(0, 5),
+      source: 'rule',
+      warning: warning || null,
     };
   }
 
@@ -114,6 +134,11 @@
     if (!reminderData) return null;
 
     var parts = [];
+
+    if (reminderData.dw_period_hint) {
+      parts.push('经营数据已更新至 ' + reminderData.dw_period_hint);
+    }
+
     var brokenCount = (reminderData.broken_commitments || []).length;
     if (brokenCount > 0) parts.push(brokenCount + '项承诺已逾期未兑现');
 
@@ -183,6 +208,9 @@
   }
 
   function extractTodosFromMinutes(text, brandName) {
+    if (text && text.length > MAX_MINUTES_CHARS) {
+      text = text.substring(0, MAX_MINUTES_CHARS);
+    }
     return new Promise(function (resolve) {
       if (!M3.isLLMEnabled() || !M3.isRouteEnabled('record_extract')) {
         setTimeout(function () {
@@ -208,12 +236,19 @@
     });
   }
 
+  function requiresConfirmation() {
+    return true;
+  }
+
   global.M3LLM = {
     extractTodosFromMinutes: extractTodosFromMinutes,
     extractFromSavedRecord: extractFromSavedRecord,
     getReminderSummary: getReminderSummary,
     mockExtractTodos: mockExtractTodos,
     mockReminderSummary: mockReminderSummary,
+    requiresConfirmation: requiresConfirmation,
+    MAX_MINUTES_CHARS: MAX_MINUTES_CHARS,
+    MAX_AI_INPUT_CHARS: MAX_AI_INPUT_CHARS,
   };
 
   function _offsetDate(days) {

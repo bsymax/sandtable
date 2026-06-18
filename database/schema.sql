@@ -149,11 +149,11 @@ CREATE TABLE todos (
 
 -- 品牌数据
 INSERT INTO brands (name, name_key, level, responsible, archive_score, relation_temp, baseline_freq) VALUES
-('美的',   'midea',  'S', '周采销', 88, 72, '2-4周/次'),
-('九阳',   'joyoung','A', '吴采销', 85, 85, '季度/次'),
-('苏泊尔', 'supor',  'A', '陈采销', 78, 68, '季度/次'),
-('小熊电器','bear',   'B', '李采销', 81, 88, '季度/次'),
-('摩飞',   'morphy', 'B', '王采销', 71, 65, '季度/次');
+('九牧',     'jomoo',     'S', '周采销', 88, 72, '2-4周/次'),
+('箭牌',     'arrow',     'A', '吴采销', 85, 85, '季度/次'),
+('恒洁',     'hegii',     'A', '陈采销', 78, 68, '季度/次'),
+('潜水艇',   'submarine', 'A', '李采销', 81, 88, '季度/次'),
+('四季沐歌', 'micoe',     'B', '王采销', 71, 65, '季度/次');
 
 -- 联系人数据
 INSERT INTO brand_contacts (brand_id, name, title, role_tag, last_contact_date) VALUES
@@ -172,7 +172,7 @@ INSERT INTO visits (brand_id, visit_date, visit_time, visit_type, purpose, statu
 (2, '2026-05-20', '15:00:00', 'regular', '季度复盘',                'completed'),
 (2, '2026-06-18', '14:00:00', 'regular', '例行拜访',                'scheduled'),
 (3, '2026-06-25', '10:00:00', 'regular', 'Q2复盘+广告置换',          'scheduled'),
-(1, '2026-05-15', '10:00:00', 'regular', '产品沟通 · 空气炸锅Pro', 'completed');
+(1, '2026-05-15', '10:00:00', 'regular', '产品沟通 · 智能马桶Pro', 'completed');
 
 -- 拜访参与人员
 INSERT INTO visit_attendees (visit_id, contact_id, name, role) VALUES
@@ -187,19 +187,19 @@ INSERT INTO visit_attendees (visit_id, contact_id, name, role) VALUES
 INSERT INTO visit_records (visit_id, participants, topics, commitments_raw, undone_items, relation_change, next_visit_date) VALUES
 (2, '周采销；王建国、李敏',
    '618目标+新品首发',
-   '- 3款新品JD首发\n- 联合投放预算600万\n- 空气炸锅Pro排期确认',
+   '- 3款新品JD首发\n- 联合投放预算600万\n- 智能马桶Pro排期确认',
    NULL,
    'flat', '2026-06-24'),
 
 (3, '吴采销；陈志远、赵雪',
-   'K9 Pro合作沟通',
-   '- K9 Pro包销价确认\n- 618库存锁定',
+   '浴室柜L18合作沟通',
+   '- 浴室柜L18包销价确认\n- 618库存锁定',
    NULL,
    'up', '2026-07-10'),
 
 (6, '周采销；张磊',
-   '空气炸锅Pro产品沟通',
-   '- 1款空气炸锅JD首发',
+   '智能马桶Pro产品沟通',
+   '- 1款智能马桶JD首发',
    '仅沟通未签署',
    'flat', '2026-05-30');
 
@@ -212,18 +212,18 @@ UPDATE visits SET record_id = 3 WHERE id = 6;
 INSERT INTO commitments (visit_id, record_id, content, party, status, deadline) VALUES
 (2, 1, '3款新品JD首发',               'brand', 'broken',    '2026-05-30'),
 (2, 1, '联合投放预算600万',            'brand', 'pending',   '2026-06-12'),
-(2, 1, '空气炸锅Pro排期确认',          'brand', 'pending',   '2026-06-15'),
-(3, 2, 'K9 Pro包销价确认',             'brand', 'fulfilled', '2026-06-01'),
+(2, 1, '智能马桶Pro排期确认',          'brand', 'pending',   '2026-06-15'),
+(3, 2, '浴室柜L18包销价确认',             'brand', 'fulfilled', '2026-06-01'),
 (3, 2, '618库存锁定',                  'brand', 'pending',   '2026-06-10'),
-(6, 3, '1款空气炸锅JD首发',            'brand', 'fulfilled', '2026-05-30');
+(6, 3, '1款智能马桶JD首发',            'brand', 'fulfilled', '2026-05-30');
 
 -- 待办数据
 INSERT INTO todos (record_id, visit_id, priority, title, deadline, assignee, status) VALUES
 (1, 2, 'P0', '跟进600万投放方案确认',       '2026-06-12', '周采销', 'pending'),
-(1, 2, 'P0', '跟进空气炸锅Pro排期确认',     '2026-06-15', '周采销', 'pending'),
+(1, 2, 'P0', '跟进智能马桶Pro排期确认',     '2026-06-15', '周采销', 'pending'),
 (1, 2, 'P1', '确认王建国岗位变动情况',       '2026-06-20', '周采销', 'pending'),
 (1, 2, 'P2', '6/24下次拜访准备',           '2026-06-22', '周采销', 'pending'),
-(2, 3, 'P1', '跟进K9 Pro包销价',           '2026-06-05', '吴采销', 'done'),
+(2, 3, 'P1', '跟进浴室柜L18包销价',           '2026-06-05', '吴采销', 'done'),
 (2, 3, 'P2', '618库存方案确认',            '2026-06-10', '吴采销', 'pending');
 
 -- =============================================

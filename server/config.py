@@ -35,6 +35,16 @@ LLM_GATEWAY_URL = os.getenv("LLM_GATEWAY_URL", "")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
 LLM_TIMEOUT_SEC = float(os.getenv("LLM_TIMEOUT_SEC", "25"))
+# M4-B 配额（0 = 不限制）
+LLM_DAILY_CAP = int(os.getenv("LLM_DAILY_CAP", "2000"))
+LLM_USER_DAILY_CAP = int(os.getenv("LLM_USER_DAILY_CAP", "60"))
+LLM_READONLY_ENABLED = os.getenv("LLM_READONLY_ENABLED", "false").lower() in ("1", "true", "yes")
+# M4-C 数仓质量规则
+DW_QUALITY_STRICT = os.getenv("DW_QUALITY_STRICT", "true").lower() in ("1", "true", "yes")
+# M4-C 经营指标主频（BI 首接为 monthly；档案/拜访「数据截至」读此类型）
+DW_METRICS_PERIOD_TYPE = os.getenv("DW_METRICS_PERIOD_TYPE", "monthly").strip().lower()
+if DW_METRICS_PERIOD_TYPE not in ("weekly", "monthly"):
+    DW_METRICS_PERIOD_TYPE = "monthly"
 
 # SQLAlchemy 连接字符串（同步 + PyMySQL）
 DATABASE_URL = (

@@ -193,14 +193,17 @@ class BrandMetrics(Base):
     gmv_yoy               = Column(Numeric(6, 2))
     sales_volume          = Column(Integer, comment="销量")
     sales_volume_wow      = Column(Numeric(6, 2), comment="销量环比%")
+    sales_volume_yoy      = Column(Numeric(6, 2), comment="销量同比%")
     jd_share              = Column(Numeric(5, 2))
     jd_share_wow          = Column(Numeric(5, 2))
     tmall_share           = Column(Numeric(5, 2))
     douyin_share          = Column(Numeric(5, 2))
     pdd_share             = Column(Numeric(5, 2))
+    taobao_share          = Column(Numeric(5, 2), comment="淘宝市占%")
     channel_growth_jd     = Column(Numeric(5, 2))
     channel_growth_tmall  = Column(Numeric(5, 2))
     channel_growth_douyin = Column(Numeric(5, 2))
+    channel_growth_taobao = Column(Numeric(5, 2), comment="淘宝渠道增速%")
     category_distribution = Column(Text, comment="三级类目GMV占比 JSON")
     category_share        = Column(Text, comment="各类目JD市占 JSON")
     sku_count             = Column(Integer)
@@ -347,7 +350,7 @@ class DwImportBatch(Base):
 
     id            = Column(Integer, primary_key=True, autoincrement=True)
     batch_key     = Column(String(36), nullable=False, unique=True)
-    source        = Column(Enum("csv", "api", "manual"), nullable=False, default="csv")
+    source        = Column(Enum("csv", "api", "manual", "bi_csv", "dts"), nullable=False, default="csv")
     source_name   = Column(String(255))
     status        = Column(Enum("running", "success", "partial", "failed"), nullable=False, default="running")
     total_rows    = Column(Integer, nullable=False, default=0)
@@ -376,3 +379,21 @@ class SyncLog(Base):
     created_at   = Column(DateTime, server_default=func.now())
 
     batch = relationship("DwImportBatch", back_populates="logs")
+
+
+class LlmCallLog(Base):
+    __tablename__ = "llm_call_log"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    user_id    = Column(Integer, comment="users.id")
+    username   = Column(String(64))
+    route      = Column(String(128), nullable=False)
+    status     = Column(
+        Enum("success", "fallback", "quota", "error", "disabled"),
+        nullable=False,
+        default="success",
+    )
+    tokens_est = Column(Integer)
+    latency_ms = Column(Integer)
+    message    = Column(String(512))
+    created_at = Column(DateTime, server_default=func.now())

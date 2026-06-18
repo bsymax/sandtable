@@ -10,7 +10,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, noload
-from sqlalchemy import desc, case, or_
+from sqlalchemy import desc, case, or_, and_
 
 from database import get_db
 from deps_auth import filter_brand_query, get_current_user_optional, require_name_key, AuthUser
@@ -97,14 +97,24 @@ def brand_visit_reminder(
         Visit.status == "completed",
     ).order_by(desc(Visit.visit_date)).first()
 
+    today = date.today()
+    # 截止日期已过且仍 pending 的，按「逾期未兑现」并入 broken，与承诺跟踪页前端口径一致
     pending_commitments = db.query(Commitment).filter(
         Commitment.visit.has(Visit.brand_id == brand.id),
         Commitment.status == "pending",
+        or_(Commitment.deadline == None, Commitment.deadline >= today),  # noqa: E711
     ).all()
 
     broken_commitments = db.query(Commitment).filter(
         Commitment.visit.has(Visit.brand_id == brand.id),
-        Commitment.status == "broken",
+        or_(
+            Commitment.status == "broken",
+            and_(
+                Commitment.status == "pending",
+                Commitment.deadline != None,  # noqa: E711
+                Commitment.deadline < today,
+            ),
+        ),
     ).all()
 
     thirty_days_ago = date.today() - timedelta(days=30)

@@ -65,6 +65,9 @@ async def dashboard_summary_line(
         "你是厨小事业部品牌沙盘助手，用一两句话概括采销今日最该优先处理的事项，简体中文，不超过 120 字。",
         fallback.replace("（规则版 · LLM 未启用）", ""),
         max_tokens=200,
+        db=db,
+        auth_user=user,
+        route="dashboard.summary_line",
     )
     if text:
         return DashboardSummaryOut(source="llm", summary=text.strip())

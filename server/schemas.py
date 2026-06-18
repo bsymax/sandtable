@@ -229,14 +229,17 @@ class BrandMetricsOut(BaseModel):
     gmv_yoy: Optional[float] = None
     sales_volume: Optional[int] = None
     sales_volume_wow: Optional[float] = None
+    sales_volume_yoy: Optional[float] = None
     jd_share: Optional[float] = None
     jd_share_wow: Optional[float] = None
     tmall_share: Optional[float] = None
     douyin_share: Optional[float] = None
     pdd_share: Optional[float] = None
+    taobao_share: Optional[float] = None
     channel_growth_jd: Optional[float] = None
     channel_growth_tmall: Optional[float] = None
     channel_growth_douyin: Optional[float] = None
+    channel_growth_taobao: Optional[float] = None
     category_distribution: Optional[str] = None
     category_share: Optional[str] = None
     sku_count: Optional[int] = None
@@ -248,9 +251,11 @@ class BrandMetricsOut(BaseModel):
     updated_at: Optional[datetime] = None
 
     @field_serializer(
-        "gmv", "gmv_wow", "gmv_yoy", "sales_volume_wow",
+        "gmv", "gmv_wow", "gmv_yoy", "sales_volume_wow", "sales_volume_yoy",
         "jd_share", "jd_share_wow", "tmall_share", "douyin_share", "pdd_share",
+        "taobao_share",
         "channel_growth_jd", "channel_growth_tmall", "channel_growth_douyin",
+        "channel_growth_taobao",
         "gross_margin", "uv_conversion", "ad_rate",
     )
     def serialize_decimal(self, v: Any) -> Optional[float]:
@@ -281,11 +286,27 @@ class ContactPatch(BaseModel):
     wechat: Optional[str] = None
 
 
+class ContactCreate(BaseModel):
+    name: str
+    title: Optional[str] = None
+    role_tag: Optional[str] = "日常对接"
+    phone: Optional[str] = None
+    wechat: Optional[str] = None
+
+
+class OrgStructurePatch(BaseModel):
+    root: Optional[str] = None
+    lead: Optional[str] = None
+
+
 class BrandProfileUpdate(BaseModel):
     taboos: Optional[str] = None
     competitive_landscape: Optional[str] = None
     growth_opportunities: Optional[str] = None
     contacts: Optional[List[ContactPatch]] = None
+    contacts_add: Optional[List[ContactCreate]] = None
+    contacts_remove: Optional[List[int]] = None
+    org: Optional[OrgStructurePatch] = None
 
 
 # ==============================
@@ -449,6 +470,7 @@ class IntelBriefingOut(BaseModel):
     stats: dict = {}
     cached: bool = False
     llm_summary: Optional[str] = None
+    period_value: Optional[str] = None
 
 
 class IntelBriefingRefreshOut(BaseModel):
@@ -550,6 +572,32 @@ class LlmStatusOut(BaseModel):
     model: str
     timeout_sec: float
     gateway_url_set: bool
+    daily_cap: int = 0
+    user_daily_cap: int = 0
+    readonly_llm: bool = False
+
+
+class LlmCallLogOut(BaseModel):
+    id: int
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    route: str
+    status: str
+    tokens_est: Optional[int] = None
+    latency_ms: Optional[int] = None
+    message: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DwLatestPeriodOut(BaseModel):
+    name_key: str
+    period_type: str
+    period_value: Optional[str] = None
+    gmv: Optional[float] = None
+    updated_via: Optional[str] = None
 
 
 class DashboardSummaryOut(BaseModel):

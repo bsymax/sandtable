@@ -69,6 +69,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .card-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
 .card-header h3 { font-size:14px; font-weight:600; }
 .card-header .card-meta { font-size:11px; color:var(--text-muted); margin-left:auto; }
+.demo-data-badge { display:inline-block; margin-left:6px; padding:1px 6px; font-size:10px; font-weight:600; color:#b45309; background:#fef3c7; border-radius:4px; vertical-align:middle; }
 .card-body { padding:18px; }
 .card-body.no-padding { padding:0; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -109,7 +110,12 @@ table tr.jd-row td { background:var(--blue-50); }
 .org-row { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; position:relative; }
 .org-row::before { content:''; position:absolute; top:0; left:20%; right:20%; height:2px; background:var(--border); }
 .org-row .org-node { margin-top:14px; }
-.profile-rule-item { border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:10px; font-size:13px; line-height:1.65; }
+.org-box.editing .org-view { display:none; }
+.org-box.editing .org-edit-fields { display:block; }
+.org-edit-fields { display:none; margin-top:8px; }
+.contact-new-panel { display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); }
+.contact-new-panel.show { display:block; }
+.person-actions { display:flex; gap:6px; flex-shrink:0; }
 .profile-rule-item.stale { border-left:3px solid var(--amber-500); background:var(--amber-50); }
 .profile-rule-item .rule-meta { font-size:11px; color:var(--text-muted); margin-top:8px; }
 .profile-rule-box { border:1px solid var(--border); border-radius:8px; padding:14px; font-size:13px; line-height:1.65; }
@@ -182,6 +188,12 @@ table tr.jd-row td { background:var(--blue-50); }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 .error-banner { display:none; padding:12px 16px; background:var(--red-50); border:1px solid #fca5a5; border-radius:8px; color:var(--red-500); font-size:13px; margin-bottom:16px; }
 .chart-empty-placeholder { color:var(--text-muted); font-size:12px; padding:40px 0; text-align:center; }
+.profile-data-asof { display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; background:var(--blue-50); border:1px solid #bfdbfe; color:var(--blue-600); font-size:11px; font-weight:600; }
+.profile-data-asof.is-pending { background:#f8fafc; border-color:var(--border); color:var(--text-secondary); font-weight:500; }
+.profile-readonly-banner { display:none; margin:0 0 12px; padding:10px 14px; font-size:12px; line-height:1.55; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; }
+.profile-readonly-banner.show { display:block; }
+.metrics-empty-banner { margin-bottom:12px; padding:10px 14px; font-size:12px; line-height:1.55; color:var(--text-secondary); background:#f8fafc; border:1px dashed var(--border); border-radius:8px; }
+.kpi-value.is-empty { color:var(--text-muted); font-size:22px; font-weight:600; }
 .profile-strategy-box { border:1px solid var(--border); border-radius:8px; padding:14px; font-size:13px; line-height:1.65; min-height:120px; }
 .profile-strategy-box.editing .strategy-view { display:none; }
 .profile-strategy-box.editing .strategy-edit { display:block; }
@@ -232,23 +244,24 @@ table tr.jd-row td { background:var(--blue-50); }
   <div class="topbar-right">
     <span id="top-date">—</span>
     <span style="color:var(--text-muted);">|</span>
-    <span>厨小事业部 · 采销二组</span>
+    <span>建材业务部-国内KA卫浴组</span>
     <div class="user-avatar">周</div>
   </div>
 </div>
 
 <div class="content">
   <div class="m1-banner">
-    <span class="m1-scope-tag">品牌席</span>
-    <strong>经营看板</strong> · <strong>品牌简介</strong> · <strong>竞争与机会</strong> 已接真数据 · Tab1 规则解读 + Tab3 P0 情报展示。
+    <span class="m1-scope-tag">品牌席 · M4</span>
+    <strong>数据截至月份</strong> · <strong>bi_csv 月频</strong> · <strong>只读禁写</strong> · Tab1/Tab2 LLM 降级仍有效。
   </div>
   <div class="page-title">品牌档案</div>
-  <div class="page-subtitle">经营数据 + 主数据维护 · 数据来自 MySQL API</div>
+  <div class="page-subtitle">经营数据 + 主数据维护 · 指标来自 brand_metrics（monthly）· 展示「数据截至 YYYY-MM」</div>
 
+  <div id="profile-readonly-banner" class="profile-readonly-banner">🔒 当前为<strong>只读账号</strong>：联系人、潜规则与竞争/机会不可编辑保存（M4-A 后接 403）。</div>
   <div id="error-banner" class="error-banner"></div>
 
   <div class="tab-bar" id="profile-tabs">
-    <div class="tab-item active" data-key="midea">加载中…</div>
+    <div class="tab-item active" data-key="jomoo">加载中…</div>
   </div>
 
   <div id="profile-mount" class="profile-brand-shell"></div>
@@ -261,126 +274,78 @@ table tr.jd-row td { background:var(--blue-50); }
 <script src="js/api-base.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/m3-config.js"></script>
-<script src="js/visit-common.js"></script>
+<script src="js/visit-common.js?v=20260618-visit-view-b"></script>
 <script>
 var API_BASE = M1_API_BASE;
 var BRAND_TABS = [
-  { key:'midea', label:'美的' },
-  { key:'joyoung', label:'九阳' },
-  { key:'supor', label:'苏泊尔' },
-  { key:'bear', label:'小熊电器' },
-  { key:'morphy', label:'摩飞' }
+  { key:'jomoo', label:'九牧' },
+  { key:'arrow', label:'箭牌' },
+  { key:'hegii', label:'恒洁' },
+  { key:'submarine', label:'潜水艇' },
+  { key:'micoe', label:'四季沐歌' }
 ];
 /** 登录后由 /api/brands 过滤；未登录等同 BRAND_TABS */
 var visibleBrandTabs = BRAND_TABS.slice();
 var LEVEL_LABEL = { S:'S-战略级', A:'A-核心级', B:'B-成长级', C:'C-观察级' };
 var BENCH_TOP = { margin:24.8, cvr:5.6, adRate:4.2 };
+
+function demoDataBadge() {
+  return '<span class="demo-data-badge">【示范数据】</span>';
+}
+
+/** 底表未提供的类目/广告/P0 缺口明细（与 seed DEMO_METRICS 对应） */
+var DEMO_GAP_SKUS = {
+  jomoo: [
+    { sku:'智能马桶 S900 轻智能', platform:'抖音', compSales:'¥620万/月', prio:'P0' },
+    { sku:'恒温花洒套装', platform:'天猫', compSales:'¥280万/月', prio:'P0' }
+  ],
+  arrow: [
+    { sku:'轻智能马桶 A6', platform:'抖音', compSales:'¥410万/月', prio:'P0' }
+  ],
+  hegii: [
+    { sku:'Q9 智能马桶', platform:'京东', compSales:'¥350万/月', prio:'P0' }
+  ],
+  submarine: [
+    { sku:'全铜防臭地漏 Pro', platform:'抖音', compSales:'¥180万/月', prio:'P0' },
+    { sku:'角阀套装 4件装', platform:'天猫', compSales:'¥120万/月', prio:'P0' }
+  ],
+  micoe: [
+    { sku:'阳台太阳能热水套装', platform:'淘宝', compSales:'¥95万/月', prio:'P0' }
+  ]
+};
+
+function hasDemoCategoryMetrics(m) {
+  return !!(m && (m.category_distribution || m.gross_margin != null));
+}
+
 var BRAND_EXTRA = {
-  midea: {
-    ai: '份额领先但<strong>增长承压</strong>：JD周GMV仍居品类#1，但连续下滑；核心矛盾是抖音618资源倾斜，建议48h内拜访王建国对齐。',
-    gaps: [
-      { sku:'空气炸锅 Pro 5L', platform:'抖音', compSales:'¥820万/月', prio:'P0' },
-      { sku:'电热水壶 1.7L 恒温', platform:'天猫', compSales:'¥310万/月', prio:'P0' }
-    ],
-    opps: [
-      { title:'抖音618主会场资源', body:'品牌预算向抖音倾斜，可谈JD同价同发换搜索专区。', src:'竞对监测', time:'06-07', impact:'高' },
-      { title:'空气炸锅品类楼层', body:'JD市占28%高于均值，可争取618专区加推。', src:'经营数据', time:'06-05', impact:'中' }
-    ],
-    risks: [
-      { title:'王建国岗位变动传闻', body:'决策链断裂风险，需本周拜访确认。', src:'情报库', time:'06-07', impact:'高' },
-      { title:'JD渠道增速-16.3%', body:'连续下滑，需对齐618货盘与价格策略。', src:'经营看板', time:'06-07', impact:'高' }
-    ],
-    history: {
-      days:3, cycle:14, overdue:false, temp:72, tempTrend:'down',
-      timeline:[
-        { date:'2026-06-05', type:'good', title:'季度拜访 · 美的总部', brief:'王建国、李敏参会', full:'议题：618目标、联合投放、3款新品首发。结论：投放方案品牌方内部审批中。' },
-        { date:'2026-06-07', type:'warn', title:'情报入库：抖音618资源倾斜', brief:'P0情报触发', full:'竞对监测显示抖音获主会场头图，建议本周紧急拜访对齐。' }
-      ],
-      commits:[
-        { item:'1款空气炸锅JD首发', status:'done', due:'05-30' },
-        { item:'3款新品JD首发（仅1/3）', status:'fail', due:'06-15' },
-        { item:'联合投放预算600万', status:'doing', due:'06-12' }
-      ],
-      suggest:{ days:3, topics:['确认王建国岗位变动及新对接人','推进联合投放方案书面确认','锁定空气炸锅Pro JD首发排期'] }
-    }
+  jomoo: {
+    ai: '九牧 JD 市占领先，5 月成交同比回升；关注 DY/TB 渠道增速分化，智能马桶品类可重点谈资源。',
+    gaps: [], opps: [], risks: [],
+    history: { days:21, cycle:90, overdue:false, temp:78, tempTrend:'up', timeline:[], commits:[], suggest:{ days:14, topics:['对齐九牧智能马桶 JD 品类日','复盘动销商品数（SPU）结构'] } }
   },
-  joyoung: {
-    ai: '增长稳健但<strong>K系列供给博弈</strong>关键：抖音月销+45%而JD K9 Pro谈判停滞，存在全网热卖、JD缺货/缺价风险。',
-    gaps: [
-      { sku:'K9 Pro 破壁机', platform:'抖音', compSales:'¥620万/月', prio:'P0' },
-      { sku:'K系列豆浆机', platform:'抖音', compSales:'¥280万/月', prio:'P0' }
-    ],
-    opps: [
-      { title:'K系列抖音爆发可反推JD包销', body:'全网热卖证明需求，可谈48h锁价+618专区。', src:'全网商品', time:'06-07', impact:'高' }
-    ],
-    risks: [
-      { title:'K9 Pro谈判停滞', body:'JD库存深度不足，抖音侧热卖而JD缺货。', src:'经营数据', time:'06-07', impact:'高' }
-    ],
-    history: {
-      days:19, cycle:90, overdue:false, temp:85, tempTrend:'up',
-      timeline:[
-        { date:'2026-05-20', type:'good', title:'季度复盘拜访', brief:'陈志远、赵雪', full:'复盘Q1 GMV达成102%，讨论K9 Pro包销价机制。' }
-      ],
-      commits:[
-        { item:'K9 Pro包销价谈判', status:'doing', due:'06-15' },
-        { item:'618专区库存锁定', status:'doing', due:'06-10' }
-      ],
-      suggest:{ days:7, topics:['48h内推进K9 Pro同价协议','附带618流量对赌条款','重建与陈志远高层沟通节奏'] }
-    }
+  arrow: {
+    ai: '箭牌全渠道成交稳健，JD 市占有提升空间；天猫传统优势可协同 JD 同价策略。',
+    gaps: [], opps: [], risks: [],
+    history: { days:28, cycle:90, overdue:false, temp:75, tempTrend:'flat', timeline:[], commits:[], suggest:{ days:14, topics:['推进箭牌 JD 智能马桶首发','对齐 TM/TB 价格体系'] } }
   },
-  supor: {
-    ai: 'Q2线上增速仅<strong>+5%</strong>，预算收紧信号明显；关系温度偏低，当前是防守型谈判窗口，宜保毛利换资源。',
-    gaps: [{ sku:'破壁机专供款', platform:'—', compSales:'承诺未落地', prio:'P0' }],
-    opps: [{ title:'线上增速放缓或利好谈判', body:'品牌业绩压力增大，可争取更优返利条款。', src:'财报情报', time:'06-05', impact:'中' }],
-    risks: [{ title:'决策链信息过期', body:'电商总监联系方式待核实更新。', src:'档案巡检', time:'06-06', impact:'高' }],
-    history: {
-      days:42, cycle:90, overdue:true, temp:68, tempTrend:'down',
-      timeline:[{ date:'2026-04-22', type:'', title:'电话沟通 · 专供款', brief:'待确认参会人', full:'讨论破壁机专供款排期，品牌方内部评估中。' }],
-      commits:[
-        { item:'破壁机专供款上架', status:'fail', due:'05-30' },
-        { item:'Q2联合投放方案', status:'doing', due:'06-20' }
-      ],
-      suggest:{ days:5, topics:['补全电商总监决策链','确认破壁机专供款落地时间','用保毛利方案重谈618资源'] }
-    }
+  hegii: {
+    ai: '恒洁中高端定位，成交波动与渠道结构相关；宜以套餐 SPU 提升 JD 动销商品数宽度。',
+    gaps: [], opps: [], risks: [],
+    history: { days:35, cycle:90, overdue:false, temp:72, tempTrend:'down', timeline:[], commits:[], suggest:{ days:21, topics:['确认恒洁 Q2 联合促销方案','补全电商决策链'] } }
   },
-  bear: {
-    ai: '品类<strong>增速明星</strong>（+15%），养生壶JD领先；策略重心从保合作转向抢增量，推进联名款独家首发。',
-    gaps: [],
-    opps: [{ title:'618联名款独家首发', body:'品牌方初步认可，可绑定站外回流对赌。', src:'拜访纪要', time:'06-04', impact:'高' }],
-    risks: [{ title:'联名款视觉草案待确认', body:'需带草案再谈，避免空口承诺。', src:'档案潜规则', time:'06-01', impact:'中' }],
-    history: {
-      days:4, cycle:45, overdue:false, temp:88, tempTrend:'up',
-      timeline:[{ date:'2026-06-04', type:'good', title:'联名款方案沟通', brief:'林晓、周帆', full:'品牌方对618联名养生壶方案初步认可，待视觉稿确认。' }],
-      commits:[
-        { item:'联名款视觉稿确认', status:'doing', due:'06-12' },
-        { item:'成长品牌流量包申请', status:'doing', due:'06-20' }
-      ],
-      suggest:{ days:14, topics:['推进联名款视觉定稿','申请成长品牌流量包','绑定站外回流数据对赌'] }
-    }
+  submarine: {
+    ai: '潜水艇五金地漏细分强势，卫浴延伸品类占比提升中；JD 动销商品数（SPU）可继续扩充。',
+    gaps: [], opps: [], risks: [],
+    history: { days:30, cycle:90, overdue:false, temp:70, tempTrend:'up', timeline:[], commits:[], suggest:{ days:21, topics:['潜水艇地漏+卫浴组合装上架','对齐 JD 搜索词资源'] } }
   },
-  morphy: {
-    ai: '档案完整度<strong>偏低</strong>；行业增速与JD增速背离，38天未拜访，策略以补档案+抢供给为主。',
-    gaps: [
-      { sku:'多功能锅 MR9088', platform:'抖音', compSales:'¥420万/月', prio:'P0' },
-      { sku:'榨汁机便携款', platform:'抖音', compSales:'¥180万/月', prio:'P0' }
-    ],
-    opps: [{ title:'行业增速+22% JD仅+8%', body:'若争取同价同发可快速起量。', src:'经营对比', time:'06-07', impact:'高' }],
-    risks: [
-      { title:'运营总监离职传闻', body:'决策链断裂风险，档案完整度低。', src:'情报库', time:'06-06', impact:'高' },
-      { title:'38天未拜访', body:'超B级品牌季度基线。', src:'拜访周期', time:'06-08', impact:'高' }
-    ],
-    history: {
-      days:38, cycle:90, overdue:true, temp:65, tempTrend:'down',
-      timeline:[{ date:'2026-05-01', type:'warn', title:'电话沟通 · 货盘确认', brief:'对接人不明', full:'未能确认618 JD货盘，决策人信息缺失。' }],
-      commits:[
-        { item:'补全决策链档案', status:'doing', due:'06-10' },
-        { item:'618货盘书面确认', status:'fail', due:'05-20' }
-      ],
-      suggest:{ days:3, topics:['紧急拜访确认决策人','补全档案与联系方式','推进多功能锅JD同价引入'] }
-    }
+  micoe: {
+    ai: '四季沐歌太阳能+卫浴延伸，季节性强；DY/TB 占比较高，JD 增量空间明确。',
+    gaps: [], opps: [], risks: [],
+    history: { days:40, cycle:90, overdue:true, temp:68, tempTrend:'flat', timeline:[], commits:[], suggest:{ days:7, topics:['旺季前锁定四季沐歌 JD 促销档','同步热水器+卫浴联合方案'] } }
   }
 };
-var currentKey = 'midea';
+var currentKey = 'jomoo';
 var currentPTab = 'dashboard';
 var gData = null;
 var gMetricsHistory = [];
@@ -462,11 +427,12 @@ function strategyFieldNeedsLlm(p, key, side) {
 }
 
 var DEMO_GMV_TRENDS = {
-  midea: [607, 624, 647, 630, 635, 618, 601, 578, 555, 532, 508, 487],
-  joyoung: [350, 356, 362, 365, 368, 372, 378, 385, 420, 460, 490, 512],
-  supor: [569, 574, 580, 586, 592, 598, 604, 610, 616, 620, 622, 623],
-  bear: [218, 225, 232, 238, 245, 252, 260, 268, 276, 285, 292, 298],
-  morphy: [137, 141, 145, 148, 152, 156, 162, 168, 174, 180, 184, 187]
+  // JD 渠道月成交（万元），2025-06 起 12 个月；与 brand_metrics_monthly.csv 一致
+  jomoo: [37658.03, 15504.04, 19352.69, 17563.48, 45242.66, 47231.45, 24271.2, 20605.98, 8109.93, 23350.77, 18609.74, 35273.23],
+  arrow: [16131.35, 8418.2, 9495.05, 7812.62, 19237.62, 21347.13, 12320.93, 9514.67, 5536.38, 13950.22, 8514.73, 14645.67],
+  hegii: [11343.88, 4659.27, 6920.44, 5904.59, 15007.32, 13784.29, 11981.57, 6497.12, 2658.45, 6336.92, 6381.38, 9885.62],
+  submarine: [6338.81, 5414.08, 5465.03, 4983.49, 5673.74, 6086.4, 5373.44, 5220.67, 2663.27, 4355.05, 4583.59, 5166.01],
+  micoe: [6450.93, 3996.6, 3654.22, 3870.2, 6847.94, 7809.5, 6308.72, 4407.28, 2837.1, 3895.63, 2999.68, 3381.74]
 };
 
 function metricNum(v) {
@@ -485,6 +451,26 @@ function getSalesVolumeWow(m) {
   return m.sales_volume_wow != null ? m.sales_volume_wow : m.orders_wow;
 }
 
+function getSalesVolumeYoy(m) {
+  if (!m) return null;
+  return m.sales_volume_yoy != null ? m.sales_volume_yoy : null;
+}
+
+function getGmvYoy(m) {
+  if (!m) return null;
+  return m.gmv_yoy != null ? m.gmv_yoy : null;
+}
+
+/** JD 行展示市占变化；TM/DY/TB 展示渠道增速（与成交同比不重复） */
+function channelTableGrowth(ch, m) {
+  if (!m) return null;
+  if (ch === 'JD') return m.jd_share_wow;
+  if (ch === 'TM') return m.channel_growth_tmall;
+  if (ch === 'DY') return m.channel_growth_douyin;
+  if (ch === 'TB') return m.channel_growth_taobao;
+  return null;
+}
+
 function prepareMetricsHistory(history, key, latest) {
   var rows = (history || []).map(function(r) {
     return Object.assign({}, r, { gmv: metricNum(r.gmv) });
@@ -497,12 +483,15 @@ function prepareMetricsHistory(history, key, latest) {
   var trend = DEMO_GMV_TRENDS[key];
   if (!trend) return rows;
   return trend.map(function(gmv, i) {
-    var w = i + 12;
-    return { period_value: '2026W' + (w < 10 ? '0' + w : '' + w), gmv: gmv };
+    var startYear = 2025, startMonth = 6;
+    var m = startMonth + i;
+    var y = startYear + Math.floor((m - 1) / 12);
+    var mo = ((m - 1) % 12) + 1;
+    return { period_value: y + '-' + (mo < 10 ? '0' + mo : '' + mo), gmv: gmv };
   });
 }
 
-/** 最新周指标可能缺类目 JSON（如 W24），从近几周历史补齐供图表/表格使用 */
+/** 最新月指标可能缺类目 JSON，从近几月历史补齐供图表/表格使用 */
 function enrichMetricsFromHistory(metrics, history) {
   if (!metrics && history && history.length) {
     return Object.assign({}, history[history.length - 1]);
@@ -522,10 +511,11 @@ function enrichMetricsFromHistory(metrics, history) {
     if (merged.jd_share == null && row.jd_share != null) merged.jd_share = row.jd_share;
     if (merged.tmall_share == null && row.tmall_share != null) merged.tmall_share = row.tmall_share;
     if (merged.douyin_share == null && row.douyin_share != null) merged.douyin_share = row.douyin_share;
-    if (merged.pdd_share == null && row.pdd_share != null) merged.pdd_share = row.pdd_share;
+    if (merged.taobao_share == null && row.taobao_share != null) merged.taobao_share = row.taobao_share;
     if (merged.channel_growth_jd == null && row.channel_growth_jd != null) merged.channel_growth_jd = row.channel_growth_jd;
     if (merged.channel_growth_tmall == null && row.channel_growth_tmall != null) merged.channel_growth_tmall = row.channel_growth_tmall;
     if (merged.channel_growth_douyin == null && row.channel_growth_douyin != null) merged.channel_growth_douyin = row.channel_growth_douyin;
+    if (merged.channel_growth_taobao == null && row.channel_growth_taobao != null) merged.channel_growth_taobao = row.channel_growth_taobao;
     if (merged.category_distribution && merged.category_share) break;
   }
   return merged;
@@ -583,14 +573,12 @@ function buildProfileAiBlurb(data, briefing) {
 
   if (m) {
     var gmv = m.gmv != null ? m.gmv : '—';
-    var wow = m.gmv_wow;
-    var volWow = getSalesVolumeWow(m);
-    var biz = '【经营】本期 GMV <strong>' + gmv + ' 万</strong>';
-    if (wow != null) biz += '，周环比 ' + (wow > 0 ? '↑' : wow < 0 ? '↓' : '') + Math.abs(wow) + '%';
-    if (volWow != null) biz += '；销量环比 ' + volWow + '%';
-    if (m.jd_share != null && m.channel_growth_jd != null) {
-      biz += '；JD 市占 ' + m.jd_share + '%、渠道增速 ' + m.channel_growth_jd + '%';
-    }
+    var gmvYoy = getGmvYoy(m);
+    var volYoy = getSalesVolumeYoy(m);
+    var biz = '【经营】本期成交 <strong>' + gmv + ' 万</strong>';
+    if (gmvYoy != null) biz += '，同比 ' + (gmvYoy > 0 ? '↑' : gmvYoy < 0 ? '↓' : '') + Math.abs(gmvYoy) + '%';
+    if (volYoy != null) biz += '；销量同比 ' + volYoy + '%';
+    if (m.jd_share != null) biz += '；JD 市占 ' + m.jd_share + '%';
     chunks.push(biz + '。');
   } else {
     chunks.push('【经营】暂无本期指标，建议先补 brand_metrics。');
@@ -641,8 +629,8 @@ function buildProfileAiBlurb(data, briefing) {
   if (visitBits.length) chunks.push('【拜访】' + visitBits.join('；') + '。');
 
   var strategies = [];
-  if (m && m.gmv_wow != null && m.gmv_wow < -5) strategies.push('JD 渠道承压，优先对齐货盘/价格与 618 排期');
-  if (m && m.channel_growth_douyin != null && m.channel_growth_jd != null && m.channel_growth_douyin > m.channel_growth_jd + 15) {
+  if (m && getGmvYoy(m) != null && getGmvYoy(m) < -5) strategies.push('成交同比承压，优先对齐货盘/价格与 618 排期');
+  if (m && m.channel_growth_douyin != null && getGmvYoy(m) != null && m.channel_growth_douyin > getGmvYoy(m) + 15) {
     strategies.push('抖音增速显著高于 JD，谈同价同发或搜索专区换资源');
   }
   if (riskTitles.length) strategies.push('优先消化 P0 风险：' + truncate(riskTitles[0], 22));
@@ -833,10 +821,80 @@ function fmtDate(d) {
   return String(d).slice(0, 10);
 }
 
-function weekLabel(period) {
+function periodChartLabel(period) {
   if (!period) return '';
-  var m = String(period).match(/W(\d+)/i);
-  return m ? 'W' + parseInt(m[1], 10) : period;
+  var s = String(period);
+  var month = s.match(/^(\d{4})-(\d{2})$/);
+  if (month) return parseInt(month[2], 10) + '月';
+  var w = s.match(/W(\d+)/i);
+  if (w) return 'W' + parseInt(w[1], 10);
+  return s;
+}
+
+/** M4 月频：2026-05 原样；兼容旧 weekly 2026W24 → 2026-W24 */
+function formatDataAsOfLabel(period) {
+  if (!period) return '—';
+  var s = String(period);
+  if (/^\d{4}-\d{2}$/.test(s)) return s;
+  var m = s.match(/^(\d{4})W(\d{1,2})$/i);
+  if (m) {
+    var ww = m[2].length === 1 ? '0' + m[2] : m[2];
+    return m[1] + '-W' + ww;
+  }
+  return s;
+}
+
+function getLatestPeriodValue(metrics, history) {
+  if (metrics && metrics.period_value) return metrics.period_value;
+  var hist = history || [];
+  if (!hist.length) return null;
+  var sorted = hist.slice().sort(function(a, b) {
+    return String(a.period_value).localeCompare(String(b.period_value));
+  });
+  return sorted[sorted.length - 1].period_value;
+}
+
+function hasRealMetricsRow(m) {
+  if (!m) return false;
+  return m.gmv != null || m.sales_volume != null || m.jd_share != null || m.sku_count != null;
+}
+
+/** M4-A：readonly 禁写；本地可 ?readonly=1 预览 */
+function isProfileReadOnly() {
+  if (new URLSearchParams(window.location.search).get('readonly') === '1') return true;
+  var u = window.SandAuth && SandAuth.getCachedUser ? SandAuth.getCachedUser() : null;
+  if (!u) return false;
+  var role = String(u.role || u.user_role || '').toLowerCase();
+  if (role === 'readonly') return true;
+  return String(u.username || '').toLowerCase() === 'readonly';
+}
+
+function profileWriteGuard(actionLabel) {
+  if (!isProfileReadOnly()) return false;
+  showToast((actionLabel || '保存') + '失败：当前账号只读');
+  return true;
+}
+
+function applyReadOnlyUi() {
+  var ro = isProfileReadOnly();
+  var banner = document.getElementById('profile-readonly-banner');
+  if (banner) banner.classList.toggle('show', ro);
+  document.querySelectorAll('.profile-write-btn').forEach(function(el) {
+    el.style.display = ro ? 'none' : '';
+  });
+  if (ro) {
+    document.querySelectorAll('.person-card.editing, .profile-rule-box.editing, .profile-strategy-box.editing, .org-box.editing').forEach(function(el) {
+      el.classList.remove('editing');
+    });
+  }
+}
+
+function renderDataAsOfHtml(metrics, history) {
+  var period = getLatestPeriodValue(metrics, history);
+  if (period) {
+    return '<span class="profile-data-asof" id="profile-data-asof" title="brand_metrics 最新 period_value">数据截至 ' + formatDataAsOfLabel(period) + '</span>';
+  }
+  return '<span class="profile-data-asof is-pending" id="profile-data-asof" title="等待 bi_csv 月频导入">数据截至 —（待导入 YYYY-MM）</span>';
 }
 
 function destroyCharts() {
@@ -871,13 +929,13 @@ function buildGmvLineDatasets(trend, anomalyFrom) {
   var base = { fill: true, tension: 0.3, pointBorderColor: '#fff', pointBorderWidth: 1, spanGaps: false };
   if (anomalyFrom < 0 || anomalyFrom >= n) {
     return [{
-      label: '周GMV(万)', data: trend, borderColor: '#0d7aff', backgroundColor: 'rgba(13,122,255,0.15)',
+      label: 'JD月成交(万)', data: trend, borderColor: '#0d7aff', backgroundColor: 'rgba(13,122,255,0.15)',
       borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#0d7aff'
     }];
   }
   return [
     Object.assign({}, base, {
-      label: '周GMV(万)', data: trend.map(function(v, i) { return i <= anomalyFrom ? v : null; }),
+      label: 'JD月成交(万)', data: trend.map(function(v, i) { return i <= anomalyFrom ? v : null; }),
       borderColor: '#0d7aff', backgroundColor: 'rgba(13,122,255,0.15)', borderWidth: 2,
       pointRadius: trend.map(function(_, i) { return i <= anomalyFrom ? 4 : 0; }),
       pointBackgroundColor: trend.map(function(_, i) { return i <= anomalyFrom ? '#0d7aff' : 'transparent'; })
@@ -900,11 +958,11 @@ var chartLightOpts = {
   }
 };
 var BENCH_RANKS = {
-  midea: { margin:11, cvr:12, adRate:15 },
-  joyoung: { margin:4, cvr:6, adRate:7 },
-  supor: { margin:9, cvr:14, adRate:18 },
-  bear: { margin:2, cvr:3, adRate:4 },
-  morphy: { margin:1, cvr:17, adRate:3 }
+  jomoo: { margin:11, cvr:12, adRate:15 },
+  arrow: { margin:9, cvr:10, adRate:12 },
+  hegii: { margin:8, cvr:9, adRate:14 },
+  submarine: { margin:6, cvr:8, adRate:10 },
+  micoe: { margin:5, cvr:7, adRate:11 }
 };
 
 function initCharts(key, metricsHistory, latest) {
@@ -914,9 +972,9 @@ function initCharts(key, metricsHistory, latest) {
   var gmvId = 'chart-gmv-' + key;
 
   if (!history.length) {
-    showChartEmpty(gmvId, '暂无 GMV 趋势数据');
+    showChartEmpty(gmvId, '暂无成交趋势数据');
   } else {
-    var labels = history.map(function(r) { return weekLabel(r.period_value); });
+    var labels = history.map(function(r) { return periodChartLabel(r.period_value); });
     var trend = history.map(function(r) { return r.gmv; });
     var anomalyFrom = detectAnomalyFrom(trend);
     var gmvCtx = document.getElementById(gmvId);
@@ -939,7 +997,7 @@ function initCharts(key, metricsHistory, latest) {
   }
 
   var shareCtx = document.getElementById('chart-share-' + key);
-  var shareData = [latest.jd_share, latest.tmall_share, latest.douyin_share, latest.pdd_share];
+  var shareData = [latest.jd_share, latest.tmall_share, latest.douyin_share, latest.taobao_share];
   if (!hasNumericValues(shareData)) {
     showChartEmpty('chart-share-' + key, '暂无渠道占比数据');
   } else if (shareCtx) {
@@ -948,7 +1006,7 @@ function initCharts(key, metricsHistory, latest) {
     chartStore.share = new Chart(shareCtx, {
       type: 'bar',
       data: {
-        labels: ['JD', 'TM', 'DY', 'PDD'],
+        labels: ['JD', 'TM', 'DY', 'TB'],
         datasets: [{
           label: '市占%',
           data: shareData,
@@ -960,7 +1018,7 @@ function initCharts(key, metricsHistory, latest) {
   }
 
   var growthCtx = document.getElementById('chart-growth-' + key);
-  var growths = [latest.channel_growth_jd, latest.channel_growth_tmall, latest.channel_growth_douyin, 0];
+  var growths = [latest.jd_share_wow, latest.channel_growth_tmall, latest.channel_growth_douyin, latest.channel_growth_taobao];
   if (!hasNumericValues(growths)) {
     showChartEmpty('chart-growth-' + key, '暂无渠道增速数据');
   } else if (growthCtx) {
@@ -969,9 +1027,9 @@ function initCharts(key, metricsHistory, latest) {
     chartStore.growth = new Chart(growthCtx, {
       type: 'bar',
       data: {
-        labels: ['JD', 'TM', 'DY', 'PDD'],
+        labels: ['JD', 'TM', 'DY', 'TB'],
         datasets: [{
-          label: '增速%',
+          label: '变化%',
           data: growths,
           backgroundColor: growths.map(function(v) { return (v || 0) >= 0 ? '#0e7c4b' : '#cd3b32'; })
         }]
@@ -992,7 +1050,7 @@ function initCharts(key, metricsHistory, latest) {
       data: {
         labels: cats.map(function(c) { return c.name; }),
         datasets: [{
-          label: 'GMV占比%',
+          label: '成交占比%',
           data: cats.map(function(c) { return c.share; }),
           backgroundColor: ['#0d7aff', '#e6a700', '#64748b', '#0e7c4b', '#cd3b32'].slice(0, cats.length)
         }]
@@ -1067,7 +1125,7 @@ function refreshHistoryTab() {
 }
 
 function loadBrand(key) {
-  document.getElementById('loading-overlay').classList.remove('hidden');
+  showLoadingOverlay();
   var mainBase = (typeof M1_MAIN_API_BASE !== 'undefined' && M1_MAIN_API_BASE) ? M1_MAIN_API_BASE : API_BASE;
   return Promise.all([
     apiReq('/api/brands/profile/' + key),
@@ -1086,44 +1144,64 @@ function loadBrand(key) {
       Promise.all([blurbTask, strategyTask]);
     });
   }).catch(function(e) {
-    showError('加载失败：' + e.message + '（请确认后端 8000 已启动）');
+    showError('加载失败：' + e.message + '（请确认 backend 8001 已启动）');
   }).finally(function() {
-    document.getElementById('loading-overlay').classList.add('hidden');
+    hideLoadingOverlay();
   });
 }
 
-function getP0Gaps(key) {
+function getP0Gaps(key, m) {
   var extra = BRAND_EXTRA[key] || {};
-  return (extra.gaps || []).filter(function(g) { return g.prio === 'P0'; });
+  var fromExtra = (extra.gaps || []).filter(function(g) { return g.prio === 'P0'; });
+  if (fromExtra.length) return fromExtra;
+  if (m && m.p0_gap_count > 0 && DEMO_GAP_SKUS[key]) {
+    return DEMO_GAP_SKUS[key].slice(0, m.p0_gap_count);
+  }
+  return [];
 }
 
-function renderGapPanel(key) {
-  var p0 = getP0Gaps(key);
+function renderGapPanel(key, m) {
+  var p0 = getP0Gaps(key, m);
+  var demoTag = (m && m.p0_gap_count > 0 && hasDemoCategoryMetrics(m)) ? demoDataBadge() : '';
   if (!p0.length) {
     return '<div class="profile-gap-panel" id="gap-panel-' + key + '"><div class="gap-head">暂无 P0 供给缺口</div></div>';
   }
   var rows = p0.map(function(g) {
     return '<tr><td>' + g.sku + '</td><td>' + g.platform + '</td><td>' + g.compSales + '</td><td><span class="tag tag-red">' + g.prio + '</span></td></tr>';
   }).join('');
-  return '<div class="profile-gap-panel" id="gap-panel-' + key + '"><div class="gap-head">P0 SKU 供给缺口 · 建议引入优先级</div><table><tr><th>SKU</th><th>竞对平台</th><th>竞对月销</th><th>优先级</th></tr>' + rows + '</table></div>';
+  return '<div class="profile-gap-panel" id="gap-panel-' + key + '"><div class="gap-head">P0 供给缺口 · 建议引入优先级' + demoTag + '</div><table><tr><th>SPU</th><th>竞对平台</th><th>竞对月销</th><th>优先级</th></tr>' + rows + '</table></div>';
 }
 
 function renderKpiCards(m, key) {
-  if (!m) return '<p style="color:var(--text-muted);">暂无经营数据</p>';
-  var gmvWow = m.gmv_wow;
-  var volWow = getSalesVolumeWow(m);
+  if (!m || !hasRealMetricsRow(m)) {
+    return '<div class="metrics-empty-banner">暂无月度经营指标。请通过 <strong>bi_csv</strong> 导入底表（period_type=monthly，period_value=YYYY-MM）；当前不影响档案编辑与 LLM 降级。</div>' +
+      '<div class="profile-kpi-row">' +
+      '<div class="profile-kpi-card"><div class="kpi-label">成交（本期）</div><span class="kpi-value is-empty">—</span><span class="kpi-sub">待导入</span></div>' +
+      '<div class="profile-kpi-card"><div class="kpi-label">成交同比</div><span class="kpi-value is-empty">—</span><span class="kpi-sub">%</span></div>' +
+      '<div class="profile-kpi-card"><div class="kpi-label">销量</div><span class="kpi-value is-empty">—</span><span class="kpi-sub">本期销量</span></div>' +
+      '<div class="profile-kpi-card"><div class="kpi-label">销量增速</div><span class="kpi-value is-empty">—</span><span class="kpi-sub">销量同比</span></div>' +
+      '<div class="profile-kpi-card"><div class="kpi-label">动销商品数(SPU)</div><span class="kpi-value is-empty">—</span><span class="kpi-sub">JD 渠道 · 当月</span></div>' +
+      '<div class="profile-kpi-card"><div class="kpi-label">P0供给缺口数</div><span class="kpi-value is-empty">—</span><span class="kpi-sub">待指标</span></div>' +
+      '</div>';
+  }
+  var gmvYoy = getGmvYoy(m);
+  var volYoy = getSalesVolumeYoy(m);
   var salesVol = getSalesVolume(m);
-  var p0 = getP0Gaps(key);
+  var p0 = getP0Gaps(key, m);
   var p0Count = m.p0_gap_count != null ? m.p0_gap_count : p0.length;
+  var p0DemoBadge = (m.p0_gap_count != null && hasDemoCategoryMetrics(m)) ? demoDataBadge() : '';
   var gapClick = p0Count > 0 ? ' clickable" onclick="toggleGapPanel(\'' + key + '\')"' : '"';
-  var gmvYoy = m.gmv_yoy;
+  var gmvVal = m.gmv != null ? m.gmv : null;
+  var gmvYoyVal = gmvYoy != null ? ((gmvYoy > 0 ? '+' : '') + gmvYoy + '%') : null;
+  var salesVal = salesVol != null ? salesVol.toLocaleString() : null;
+  var volYoyVal = volYoy != null ? ((volYoy > 0 ? '+' : '') + volYoy + '%') : null;
   return '<div class="profile-kpi-row">' +
-    '<div class="profile-kpi-card"><div class="kpi-label">GMV（本期）</div><div class="kpi-value">' + (m.gmv != null ? m.gmv : '—') + '</div><span class="kpi-sub ' + trendClass(gmvYoy) + '">同比 ' + fmtPct(gmvYoy, true) + ' · 环比 ' + fmtPct(gmvWow, true) + '</span></div>' +
-    '<div class="profile-kpi-card"><div class="kpi-label">GMV增速</div><div class="kpi-value">' + (gmvWow != null ? ((gmvWow > 0 ? '+' : '') + gmvWow + '%') : '—') + '</div><span class="kpi-sub ' + trendClass(gmvWow) + '">周环比</span></div>' +
-    '<div class="profile-kpi-card"><div class="kpi-label">销量</div><div class="kpi-value">' + (salesVol != null ? salesVol.toLocaleString() : '—') + '</div><span class="kpi-sub">本期销量</span></div>' +
-    '<div class="profile-kpi-card"><div class="kpi-label">销量增速</div><div class="kpi-value">' + (volWow != null ? ((volWow > 0 ? '+' : '') + volWow + '%') : '—') + '</div><span class="kpi-sub ' + trendClass(volWow) + '">销量环比 ' + fmtPct(volWow, true) + '</span></div>' +
-    '<div class="profile-kpi-card"><div class="kpi-label">在售SKU数</div><div class="kpi-value">' + (m.sku_count != null ? m.sku_count : '—') + '</div><span class="kpi-sub">本期在售</span></div>' +
-    '<div class="profile-kpi-card gap-alert' + gapClick + '><div class="kpi-label">P0供给缺口数</div><div class="kpi-value" style="color:' + (p0Count > 0 ? 'var(--red-500)' : 'var(--text-secondary)') + '">' + p0Count + '</div><span class="kpi-sub">' + (p0Count > 0 ? '点击查看缺口列表 →' : '暂无 P0 缺口') + '</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">成交（本期）</div>' + (gmvVal != null ? '<div class="kpi-value">' + gmvVal + '</div>' : '<span class="kpi-value is-empty">—</span>') + '<span class="kpi-sub">JD 渠道 · 万元 · 当月</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">成交同比</div>' + (gmvYoyVal != null ? '<div class="kpi-value">' + gmvYoyVal + '</div>' : '<span class="kpi-value is-empty">—</span>') + '<span class="kpi-sub ' + trendClass(gmvYoy) + '">JD 渠道 · 较去年同期</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">销量</div>' + (salesVal != null ? '<div class="kpi-value">' + salesVal + '</div>' : '<span class="kpi-value is-empty">—</span>') + '<span class="kpi-sub">JD 渠道 · 当月</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">销量增速</div>' + (volYoyVal != null ? '<div class="kpi-value">' + volYoyVal + '</div>' : '<span class="kpi-value is-empty">—</span>') + '<span class="kpi-sub ' + trendClass(volYoy) + '">JD 渠道 · 销量同比</span></div>' +
+    '<div class="profile-kpi-card"><div class="kpi-label">动销商品数(SPU)</div>' + (m.sku_count != null ? '<div class="kpi-value">' + m.sku_count.toLocaleString() + '</div>' : '<span class="kpi-value is-empty">—</span>') + '<span class="kpi-sub">JD 渠道 · 当月</span></div>' +
+    '<div class="profile-kpi-card gap-alert' + gapClick + '><div class="kpi-label">P0供给缺口数' + p0DemoBadge + '</div><div class="kpi-value" style="color:' + (p0Count > 0 ? 'var(--red-500)' : 'var(--text-secondary)') + '">' + p0Count + '</div><span class="kpi-sub">' + (p0Count > 0 ? '点击查看缺口列表 →' : '暂无 P0 缺口') + '</span></div>' +
     '</div>';
 }
 
@@ -1135,16 +1213,17 @@ window.toggleGapPanel = function(key) {
 function renderChannelTable(m) {
   if (!m) return '';
   var rows = [
-    { ch:'JD', share:m.jd_share, growth:m.channel_growth_jd, highlight:true },
-    { ch:'TM', share:m.tmall_share, growth:m.channel_growth_tmall },
-    { ch:'DY', share:m.douyin_share, growth:m.channel_growth_douyin },
-    { ch:'PDD', share:m.pdd_share, growth:null }
+    { ch:'JD', share:m.jd_share, growth:channelTableGrowth('JD', m), growthHint:'市占变化', highlight:true },
+    { ch:'TM', share:m.tmall_share, growth:channelTableGrowth('TM', m), growthHint:'渠道增速' },
+    { ch:'DY', share:m.douyin_share, growth:channelTableGrowth('DY', m), growthHint:'渠道增速' },
+    { ch:'TB', share:m.taobao_share, growth:channelTableGrowth('TB', m), growthHint:'渠道增速' }
   ];
   var html = rows.map(function(r) {
     var gc = trendClass(r.growth);
-    return '<tr class="' + (r.highlight ? 'jd-row' : '') + '"><td><b>' + r.ch + '</b></td><td>' + (r.share != null ? r.share + '%' : '—') + '</td><td class="kpi-sub ' + gc + '">' + (r.growth != null ? fmtPct(r.growth, true) : '—') + '</td></tr>';
+    var growthTitle = r.growthHint ? ' title="' + r.growthHint + '"' : '';
+    return '<tr class="' + (r.highlight ? 'jd-row' : '') + '"><td><b>' + r.ch + '</b></td><td>' + (r.share != null ? r.share + '%' : '—') + '</td><td class="kpi-sub ' + gc + '"' + growthTitle + '>' + (r.growth != null ? fmtPct(r.growth, true) : '—') + '</td></tr>';
   }).join('');
-  return '<div class="card"><div class="card-header"><h3>渠道市占</h3><span class="card-meta">JD行高亮 · 数据来自 brand_metrics</span></div><div class="card-body no-padding"><table><tr><th>渠道</th><th>市占%</th><th>增速%</th></tr>' + html + '</table></div></div>';
+  return '<div class="card"><div class="card-header"><h3>渠道市占</h3><span class="card-meta">JD 行=市占变化 · TM/DY/TB=渠道增速 · 不含成交同比</span></div><div class="card-body no-padding"><table><tr><th>渠道</th><th>市占%</th><th>变化/增速%</th></tr>' + html + '</table></div></div>';
 }
 
 function getCategoryChannelPct(s) {
@@ -1168,6 +1247,7 @@ function renderCategoryTable(m) {
   var shareMap = {};
   share.forEach(function(s) { shareMap[s.name] = s; });
   if (!dist.length) return '<div class="card"><div class="card-header"><h3>类目维度市占</h3></div><div class="card-body"><span style="color:var(--text-muted);">暂无数据</span></div></div>';
+  var demoTag = hasDemoCategoryMetrics(m) ? demoDataBadge() : '';
   var rows = dist.map(function(c) {
     var s = shareMap[c.name] || {};
     var ch = getCategoryChannelPct(s);
@@ -1187,7 +1267,7 @@ function renderCategoryTable(m) {
       '<td>' + (ch.dy != null ? ch.dy + '%' : '—') + '</td>' +
       '<td>' + opp + '</td></tr>';
   }).join('');
-  return '<div class="card"><div class="card-header"><h3>类目维度市占</h3><span class="card-meta">品牌下类目占比=京东渠道品类布局 · JD品类整体占比=平台基准 · JD/TM/TB/DY 四渠道合计100%</span></div><div class="card-body no-padding"><table><tr><th>三级类目</th><th>品牌下类目占比</th><th>JD品类整体占比</th><th>JD</th><th>TM</th><th>TB</th><th>DY</th><th>布局机会</th></tr>' + rows + '</table></div></div>';
+  return '<div class="card"><div class="card-header"><h3>类目维度市占' + demoTag + '</h3><span class="card-meta">品牌下类目占比=京东渠道品类布局 · JD品类整体占比=平台基准 · JD/TM/TB/DY 四渠道合计100%</span></div><div class="card-body no-padding"><table><tr><th>三级类目</th><th>品牌下类目占比</th><th>JD品类整体占比</th><th>JD</th><th>TM</th><th>TB</th><th>DY</th><th>布局机会</th></tr>' + rows + '</table></div></div>';
 }
 
 function benchInterpret(name, rank, higherBetter) {
@@ -1208,7 +1288,7 @@ function renderBenchmark(m, key) {
     var bad = it.val == null ? false : (it.higherBetter ? it.val < it.top : it.val > it.top);
     return '<tr><td>' + it.name + '</td><td' + (bad ? ' class="bad-cell"' : '') + '>' + (it.val != null ? it.val + '%' : '—') + '</td><td>' + it.top + '%</td><td>#' + it.rank + '</td><td>' + benchInterpret(it.name, it.rank, it.higherBetter) + '</td></tr>';
   }).join('');
-  return '<details class="profile-benchmark-panel"><summary>📊 品类对标（毛利率 / 转化率 / 广告费率 vs TOP20）</summary><div class="profile-benchmark-body"><table><tr><th>指标</th><th>本品牌</th><th>品类TOP20均值</th><th>排名</th><th>解读</th></tr>' + rows + '</table><p style="font-size:12px;color:var(--text-muted);margin-top:10px">帮助判断议价空间与投放效率 · 数据可手工导入或 BI 对接</p></div></details>';
+  return '<details class="profile-benchmark-panel"><summary>📊 品类对标（毛利率 / 转化率 / 广告费率 vs TOP20）' + (hasDemoCategoryMetrics(m) ? demoDataBadge() : '') + '</summary><div class="profile-benchmark-body"><table><tr><th>指标</th><th>本品牌</th><th>品类TOP20均值</th><th>排名</th><th>解读</th></tr>' + rows + '</table><p style="font-size:12px;color:var(--text-muted);margin-top:10px">帮助判断议价空间与投放效率 · 底表接入前为示范数据</p></div></details>';
 }
 
 function renderIntelList(items, cls) {
@@ -1332,47 +1412,77 @@ function renderHistoryTab(key, brand) {
 
 function renderDashboard(data) {
   var m = enrichMetricsFromHistory(data.metrics, gMetricsHistory);
-  return renderKpiCards(m, currentKey) + renderGapPanel(currentKey) +
+  return renderKpiCards(m, currentKey) + renderGapPanel(currentKey, m) +
     '<div class="profile-chart-grid">' +
-    '<div class="profile-chart-box"><h4>GMV 趋势 · 近12周（异常段标红）</h4><div class="profile-chart-canvas"><canvas id="chart-gmv-' + currentKey + '"></canvas></div></div>' +
-    '<div class="profile-chart-box"><h4>渠道 GMV 占比 · JD / TM / DY / PDD</h4><div class="profile-chart-canvas"><canvas id="chart-share-' + currentKey + '"></canvas></div></div>' +
+    '<div class="profile-chart-box"><h4>成交趋势 · 近12月 · JD渠道（异常段标红）</h4><div class="profile-chart-canvas"><canvas id="chart-gmv-' + currentKey + '"></canvas></div></div>' +
+    '<div class="profile-chart-box"><h4>渠道市占 · JD / TM / DY / TB</h4><div class="profile-chart-canvas"><canvas id="chart-share-' + currentKey + '"></canvas></div></div>' +
     '</div>' +
     '<div class="profile-chart-grid">' +
-    '<div class="profile-chart-box"><h4>渠道增速对比</h4><div class="profile-chart-canvas"><canvas id="chart-growth-' + currentKey + '"></canvas></div></div>' +
-    '<div class="profile-chart-box"><h4>三级类目 GMV 占比</h4><div class="profile-chart-canvas"><canvas id="chart-cat-' + currentKey + '"></canvas></div></div>' +
+    '<div class="profile-chart-box"><h4>渠道变化 · JD 市占变化 / TM·DY·TB 渠道增速</h4><div class="profile-chart-canvas"><canvas id="chart-growth-' + currentKey + '"></canvas></div></div>' +
+    '<div class="profile-chart-box"><h4>三级类目成交占比' + (hasDemoCategoryMetrics(m) ? demoDataBadge() : '') + '</h4><div class="profile-chart-canvas"><canvas id="chart-cat-' + currentKey + '"></canvas></div></div>' +
     '</div>' +
     renderCategoryTable(m) +
     renderBenchmark(m, currentKey);
 }
 
-function renderOrg(orgStr) {
-  var org = parseJson(orgStr, null);
-  if (!org) return '<span style="color:var(--text-muted);">暂无组织架构</span>';
-  var nodes = (org.nodes || []).map(function(n) { return '<div class="org-node">' + n + '</div>'; }).join('');
-  return '<div class="org-chart"><div class="org-node">' + (org.root || '') + '</div><div class="org-connector"></div><div class="org-node lead">' + (org.lead || '') + '</div><div class="org-connector"></div><div class="org-row">' + nodes + '</div></div>';
+function contactOrgLabel(c) {
+  var title = (c.title || '').trim();
+  if (!title) return c.name;
+  var roles = ['总经理', '副总经理', '总监', '副总监', '经理', '主管', '负责人', 'VP'];
+  for (var i = 0; i < roles.length; i++) {
+    if (title.indexOf(roles[i]) >= 0) return c.name + ' · ' + roles[i];
+  }
+  if (title.length <= 6) return c.name + ' · ' + title;
+  return c.name + ' · ' + title.slice(-4);
+}
+
+function renderOrgChart(orgStr, contacts) {
+  var org = parseJson(orgStr, null) || { root: '', lead: '', nodes: [] };
+  var nodes = (contacts && contacts.length)
+    ? contacts.map(contactOrgLabel)
+    : (org.nodes || []);
+  if (!org.root && !org.lead && !nodes.length) {
+    return '<span style="color:var(--text-muted);">暂无组织架构</span>';
+  }
+  var nodeHtml = nodes.map(function(n) { return '<div class="org-node">' + escapeHtml(n) + '</div>'; }).join('');
+  return '<div class="org-chart">' +
+    (org.root ? '<div class="org-node">' + escapeHtml(org.root) + '</div><div class="org-connector"></div>' : '') +
+    (org.lead ? '<div class="org-node lead">' + escapeHtml(org.lead) + '</div><div class="org-connector"></div>' : '') +
+    (nodeHtml ? '<div class="org-row">' + nodeHtml + '</div>' : '') +
+    '</div>';
+}
+
+function renderOrg(orgStr, contacts) {
+  return renderOrgChart(orgStr, contacts);
 }
 
 function renderContacts(contacts) {
-  if (!contacts.length) return '<p style="color:var(--text-muted);font-size:13px;">暂无联系人，拜访后补充</p>';
+  if (!contacts.length) {
+    return '<p style="color:var(--text-muted);font-size:13px;">暂无联系人，点击下方新增</p>';
+  }
   return contacts.map(function(c) {
     return '<div class="person-card person-card-editable" id="contact-' + c.id + '" data-id="' + c.id + '">' +
-      '<div class="person-view"><div class="person-head"><div><div class="person-name">' + c.name + '</div><div class="person-role">' + (c.title || '') + '</div></div>' +
-      '<button class="btn-sm-outline" onclick="editContact(' + c.id + ')">编辑</button></div>' +
-      '<div class="person-tags"><span class="tag ' + roleTagClass(c.role_tag) + '">' + (c.role_tag || '其他') + '</span>' +
+      '<div class="person-view"><div class="person-head"><div><div class="person-name">' + escapeHtml(c.name) + '</div><div class="person-role">' + escapeHtml(c.title || '') + '</div></div>' +
+      '<div class="person-actions">' +
+      '<button class="btn-sm-outline profile-write-btn" onclick="editContact(' + c.id + ')">编辑</button>' +
+      '<button class="btn-sm-outline profile-write-btn" onclick="removeContact(' + c.id + ')">删除</button>' +
+      '</div></div>' +
+      '<div class="person-tags"><span class="tag ' + roleTagClass(c.role_tag) + '">' + escapeHtml(c.role_tag || '其他') + '</span>' +
       '<span class="tag tag-gray">最近建联 ' + fmtDate(c.last_contact_date) + '</span></div></div>' +
       '<div class="person-edit-fields">' +
-      '<label class="form-label">姓名</label><input class="form-input" id="cname-' + c.id + '" value="' + c.name + '">' +
-      '<label class="form-label">职务</label><input class="form-input" id="ctitle-' + c.id + '" value="' + (c.title || '') + '">' +
+      '<label class="form-label">姓名</label><input class="form-input" id="cname-' + c.id + '" value="' + escapeHtml(c.name) + '">' +
+      '<label class="form-label">职务</label><input class="form-input" id="ctitle-' + c.id + '" value="' + escapeHtml(c.title || '') + '">' +
       '<label class="form-label">角色标签</label><select class="form-select" id="crole-' + c.id + '">' +
       ['决策者','日常对接','需加强','其他'].map(function(t) { return '<option' + (c.role_tag === t ? ' selected' : '') + '>' + t + '</option>'; }).join('') +
       '</select>' +
-      '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveContact(' + c.id + ')">保存</button><button class="btn-sm-outline" onclick="cancelContact(' + c.id + ')">取消</button></div></div></div>';
+      '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary profile-write-btn" onclick="saveContact(' + c.id + ')">保存</button><button class="btn-sm-outline" onclick="cancelContact(' + c.id + ')">取消</button></div></div></div>';
   }).join('');
 }
 
 function renderIntro(data) {
   var b = data.brand;
   var p = data.profile || {};
+  var org = parseJson(p.org_structure, {}) || {};
   var taboos = p.taboos || '（暂无潜规则记录）';
   var meta = p.taboo_updated_by ? ('最后更新：' + p.taboo_updated_by + ' · ' + (p.taboo_updated_at || '').slice(0, 10)) : '尚未更新';
   return '<div class="profile-intro-grid">' +
@@ -1382,15 +1492,33 @@ function renderIntro(data) {
     '<dt>品牌定位</dt><dd>' + (p.positioning || '—') + '</dd>' +
     '<dt>负责采销</dt><dd>' + (b.responsible || '—') + '</dd>' +
     '</dl></div></div>' +
-    '<div class="card"><div class="card-header"><h3>关键人物</h3><span class="card-meta">可编辑 · AI候选→采销确认</span></div><div class="card-body" id="contacts-mount">' + renderContacts(data.contacts) + '</div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>关键人物</h3><span class="card-meta">可编辑 · 保存后同步至组织架构下层</span>' +
+    '<button class="btn-sm-outline profile-write-btn" style="margin-left:auto;" onclick="showNewContactForm()">+ 新增</button></div>' +
+    '<div class="card-body" id="contacts-mount">' + renderContacts(data.contacts) +
+    '<div class="contact-new-panel" id="contact-new-panel">' +
+    '<label class="form-label">姓名</label><input class="form-input" id="cnew-name" placeholder="姓名">' +
+    '<label class="form-label">职务</label><input class="form-input" id="cnew-title" placeholder="如 电商总监">' +
+    '<label class="form-label">角色标签</label><select class="form-select" id="cnew-role">' +
+    ['决策者','日常对接','需加强','其他'].map(function(t) { return '<option>' + t + '</option>'; }).join('') +
+    '</select>' +
+    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary profile-write-btn" onclick="saveNewContact()">添加</button><button class="btn-sm-outline" onclick="hideNewContactForm()">取消</button></div>' +
+    '</div></div></div></div>' +
     '<div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">' +
-    '<div class="card"><div class="card-header"><h3>组织架构简图</h3></div><div class="card-body">' + renderOrg(p.org_structure) + '</div></div>' +
-    '<div class="card"><div class="card-header"><h3>品牌潜规则</h3><span class="card-meta">拜访禁忌 · 决策偏好</span><button class="btn-sm-outline" style="margin-left:auto;" onclick="editTaboos()">编辑</button></div>' +
+    '<div class="card org-box" id="org-box"><div class="card-header"><h3>组织架构简图</h3><span class="card-meta">下层节点随关键人物自动更新</span>' +
+    '<button class="btn-sm-outline profile-write-btn" style="margin-left:auto;" onclick="editOrgMeta()">编辑层级</button></div>' +
+    '<div class="card-body"><div class="org-view">' + renderOrgChart(p.org_structure, data.contacts) + '</div>' +
+    '<div class="org-edit-fields">' +
+    '<label class="form-label">顶层（集团/公司）</label><input class="form-input" id="org-root" value="' + escapeHtml(org.root || '') + '">' +
+    '<label class="form-label">中层（事业部/部门）</label><input class="form-input" id="org-lead" value="' + escapeHtml(org.lead || '') + '">' +
+    '<p style="font-size:11px;color:var(--text-muted);margin:8px 0;">最下层人员卡片请在左侧「关键人物」增删改，保存后自动出现在架构图。</p>' +
+    '<div style="display:flex;gap:8px;"><button class="btn-primary profile-write-btn" onclick="saveOrgMeta()">保存层级</button><button class="btn-sm-outline" onclick="cancelOrgMeta()">取消</button></div>' +
+    '</div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>品牌潜规则</h3><span class="card-meta">拜访禁忌 · 决策偏好</span><button class="btn-sm-outline profile-write-btn" style="margin-left:auto;" onclick="editTaboos()">编辑</button></div>' +
     '<div class="card-body"><div class="profile-rule-box" id="taboo-box">' +
     '<div class="rule-view" id="taboo-view" style="white-space:pre-wrap;">' + taboos + '</div>' +
     '<div class="rule-meta" id="taboo-meta">' + meta + '</div>' +
     '<div class="rule-edit"><textarea class="form-textarea" id="taboo-input" rows="5">' + taboos + '</textarea>' +
-    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveTaboos()">保存</button><button class="btn-sm-outline" onclick="cancelTaboos()">取消</button></div></div></div></div></div></div>';
+    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary profile-write-btn" onclick="saveTaboos()">保存</button><button class="btn-sm-outline" onclick="cancelTaboos()">取消</button></div></div></div></div></div></div>';
 }
 
 function escapeHtml(s) {
@@ -1425,19 +1553,18 @@ function buildStrategyFallback(data, briefing, key) {
       }
       compLines.push(jdLine);
     }
-    if (m.channel_growth_jd != null && m.channel_growth_douyin != null &&
-        m.channel_growth_douyin > m.channel_growth_jd + 10) {
+    if (m.channel_growth_douyin != null && getGmvYoy(m) != null &&
+        m.channel_growth_douyin > getGmvYoy(m) + 10) {
       compLines.push(
-        '【压力】抖音增速 ' + m.channel_growth_douyin + '% 明显高于 JD ' +
-        m.channel_growth_jd + '%，需关注站外资源倾斜对 JD 份额的挤压。'
+        '【压力】抖音渠道增速 ' + m.channel_growth_douyin + '% 明显高于成交同比 ' +
+        getGmvYoy(m) + '%，需关注站外资源倾斜。'
       );
-    } else if (m.channel_growth_jd != null && m.channel_growth_jd < -5) {
-      compLines.push('【压力】JD 渠道增速 ' + m.channel_growth_jd + '%，增长承压，需对齐货盘与价格策略。');
     }
-    if (m.gmv_wow != null && m.gmv_wow < -5) {
-      compLines.push('【经营】本期 GMV 周环比 ' + m.gmv_wow + '%，需跟踪主要竞对促销与排期。');
-    } else if (m.gmv != null && m.gmv_wow != null) {
-      compLines.push('【经营】本期 GMV ' + m.gmv + ' 万，周环比 ' + (m.gmv_wow > 0 ? '+' : '') + m.gmv_wow + '%。');
+    var gmvYoy = getGmvYoy(m);
+    if (gmvYoy != null && gmvYoy < -5) {
+      compLines.push('【经营】本期成交同比 ' + gmvYoy + '%，需跟踪主要竞对促销与排期。');
+    } else if (m.gmv != null && gmvYoy != null) {
+      compLines.push('【经营】本期成交 ' + m.gmv + ' 万，同比 ' + (gmvYoy > 0 ? '+' : '') + gmvYoy + '%。');
     }
   }
 
@@ -1453,8 +1580,8 @@ function buildStrategyFallback(data, briefing, key) {
     compLines.push('【风险】' + extra.risks[0].title + '：' + truncate(extra.risks[0].body, 55));
   }
 
-  if (m && m.gmv_wow != null && m.gmv_wow > 5) {
-    oppLines.push('【经营】GMV 周环比 +' + m.gmv_wow + '%，可趁势争取楼层、搜索专区或联合投放资源。');
+  if (m && getGmvYoy(m) != null && getGmvYoy(m) > 5) {
+    oppLines.push('【经营】成交同比 +' + getGmvYoy(m) + '%，可趁势争取楼层、搜索专区或联合投放资源。');
   }
   if (m && m.jd_share != null && m.jd_share >= 20) {
     oppLines.push('【品类】JD 市占 ' + m.jd_share + '% 具备议价基础，可谈 618 专区或新品首发排期。');
@@ -1476,16 +1603,16 @@ function buildStrategyFallback(data, briefing, key) {
       oppLines.push('【机会】' + o.title + '：' + truncate(o.body, 55));
     });
   }
-  var p0 = getP0Gaps(key);
+  var p0 = getP0Gaps(key, m);
   if (p0.length) {
-    oppLines.push('【供给】P0 缺口 ' + p0.length + ' 项（如「' + p0[0].sku + '」），补齐后可拉动 GMV。');
+    oppLines.push('【供给】P0 缺口 ' + p0.length + ' 项（如「' + p0[0].sku + '」），补齐后可拉动成交。');
   }
 
   if (!compLines.length) {
     compLines.push('【解读】结合品类格局与渠道市占，关注主要竞对在同品类的 JD/抖音动作；可编辑保存为正式竞争分析。');
   }
   if (!oppLines.length) {
-    oppLines.push('【解读】结合 GMV 趋势与待办事项，梳理可争取的楼层、首发与同价同发资源；可编辑保存为正式机会清单。');
+    oppLines.push('【解读】结合成交趋势与待办事项，梳理可争取的楼层、首发与同价同发资源；可编辑保存为正式机会清单。');
   }
 
   return {
@@ -1663,19 +1790,19 @@ function renderStrategyTab(data) {
     '<div class="profile-strategy-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px;">' +
     '<div class="card"><div class="card-header strategy-card-header"><h3>竞争格局</h3><div class="strategy-card-meta" id="comp-meta">' +
     strategyMetaText(gStrategyState.comp.source, 'comp') + strategySourceBadge(gStrategyState.comp.source) +
-    '</div><button class="btn-sm-outline no-print strategy-edit-btn" onclick="editStrategy(\'comp\')">编辑</button></div>' +
+    '</div><button class="btn-sm-outline no-print strategy-edit-btn profile-write-btn" onclick="editStrategy(\'comp\')">编辑</button></div>' +
     '<div class="card-body"><div class="profile-strategy-box' + (gStrategyState.comp.source === 'loading' ? ' is-loading' : '') + '" id="comp-box">' +
     '<div class="strategy-view" id="comp-view" style="white-space:pre-wrap;">' + escapeHtml(comp) + '</div>' +
     '<div class="strategy-edit"><textarea class="form-textarea" id="comp-input" rows="8">' + escapeHtml(comp) + '</textarea>' +
-    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveStrategy()">保存</button>' +
+    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary profile-write-btn" onclick="saveStrategy()">保存</button>' +
     '<button class="btn-sm-outline" onclick="cancelStrategy(\'comp\')">取消</button></div></div></div></div></div>' +
     '<div class="card"><div class="card-header strategy-card-header"><h3>增长机会</h3><div class="strategy-card-meta" id="opp-meta">' +
     strategyMetaText(gStrategyState.opp.source, 'opp') + strategySourceBadge(gStrategyState.opp.source) +
-    '</div><button class="btn-sm-outline no-print strategy-edit-btn" onclick="editStrategy(\'opp\')">编辑</button></div>' +
+    '</div><button class="btn-sm-outline no-print strategy-edit-btn profile-write-btn" onclick="editStrategy(\'opp\')">编辑</button></div>' +
     '<div class="card-body"><div class="profile-strategy-box' + (gStrategyState.opp.source === 'loading' ? ' is-loading' : '') + '" id="opp-box">' +
     '<div class="strategy-view" id="opp-view" style="white-space:pre-wrap;">' + escapeHtml(opp) + '</div>' +
     '<div class="strategy-edit"><textarea class="form-textarea" id="opp-input" rows="8">' + escapeHtml(opp) + '</textarea>' +
-    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary" onclick="saveStrategy()">保存</button>' +
+    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary profile-write-btn" onclick="saveStrategy()">保存</button>' +
     '<button class="btn-sm-outline" onclick="cancelStrategy(\'opp\')">取消</button></div></div></div></div></div></div>';
 }
 
@@ -1694,9 +1821,10 @@ function renderBrand(data, opts) {
     '<div class="profile-top-left"><h2 class="profile-brand-name">' + b.name + '</h2><span class="level-badge level-' + lv + '">' + (LEVEL_LABEL[b.level] || b.level) + '</span></div>' +
     renderCompletenessRing(data) +
     renderProfileAiBlurbShell(data) +
-    '<div class="profile-top-meta"><span>负责采销：' + (b.responsible || '—') + '</span>' +
+    '<div class="profile-top-meta">' + renderDataAsOfHtml(data.metrics, gMetricsHistory) +
+    '<span>负责采销：' + (b.responsible || '—') + '</span>' +
     '<span>档案更新：' + ((data.profile && data.profile.taboo_updated_at) ? String(data.profile.taboo_updated_at).slice(0, 10) : '—') + '</span>' +
-    '<span>数据说明：JD口径 · 近12周 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 10) + '</span>' +
+    '<span>数据说明：JD口径 · 近12月 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 10) + '</span>' +
     '<button class="btn-sm-outline no-print" onclick="window.print()">🖨 打印摘要</button></div></div>' +
     '<div class="tab-bar profile-inner-tabs" id="profile-inner-tabs">' +
     '<div class="tab-item' + (currentPTab === 'dashboard' ? ' active' : '') + '" data-ptab="dashboard">📊 经营看板</div>' +
@@ -1736,6 +1864,7 @@ function renderBrand(data, opts) {
   if (currentPTab === 'dashboard') {
     scheduleDashboardCharts();
   }
+  applyReadOnlyUi();
 }
 
 window.editContact = function(id) {
@@ -1745,6 +1874,7 @@ window.cancelContact = function(id) {
   document.getElementById('contact-' + id).classList.remove('editing');
 };
 window.saveContact = function(id) {
+  if (profileWriteGuard('联系人保存')) return;
   var payload = {
     contacts: [{
       id: id,
@@ -1755,8 +1885,74 @@ window.saveContact = function(id) {
   };
   apiReq('/api/brands/profile/' + currentKey, { method:'PUT', body: payload }).then(function(data) {
     gData = data;
+    currentPTab = 'intro';
     renderBrand(data, { preserveBlurb: true });
-    showToast('联系人已保存');
+    showToast('联系人已保存，组织架构已同步');
+  }).catch(function(e) { showToast('保存失败：' + e.message); });
+};
+
+window.showNewContactForm = function() {
+  if (profileWriteGuard('新增联系人')) return;
+  document.getElementById('contact-new-panel').classList.add('show');
+};
+window.hideNewContactForm = function() {
+  document.getElementById('contact-new-panel').classList.remove('show');
+};
+window.saveNewContact = function() {
+  if (profileWriteGuard('新增联系人')) return;
+  var name = document.getElementById('cnew-name').value.trim();
+  if (!name) { showToast('请填写姓名'); return; }
+  apiReq('/api/brands/profile/' + currentKey, {
+    method: 'PUT',
+    body: {
+      contacts_add: [{
+        name: name,
+        title: document.getElementById('cnew-title').value.trim(),
+        role_tag: document.getElementById('cnew-role').value
+      }]
+    }
+  }).then(function(data) {
+    gData = data;
+    currentPTab = 'intro';
+    renderBrand(data, { preserveBlurb: true });
+    showToast('已添加关键人物并同步至组织架构');
+  }).catch(function(e) { showToast('添加失败：' + e.message); });
+};
+window.removeContact = function(id) {
+  if (profileWriteGuard('删除联系人')) return;
+  if (!window.confirm('确定删除该关键人物？')) return;
+  apiReq('/api/brands/profile/' + currentKey, {
+    method: 'PUT',
+    body: { contacts_remove: [id] }
+  }).then(function(data) {
+    gData = data;
+    currentPTab = 'intro';
+    renderBrand(data, { preserveBlurb: true });
+    showToast('已删除，组织架构已同步');
+  }).catch(function(e) { showToast('删除失败：' + e.message); });
+};
+window.editOrgMeta = function() {
+  if (profileWriteGuard('编辑组织架构')) return;
+  document.getElementById('org-box').classList.add('editing');
+};
+window.cancelOrgMeta = function() {
+  document.getElementById('org-box').classList.remove('editing');
+};
+window.saveOrgMeta = function() {
+  if (profileWriteGuard('保存组织架构')) return;
+  apiReq('/api/brands/profile/' + currentKey, {
+    method: 'PUT',
+    body: {
+      org: {
+        root: document.getElementById('org-root').value.trim(),
+        lead: document.getElementById('org-lead').value.trim()
+      }
+    }
+  }).then(function(data) {
+    gData = data;
+    currentPTab = 'intro';
+    renderBrand(data, { preserveBlurb: true });
+    showToast('组织架构层级已保存');
   }).catch(function(e) { showToast('保存失败：' + e.message); });
 };
 
@@ -1768,6 +1964,7 @@ window.cancelTaboos = function() {
   document.getElementById('taboo-input').value = document.getElementById('taboo-view').textContent;
 };
 window.saveTaboos = function() {
+  if (profileWriteGuard('潜规则保存')) return;
   var text = document.getElementById('taboo-input').value.trim();
   apiReq('/api/brands/profile/' + currentKey, { method:'PUT', body: { taboos: text } }).then(function(data) {
     gData = data;
@@ -1792,6 +1989,7 @@ window.cancelStrategy = function(which) {
   }
 };
 window.saveStrategy = function() {
+  if (profileWriteGuard('竞争/机会保存')) return;
   var payload = {
     competitive_landscape: document.getElementById('comp-input').value.trim(),
     growth_opportunities: document.getElementById('opp-input').value.trim()
@@ -1834,6 +2032,36 @@ function renderProfileBrandTabs(brands) {
   bindProfileBrandTabClicks();
 }
 
+function hideLoadingOverlay() {
+  var el = document.getElementById('loading-overlay');
+  if (el) el.classList.add('hidden');
+}
+
+function showLoadingOverlay() {
+  var el = document.getElementById('loading-overlay');
+  if (el) el.classList.remove('hidden');
+}
+
+function resolveInitialBrandKeys(brands) {
+  if (brands && brands.length) {
+    return brands.map(function(b) { return b.name_key; });
+  }
+  return BRAND_TABS.map(function(t) { return t.key; });
+}
+
+function renderInitialBrandTabs(brands) {
+  if (brands && brands.length) {
+    renderProfileBrandTabs(brands);
+    return;
+  }
+  var container = document.getElementById('profile-tabs');
+  container.innerHTML = BRAND_TABS.map(function(t) {
+    return '<div class="tab-item" data-key="' + t.key + '">' + t.label + '</div>';
+  }).join('');
+  visibleBrandTabs = BRAND_TABS.slice();
+  bindProfileBrandTabClicks();
+}
+
 function setActiveProfileTab(key) {
   document.querySelectorAll('#profile-tabs .tab-item[data-key]').forEach(function(tab) {
     tab.classList.toggle('active', tab.dataset.key === key);
@@ -1841,11 +2069,13 @@ function setActiveProfileTab(key) {
 }
 
 function initProfilePage() {
+  showLoadingOverlay();
   apiReq('/api/brands').then(function(brands) {
-    renderProfileBrandTabs(brands);
-    var keys = brands.map(function(b) { return b.name_key; });
+    renderInitialBrandTabs(brands);
+    var keys = resolveInitialBrandKeys(brands);
     if (!keys.length) {
       showError('当前账号无负责品牌，请联系管理员分配 user_brands');
+      hideLoadingOverlay();
       return;
     }
     var params = new URLSearchParams(window.location.search);
@@ -1855,13 +2085,19 @@ function initProfilePage() {
     } else {
       currentKey = keys[0];
       if (brandKey && keys.indexOf(brandKey) === -1) {
-        showToast('无权访问该品牌，已显示「' + brands[0].name + '」');
+        showToast('无权访问该品牌，已显示「' + (visibleBrandTabs[0] && visibleBrandTabs[0].label || keys[0]) + '」');
       }
     }
     setActiveProfileTab(currentKey);
     loadBrand(currentKey);
-  }).catch(function(e) {
-    showError('品牌列表加载失败：' + e.message);
+  }).catch(function() {
+    renderInitialBrandTabs(null);
+    var keys = resolveInitialBrandKeys(null);
+    var params = new URLSearchParams(window.location.search);
+    var brandKey = params.get('brand');
+    currentKey = brandKey && keys.indexOf(brandKey) !== -1 ? brandKey : keys[0];
+    setActiveProfileTab(currentKey);
+    loadBrand(currentKey);
   });
 }
 

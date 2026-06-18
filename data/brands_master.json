@@ -1,0 +1,22 @@
+{
+  "_comment": "M4 方案B · 业务真品牌主数据 · id 1～5 槽位不变 · BI 映射见 data/dw/bi_mapping.json",
+  "brands": [
+    { "id": 1, "name_key": "jomoo", "name": "九牧", "name_en": "JOMOO", "level": "S", "responsible": "周采销", "bi_brand_id": "10001" },
+    { "id": 2, "name_key": "arrow", "name": "箭牌", "name_en": "ARROW", "level": "A", "responsible": "吴采销", "bi_brand_id": "10002" },
+    { "id": 3, "name_key": "hegii", "name": "恒洁", "name_en": "HEGII", "level": "A", "responsible": "陈采销", "bi_brand_id": "10003" },
+    { "id": 4, "name_key": "submarine", "name": "潜水艇", "name_en": "SUBMARINE", "level": "A", "responsible": "李采销", "bi_brand_id": "10004" },
+    { "id": 5, "name_key": "micoe", "name": "四季沐歌", "name_en": "MICOE", "level": "B", "responsible": "王采销", "bi_brand_id": "10005" }
+  ],
+  "legacy_name_key_map": {
+    "midea": "jomoo",
+    "joyoung": "arrow",
+    "supor": "hegii",
+    "bear": "submarine",
+    "morphy": "micoe",
+    "fotile": "jomoo",
+    "robam": "arrow",
+    "vatti": "hegii",
+    "haier": "submarine",
+    "macro": "micoe"
+  }
+}

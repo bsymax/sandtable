@@ -16,8 +16,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func, case, or_
 
+from config import DW_METRICS_PERIOD_TYPE
 from database import get_db
-from deps_auth import AuthUser, filter_brand_query, filter_by_brand_ids, get_current_user_optional, require_brand_id, require_name_key
+from deps_auth import AuthUser, filter_brand_query, filter_by_brand_ids, get_current_user_optional, require_brand_id, require_name_key, require_writable
 from models import Brand, Visit, BrandMetrics, IntelNews, IntelAlert, IntelBriefingCache
 from llm_prompts import briefing_llm_prompt, feed_llm_prompt
 from llm_service import complete, llm_enabled
@@ -33,6 +34,7 @@ from schemas import (
 router = APIRouter()
 
 BRIEFING_CACHE_TTL = 30  # minutes
+BRIEFING_NEWS_DAYS = 14   # 简报与新闻列表「近期」统一口径
 
 
 # ================================================================
@@ -123,7 +125,14 @@ def _default_alert_category(priority: str, category: Optional[str] = None) -> st
     return "风险预警" if priority == "P0" else "增长机会"
 
 
-def _briefing_data_for_cache(news_out, alerts_out, latest_weekly, stats: dict, llm_summary: Optional[str] = None) -> dict:
+def _briefing_data_for_cache(
+    news_out,
+    alerts_out,
+    latest_weekly,
+    stats: dict,
+    llm_summary: Optional[str] = None,
+    period_value: Optional[str] = None,
+) -> dict:
     """JSON 列可序列化（datetime 须 mode='json'）"""
     data = {
         "recent_news": [n.model_dump(mode="json") for n in news_out],
@@ -133,10 +142,47 @@ def _briefing_data_for_cache(news_out, alerts_out, latest_weekly, stats: dict, l
     }
     if llm_summary is not None:
         data["llm_summary"] = llm_summary
+    if period_value is not None:
+        data["period_value"] = period_value
     return data
 
 
-async def _generate_briefing_llm(brand, news, alerts, latest_w) -> Optional[str]:
+def _get_latest_brand_metrics(brand_id: int, db: Session) -> Optional[BrandMetrics]:
+    """M4: 最新经营底表（与档案/DW 一致，用于 briefing GMV 对齐）"""
+    return (
+        db.query(BrandMetrics)
+        .filter(
+            BrandMetrics.brand_id == brand_id,
+            BrandMetrics.period_type == DW_METRICS_PERIOD_TYPE,
+        )
+        .order_by(desc(BrandMetrics.period_value))
+        .first()
+    )
+
+
+def _build_gmv_info(metrics: Optional[BrandMetrics]) -> str:
+    if not metrics:
+        return ""
+    parts = []
+    if metrics.period_value:
+        parts.append(f"数据周期：{metrics.period_value}")
+    if metrics.gmv is not None:
+        parts.append(f"GMV：{float(metrics.gmv):.2f}万元")
+    if metrics.gmv_wow is not None:
+        direction = "增长" if float(metrics.gmv_wow) >= 0 else "下降"
+        parts.append(f"环比{direction}{abs(float(metrics.gmv_wow)):.1f}%")
+    return "；".join(parts)
+
+
+def _resolve_briefing_period_value(latest_metrics: Optional[BrandMetrics], latest_w: Optional[BrandMetrics]) -> Optional[str]:
+    if latest_metrics and latest_metrics.period_value:
+        return latest_metrics.period_value
+    if latest_w and latest_w.period_value:
+        return _week_label(latest_w.period_value) if DW_METRICS_PERIOD_TYPE == "weekly" else latest_w.period_value
+    return None
+
+
+async def _generate_briefing_llm(brand, news, alerts, latest_w, latest_metrics, db, user) -> Optional[str]:
     news_titles = [n.title for n in news]
     alert_titles = [f"[{a.priority}] {a.title}" for a in alerts]
     weekly_text = ""
@@ -149,11 +195,15 @@ async def _generate_briefing_llm(brand, news, alerts, latest_w) -> Optional[str]
         if latest_w.opportunities:
             parts.append(f"机会：{latest_w.opportunities}")
         weekly_text = "；".join(parts)
-    prompt = briefing_llm_prompt(brand.name, news_titles, alert_titles, weekly_text)
+    gmv_info = _build_gmv_info(latest_metrics)
+    prompt = briefing_llm_prompt(brand.name, news_titles, alert_titles, weekly_text, gmv_info)
     return await complete(
         "你是品牌情报分析助手。输出简洁、专业、可操作。",
         prompt,
         max_tokens=200,
+        db=db,
+        auth_user=user,
+        route="intel.briefing.llm",
     )
 
 
@@ -229,6 +279,7 @@ def create_news(
     db: Session = Depends(get_db),
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
+    require_writable(user)
     require_brand_id(user, payload.brand_id)
     fp = None
     if payload.url:
@@ -251,7 +302,13 @@ def create_news(
 
 
 @router.put("/api/intel/news/{news_id}", response_model=IntelNewsOut, tags=["情报-新闻"])
-def update_news(news_id: int, payload: IntelNewsUpdate, db: Session = Depends(get_db)):
+def update_news(
+    news_id: int,
+    payload: IntelNewsUpdate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    require_writable(user)
     news = db.query(IntelNews).filter(IntelNews.id == news_id).first()
     if not news:
         raise HTTPException(404, "新闻不存在")
@@ -272,21 +329,83 @@ def get_news(news_id: int, db: Session = Depends(get_db)):
     return _fmt_news(news)
 
 
+CSV_COLUMNS = ["brand_id", "title", "summary", "source", "sentiment", "category", "keywords", "url", "published_at"]
+VALID_SENTIMENTS = {"positive", "negative", "neutral"}
+
+
+def _validate_csv_row(row: dict, row_idx: int) -> list:
+    errors = []
+    title = (row.get("title") or "").strip()
+    if not title:
+        errors.append("标题不能为空")
+    sentiment = (row.get("sentiment") or "neutral").strip().lower()
+    if sentiment and sentiment not in VALID_SENTIMENTS:
+        errors.append(f"情感值无效 '{sentiment}'，应为 positive/negative/neutral")
+    brand_id_str = (row.get("brand_id") or "").strip()
+    if brand_id_str:
+        try:
+            int(brand_id_str)
+        except ValueError:
+            errors.append(f"brand_id 不是有效数字 '{brand_id_str}'")
+    published_at = (row.get("published_at") or "").strip()
+    if published_at:
+        try:
+            datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+        except ValueError:
+            errors.append(f"published_at 格式无效 '{published_at}'，应为 ISO8601")
+    return errors
+
+
+def _csv_suggestion(err: str) -> str:
+    if "标题" in err:
+        return "每行必须填写新闻标题"
+    if "情感" in err:
+        return "请使用 positive / negative / neutral"
+    if "brand_id" in err:
+        return "brand_id 应为品牌表中的有效数字ID，或留空"
+    if "格式" in err:
+        return "日期格式示例：2026-06-10T10:00:00"
+    return "请检查对应列数据格式"
+
+
 @router.post("/api/intel/news/csv", response_model=CsvImportResult, tags=["情报-新闻"])
-def import_news_csv(payload: CsvImportRequest, db: Session = Depends(get_db)):
+def import_news_csv(
+    payload: CsvImportRequest,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    require_writable(user)
     result = CsvImportResult(total=len(payload.rows))
     brands = set()
     for i, row in enumerate(payload.rows):
+        row_dict = {
+            "title": row.title,
+            "brand_id": str(row.brand_id) if row.brand_id else "",
+            "sentiment": row.sentiment,
+            "published_at": row.published_at or "",
+        }
+        validation_errors = _validate_csv_row(row_dict, i)
+        if validation_errors:
+            for err in validation_errors:
+                result.errors.append({
+                    "row": i + 1,
+                    "title": row.title or "(空)",
+                    "error": err,
+                    "suggestion": _csv_suggestion(err),
+                })
+            result.skipped += 1
+            continue
         try:
-            if not row.title or not row.title.strip():
-                result.errors.append({"row": i + 1, "error": "标题不能为空"})
-                result.skipped += 1
-                continue
             fp = None
             if row.url:
                 fp = hashlib.sha256(row.url.encode()).hexdigest()
                 if db.query(IntelNews).filter(IntelNews.url_fingerprint == fp).first():
-                    result.errors.append({"row": i + 1, "title": row.title, "error": "URL重复"})
+                    result.errors.append({
+                        "row": i + 1,
+                        "title": row.title,
+                        "error": "URL重复",
+                        "suggestion": "检查是否已导入过该URL",
+                    })
                     result.skipped += 1
                     continue
             pub = None
@@ -314,7 +433,12 @@ def import_news_csv(payload: CsvImportRequest, db: Session = Depends(get_db)):
             if row.brand_id:
                 brands.add(row.brand_id)
         except Exception as e:
-            result.errors.append({"row": i + 1, "title": row.title if row else "?", "error": str(e)})
+            result.errors.append({
+                "row": i + 1,
+                "title": row.title if row else "?",
+                "error": str(e),
+                "suggestion": "请检查数据格式",
+            })
             result.skipped += 1
     db.commit()
     for bid in brands:
@@ -327,10 +451,19 @@ async def upload_news_csv(
     file: UploadFile = File(...),
     brand_id: Optional[int] = None,
     db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
+    require_writable(user)
     content = await file.read()
     text = content.decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text))
+    if reader.fieldnames:
+        missing = [c for c in ["title"] if c not in reader.fieldnames]
+        if missing:
+            raise HTTPException(
+                400,
+                f"CSV 缺少必填列: {', '.join(missing)}。需要: {', '.join(CSV_COLUMNS)}",
+            )
     rows = []
     for rd in reader:
         raw_bid = rd.get("brand_id", "").strip()
@@ -351,7 +484,7 @@ async def upload_news_csv(
             url=rd.get("url", ""),
             published_at=rd.get("published_at", ""),
         ))
-    return import_news_csv(CsvImportRequest(rows=rows), db)
+    return import_news_csv(CsvImportRequest(rows=rows), db, user)
 
 
 @router.get("/api/intel/news/csv/template", tags=["情报-新闻"])
@@ -386,7 +519,13 @@ def list_weekly(
 
 
 @router.post("/api/intel/weekly", response_model=IntelWeeklyReportOut, tags=["情报-周报"])
-def create_weekly(payload: IntelWeeklyReportCreate, db: Session = Depends(get_db)):
+def create_weekly(
+    payload: IntelWeeklyReportCreate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    require_writable(user)
+    require_brand_id(user, payload.brand_id)
     if not db.query(Brand).filter(Brand.id == payload.brand_id).first():
         raise HTTPException(404, "品牌不存在")
     pv = _period_value(payload.week_start)
@@ -409,13 +548,20 @@ def create_weekly(payload: IntelWeeklyReportCreate, db: Session = Depends(get_db
 
 
 @router.put("/api/intel/weekly/{weekly_id}", response_model=IntelWeeklyReportOut, tags=["情报-周报"])
-def update_weekly(weekly_id: int, payload: IntelWeeklyReportUpdate, db: Session = Depends(get_db)):
+def update_weekly(
+    weekly_id: int,
+    payload: IntelWeeklyReportUpdate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    require_writable(user)
     m = db.query(BrandMetrics).filter(
         BrandMetrics.id == weekly_id,
         BrandMetrics.period_type == "weekly",
     ).first()
     if not m:
         raise HTTPException(404, "周报不存在")
+    require_brand_id(user, m.brand_id)
     _apply_weekly_payload(m, payload)
     db.commit()
     _invalidate_briefing_cache(m.brand_id, db)
@@ -467,6 +613,7 @@ def list_alerts(
     if status:
         q = q.filter(IntelAlert.status == status)
     rows = q.order_by(
+        case((IntelAlert.status == "closed", 1), else_=0),
         case((IntelAlert.priority == "P0", 0), (IntelAlert.priority == "P1", 1), else_=2),
         desc(IntelAlert.created_at),
     ).offset(offset).limit(limit).all()
@@ -474,7 +621,13 @@ def list_alerts(
 
 
 @router.post("/api/intel/alerts", response_model=IntelAlertOut, tags=["情报-预警"])
-def create_alert(payload: IntelAlertCreate, db: Session = Depends(get_db)):
+def create_alert(
+    payload: IntelAlertCreate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    require_writable(user)
+    require_brand_id(user, payload.brand_id)
     alert = IntelAlert(
         brand_id=payload.brand_id, news_id=payload.news_id,
         priority=payload.priority,
@@ -493,10 +646,17 @@ def create_alert(payload: IntelAlertCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/api/intel/alerts/{alert_id}", response_model=IntelAlertOut, tags=["情报-预警"])
-def update_alert(alert_id: int, payload: IntelAlertUpdate, db: Session = Depends(get_db)):
+def update_alert(
+    alert_id: int,
+    payload: IntelAlertUpdate,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    require_writable(user)
     alert = db.query(IntelAlert).filter(IntelAlert.id == alert_id).first()
     if not alert:
         raise HTTPException(404, "预警不存在")
+    require_brand_id(user, alert.brand_id)
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(alert, k, v)
     db.commit()
@@ -508,13 +668,19 @@ def update_alert(alert_id: int, payload: IntelAlertUpdate, db: Session = Depends
 
 
 @router.post("/api/intel/alerts/{alert_id}/create-visit", tags=["情报-预警"])
-def create_visit_from_alert(alert_id: int, db: Session = Depends(get_db)):
+def create_visit_from_alert(
+    alert_id: int,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
     """从预警一键创建紧急拜访（写公共表 visits，与拜访模块联动）"""
+    require_writable(user)
     alert = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(IntelAlert.id == alert_id).first()
     if not alert:
         raise HTTPException(404, "预警不存在")
     if not alert.brand_id:
         raise HTTPException(400, "预警未关联品牌")
+    require_brand_id(user, alert.brand_id)
 
     visit = Visit(
         brand_id=alert.brand_id,
@@ -616,12 +782,13 @@ async def get_brand_briefing(
                 latest_weekly=d.get("latest_weekly"),
                 stats=d.get("stats", {}),
                 llm_summary=_resolve_llm_summary(cached, d),
+                period_value=d.get("period_value"),
                 cached=True,
             )
     except Exception:
         db.rollback()
 
-    two_weeks_ago = datetime.now() - timedelta(days=14)
+    two_weeks_ago = datetime.now() - timedelta(days=BRIEFING_NEWS_DAYS)
     news = db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(
         IntelNews.brand_id == brand.id,
         IntelNews.published_at >= two_weeks_ago,
@@ -635,12 +802,16 @@ async def get_brand_briefing(
     latest_w = _weekly_metrics_query(db).filter(
         BrandMetrics.brand_id == brand.id
     ).order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).first()
+    latest_metrics = _get_latest_brand_metrics(brand.id, db)
 
     news_out, alerts_out, latest_weekly = _build_briefing_payload(brand, news, alerts, latest_w)
-    llm_summary = await _generate_briefing_llm(brand, news, alerts, latest_w)
+    period_value = _resolve_briefing_period_value(latest_metrics, latest_w)
+    llm_summary = await _generate_briefing_llm(brand, news, alerts, latest_w, latest_metrics, db, user)
     stats = {"total_news": len(news), "active_alerts": len(alerts)}
     briefing_data = _briefing_data_for_cache(
-        news_out, alerts_out, latest_weekly, stats, llm_summary=llm_summary
+        news_out, alerts_out, latest_weekly, stats,
+        llm_summary=llm_summary,
+        period_value=period_value,
     )
     expires_at = datetime.now() + timedelta(minutes=BRIEFING_CACHE_TTL)
     now = datetime.now()
@@ -672,6 +843,7 @@ async def get_brand_briefing(
         latest_weekly=latest_weekly,
         stats=stats,
         llm_summary=llm_summary,
+        period_value=period_value,
         cached=False,
     )
 
@@ -682,6 +854,7 @@ def refresh_briefing(
     db: Session = Depends(get_db),
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
+    require_writable(user)
     require_name_key(user, brand_key)
     brand = db.query(Brand).filter(Brand.name_key == brand_key).first()
     if not brand:
@@ -701,6 +874,7 @@ async def ai_refresh_briefing(
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     """强制 LLM 重新生成品牌简报摘要并写入缓存"""
+    require_writable(user)
     require_name_key(user, brand_key)
     if not llm_enabled():
         raise HTTPException(503, "LLM 未启用（LLM_ENABLED=false），请使用 M2 规则版简报")
@@ -709,7 +883,7 @@ async def ai_refresh_briefing(
     if not brand:
         raise HTTPException(404, "品牌不存在")
 
-    two_weeks_ago = datetime.now() - timedelta(days=14)
+    two_weeks_ago = datetime.now() - timedelta(days=BRIEFING_NEWS_DAYS)
     news = db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(
         IntelNews.brand_id == brand.id,
         IntelNews.published_at >= two_weeks_ago,
@@ -721,8 +895,9 @@ async def ai_refresh_briefing(
     latest_w = _weekly_metrics_query(db).filter(
         BrandMetrics.brand_id == brand.id
     ).order_by(desc(BrandMetrics.week_start), desc(BrandMetrics.id)).first()
+    latest_metrics = _get_latest_brand_metrics(brand.id, db)
 
-    llm_summary = await _generate_briefing_llm(brand, news, alerts, latest_w)
+    llm_summary = await _generate_briefing_llm(brand, news, alerts, latest_w, latest_metrics, db, user)
     if not llm_summary:
         raise HTTPException(502, "LLM 调用失败，请稍后重试或使用 M2 规则版")
 
@@ -773,7 +948,10 @@ async def ai_briefing_summary(
         fallback += f"，其中 P0：{p0[0].title}"
     fallback += "（规则版 · LLM 未启用）"
     ctx = fallback.replace("（规则版 · LLM 未启用）", "") + "\n请用 2 句话写采销行动建议。"
-    text = await complete("品牌情报简报助手，简体中文。", ctx, max_tokens=200)
+    text = await complete(
+        "品牌情报简报助手，简体中文。", ctx, max_tokens=200,
+        db=db, auth_user=user, route="intel.briefing.ai.summary",
+    )
     if text:
         return AiBriefingSummaryOut(source="llm", brand_key=brand_key, summary=text.strip())
     return AiBriefingSummaryOut(source="fallback", brand_key=brand_key, summary=fallback)
@@ -808,7 +986,10 @@ async def get_feed_ai_summary(
     else:
         raise HTTPException(400, "item_type 必须为 news 或 alert")
 
-    ai_summary = await complete("品牌情报助手，简体中文。", prompt, max_tokens=80)
+    ai_summary = await complete(
+        "品牌情报助手，简体中文。", prompt, max_tokens=80,
+        db=db, auth_user=user, route="intel.feed.ai_summary",
+    )
     return IntelFeedAiSummaryOut(
         item_id=item_id,
         item_type=item_type,

@@ -98,6 +98,23 @@ def require_name_key(user: Optional[AuthUser], name_key: str) -> None:
         raise HTTPException(403, "无权访问该品牌")
 
 
+def require_writable(user: Optional[AuthUser]) -> None:
+    """M4-A：只读账号禁止写操作"""
+    if not user:
+        if AUTH_REQUIRED:
+            raise HTTPException(401, "请先登录")
+        return
+    if user.role == "readonly":
+        raise HTTPException(403, "只读账号不可修改")
+
+
+def get_writable_user_optional(
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+) -> Optional[AuthUser]:
+    require_writable(user)
+    return user
+
+
 def filter_brand_query(q, user: Optional[AuthUser]):
     if not user or user.is_admin:
         return q

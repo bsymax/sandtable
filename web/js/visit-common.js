@@ -44,9 +44,32 @@
     return '<span class="tag ' + v[0] + '">' + v[1] + '</span>';
   }
 
+  function _todayISO() {
+    var d = new Date(), m = d.getMonth() + 1, day = d.getDate();
+    return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+  }
+
+  // 截止日期已过且仍「待兑现」→ 系统自动判定为「未兑现」（用户可在下拉手动调整覆盖）
+  function isCommitmentOverdue(c) {
+    if (!c || c.status !== 'pending' || !c.deadline) return false;
+    return String(c.deadline).slice(0, 10) < _todayISO();
+  }
+
+  function effectiveCommitmentStatus(c) {
+    return isCommitmentOverdue(c) ? 'broken' : c.status;
+  }
+
   function buildReminderHTML(d) {
     if (!d) return '<p style="color:var(--text-muted);">暂无提醒数据</p>';
     var html = '';
+
+    if (d.dw_period_hint) {
+      html += '<div class="visit-alert-banner" style="background:linear-gradient(90deg,#e8f5ef,#fff);border-color:#86efac;">' +
+        '<span style="font-size:18px;">📊</span><div>' +
+        '<b style="color:var(--green-500);">经营数据已更新至 ' + d.dw_period_hint + '</b>' +
+        '</div></div>';
+    }
+
     var daysSince = d.days_since_last_visit;
 
     // 最近拜访
@@ -147,18 +170,21 @@
     }
     return commitments.map(function(c) {
       var visit = visitMap[c.visit_id] || {};
+      var eff = effectiveCommitmentStatus(c);
+      var auto = (eff !== c.status);
       return '<tr>' +
         (showBrand ? '<td>' + (visit.brand_name || '—') + '</td>' : '') +
         '<td>' + truncate(c.content, 40) + '</td>' +
         '<td>' + (c.party === 'bd' ? '我方' : '品牌方') + '</td>' +
-        '<td>' + commitmentStatusTag(c.status) + '</td>' +
+        '<td>' + commitmentStatusTag(eff) +
+          (auto ? ' <span style="font-size:10px;color:var(--text-muted);" title="已过截止日期，系统自动判定为未兑现，可在右侧手动调整">·自动</span>' : '') + '</td>' +
         '<td>' + formatDate(c.deadline) + '</td>' +
         (options.readOnly ? '' :
           '<td><select class="form-select" style="width:110px;padding:4px 8px;font-size:12px;" onchange="' +
             onStatusChange + '(' + c.id + ', this.value)">' +
-            '<option value="pending"' + (c.status === 'pending' ? ' selected' : '') + '>待兑现</option>' +
-            '<option value="fulfilled"' + (c.status === 'fulfilled' ? ' selected' : '') + '>已兑现</option>' +
-            '<option value="broken"' + (c.status === 'broken' ? ' selected' : '') + '>未兑现</option>' +
+            '<option value="pending"' + (eff === 'pending' ? ' selected' : '') + '>待兑现</option>' +
+            '<option value="fulfilled"' + (eff === 'fulfilled' ? ' selected' : '') + '>已兑现</option>' +
+            '<option value="broken"' + (eff === 'broken' ? ' selected' : '') + '>未兑现</option>' +
           '</select></td>') +
         '</tr>';
     }).join('');
@@ -167,6 +193,7 @@
   function renderVisitsCalendar(visits, options) {
     options = options || {};
     var onScheduled = options.onScheduledClick || 'fillRecordForm';
+    var onCompleted = options.onCompletedClick || 'viewVisitRecord';
     var showBrand = options.showBrand !== false;
     var colSpan = options.colSpan != null ? options.colSpan : (showBrand ? 7 : 6);
     if (!visits.length) {
@@ -179,17 +206,22 @@
     return visits.map(function(v) {
       var actionCell;
       if (options.linkToVisit) {
-        actionCell = '<td><button type="button" class="btn-sm-outline" onclick="window.location.href=\'visit.html?brand=' +
-          (options.brandKey || '') + '\'">' +
-          (v.status === 'scheduled' ? '记录' : '查看') + '</button></td>';
+        var brandKey = options.brandKey || '';
+        if (v.status === 'scheduled') {
+          actionCell = '<td><button type="button" class="btn-sm-outline" onclick="window.location.href=\'visit.html?brand=' +
+            brandKey + '&vtab=record&visit=' + v.id + '\'">记录</button></td>';
+        } else {
+          actionCell = '<td><button type="button" class="btn-sm-outline" onclick="window.location.href=\'visit.html?brand=' +
+            brandKey + '&vtab=record&visit=' + v.id + '&mode=view\'">查看</button></td>';
+        }
       } else {
         actionCell = '<td><button type="button" class="btn-sm-outline" onclick="' +
           (v.status === 'scheduled'
             ? onScheduled + '(' + v.id + ')'
-            : 'window.alert(\'详情（演示）\')') +
+            : onCompleted + '(' + v.id + ')') +
           '">' + (v.status === 'scheduled' ? '记录' : '查看') + '</button></td>';
       }
-      return '<tr>' +
+      return '<tr data-visit-id="' + v.id + '">' +
         '<td>' + formatDate(v.visit_date) + '</td>' +
         (showBrand ? '<td>' + (v.brand_name || '') + '</td>' : '') +
         '<td>' + levelBadge(v.brand_level) + '</td>' +

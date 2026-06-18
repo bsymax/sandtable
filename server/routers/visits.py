@@ -19,6 +19,7 @@ from deps_auth import (
     filter_brand_query,
     get_current_user_optional,
     require_brand_id,
+    require_writable,
 )
 from models import Brand, Visit, VisitAttendee, VisitRecord, Commitment, Todo
 from schemas import (
@@ -43,6 +44,7 @@ def create_visit(
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     """安排新拜访"""
+    require_writable(user)
     require_brand_id(user, payload.brand_id)
     brand = db.query(Brand).filter(Brand.id == payload.brand_id).first()
     if not brand:
@@ -119,6 +121,7 @@ def update_visit(
     visit = db.query(Visit).filter(Visit.id == visit_id).first()
     if not visit:
         raise HTTPException(404, "拜访不存在")
+    require_writable(user)
     require_brand_id(user, visit.brand_id)
 
     update_data = payload.dict(exclude_unset=True)
@@ -138,6 +141,7 @@ def delete_visit(
     visit = db.query(Visit).filter(Visit.id == visit_id).first()
     if not visit:
         raise HTTPException(404, "拜访不存在")
+    require_writable(user)
     require_brand_id(user, visit.brand_id)
     db.delete(visit)
     db.commit()
@@ -157,6 +161,7 @@ def create_record(
     visit = db.query(Visit).filter(Visit.id == payload.visit_id).first()
     if not visit:
         raise HTTPException(404, "拜访不存在")
+    require_writable(user)
     require_brand_id(user, visit.brand_id)
 
     existing = db.query(VisitRecord).filter(VisitRecord.visit_id == payload.visit_id).first()
@@ -276,6 +281,9 @@ async def ai_extract_record(
         "从拜访纪要抽取待办与承诺，简体中文，仅输出 JSON",
         ctx,
         max_tokens=500,
+        db=db,
+        auth_user=user,
+        route="visits.ai.extract",
     )
     if raw:
         try:
@@ -345,6 +353,7 @@ def update_commitment(
     c = db.query(Commitment).filter(Commitment.id == commitment_id).first()
     if not c:
         raise HTTPException(404, "承诺不存在")
+    require_writable(user)
     visit = db.query(Visit).filter(Visit.id == c.visit_id).first()
     if visit:
         require_brand_id(user, visit.brand_id)
@@ -397,6 +406,7 @@ def update_todo(
     ).filter(Todo.id == todo_id).first()
     if not t:
         raise HTTPException(404, "待办不存在")
+    require_writable(user)
     if t.visit:
         require_brand_id(user, t.visit.brand_id)
     if payload.status:

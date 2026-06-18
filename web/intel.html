@@ -147,6 +147,10 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 /* Load more */
 .load-more-bar { text-align:center; padding:12px 0; }
 .load-more-bar button { padding:8px 24px; }
+.list-pagination { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 20px 16px; border-top:1px solid var(--border); }
+.list-page-info { font-size:12px; color:var(--text-muted); flex:1; text-align:center; }
+.list-page-btn:disabled { opacity:.45; cursor:not-allowed; }
+.list-page-btn:disabled:hover { border-color:var(--border); color:inherit; }
 
 /* CSV import result */
 .csv-result { margin-top:12px; padding:12px; border-radius:6px; font-size:12px; line-height:1.6; }
@@ -295,9 +299,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
     <div class="card-body no-padding" style="padding:0 20px;" id="alerts-container">
       <div class="loading">加载中...</div>
     </div>
-    <div class="load-more-bar" id="alerts-load-more" style="display:none;">
-      <button class="btn-outline" onclick="loadMoreAlerts()">加载更多预警 ↓</button>
-    </div>
+    <div class="list-pagination" id="alerts-pagination" style="display:none;"></div>
   </div>
 
   <!-- 新闻列表 -->
@@ -309,9 +311,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
     <div class="card-body no-padding" style="padding:0 20px;" id="news-container">
       <div class="loading">加载中...</div>
     </div>
-    <div class="load-more-bar" id="news-load-more" style="display:none;">
-      <button class="btn-outline" onclick="loadMoreNews()">加载更多新闻 ↓</button>
-    </div>
+    <div class="list-pagination" id="news-pagination" style="display:none;"></div>
   </div>
 
   <!-- 周报摘要 -->
@@ -545,11 +545,68 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 <script src="js/auth.js"></script>
 <script>
 const API = M1_API_BASE;
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
+const LIST_FETCH_LIMIT = 200;
+const BRIEFING_NEWS_DAYS = 14;
 let allAlerts = [], allNews = [], allWeeklies = [], brands = [];
-let alertsOffset = 0, newsOffset = 0;
-let alertsHasMore = false, newsHasMore = false;
+let alertsPage = 1, newsPage = 1;
 let csvTab = 'file';
+
+function paginateList(list, page) {
+  var total = list.length;
+  var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (page > pages) page = pages;
+  if (page < 1) page = 1;
+  var start = (page - 1) * PAGE_SIZE;
+  return { page: page, pages: pages, total: total, slice: list.slice(start, start + PAGE_SIZE) };
+}
+
+function renderListPagination(pagerId, countId, page, total) {
+  var pager = document.getElementById(pagerId);
+  var countEl = document.getElementById(countId);
+  if (countEl) countEl.textContent = '共 ' + total + ' 条';
+  if (!pager) return;
+  if (!total) {
+    pager.style.display = 'none';
+    pager.innerHTML = '';
+    return;
+  }
+  var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  pager.style.display = '';
+  if (pages <= 1) {
+    pager.innerHTML = '<span class="list-page-info">共 ' + total + ' 条</span>';
+    return;
+  }
+  var prevDisabled = page <= 1 ? ' disabled' : '';
+  var nextDisabled = page >= pages ? ' disabled' : '';
+  pager.innerHTML =
+    '<button type="button" class="btn-sm-outline list-page-btn" data-list-pager="' + pagerId + '" data-page="' + (page - 1) + '"' + prevDisabled + '>上一页</button>' +
+    '<span class="list-page-info">第 ' + page + ' / ' + pages + ' 页 · 共 ' + total + ' 条</span>' +
+    '<button type="button" class="btn-sm-outline list-page-btn" data-list-pager="' + pagerId + '" data-page="' + (page + 1) + '"' + nextDisabled + '>下一页</button>';
+}
+
+function getFilteredAlerts() {
+  var search = (document.getElementById('filter-search').value || '').toLowerCase();
+  if (!search) return allAlerts;
+  return allAlerts.filter(function(a) {
+    return (a.title + (a.description || '') + (a.brand_name || '')).toLowerCase().includes(search);
+  });
+}
+
+function renderAlertsPaged() {
+  var filtered = getFilteredAlerts();
+  var p = paginateList(filtered, alertsPage);
+  alertsPage = p.page;
+  renderAlerts(p.slice);
+  renderListPagination('alerts-pagination', 'alert-count', p.page, p.total);
+}
+
+function renderNewsPaged() {
+  var p = paginateList(allNews, newsPage);
+  newsPage = p.page;
+  renderNews(p.slice);
+  renderListPagination('news-pagination', 'news-count', p.page, p.total);
+}
 
 function intelHeaders(extra) {
   var h = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
@@ -561,6 +618,19 @@ function brandKeyById(id) {
   return b ? b.name_key : '';
 }
 
+// ---- M4: Readonly Guard (D-K-M4-3) ----
+function isReadonlyUser() {
+  try { var u = window.SandAuth ? SandAuth.getCachedUser() : null; return u && u.role === 'readonly'; }
+  catch(e) { return false; }
+}
+function applyReadonlyGuard() {
+  if (!isReadonlyUser()) return;
+  var btns = document.querySelectorAll('button[onclick*="openAlert"], button[onclick*="openNews"], button[onclick*="openWeekly"], button[onclick*="openCsv"], button[onclick*="submitAlert"], button[onclick*="submitNews"], button[onclick*="submitWeekly"], button[onclick*="createVisit"], button[onclick*="updateAlert"], button[onclick*="uploadCsv"], button[onclick*="importCsv"]');
+  btns.forEach(function(b){ b.disabled = true; b.style.opacity = '0.5'; b.title = '只读用户无法执行此操作'; });
+  var banner = document.querySelector('.m1-banner');
+  if (banner) banner.innerHTML += ' <span style="background:#f59e0b;color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-left:8px;">只读模式</span>';
+}
+
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('today-date').textContent = new Date().toISOString().slice(0,10) + ' 周' + ['日','一','二','三','四','五','六'][new Date().getDay()];
@@ -568,6 +638,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   parseUrlBrand();
   setupFilters();
   await Promise.all([loadStats(), loadAlerts(true), loadNews(true), loadWeeklySummary(), loadAiBriefing()]);
+  applyReadonlyGuard();
   document.getElementById('alert-form-priority').addEventListener('change', function() {
     document.getElementById('alert-form-category').value = this.value === 'P0' ? '风险预警' : '增长机会';
   });
@@ -610,32 +681,28 @@ async function loadStats() {
 // ---- Alerts (M2: + pagination) ----
 async function loadAlerts(reset = false) {
   const container = document.getElementById('alerts-container');
-  if (reset) { alertsOffset = 0; allAlerts = []; }
+  if (reset) alertsPage = 1;
   try {
     const brand = document.getElementById('filter-brand').value;
     const level = document.getElementById('filter-level').value;
     const cat = document.getElementById('filter-category').value;
     const status = document.getElementById('filter-status').value;
-    let url = `${API}/api/intel/alerts?limit=${PAGE_SIZE}&offset=${alertsOffset}`;
+    let url = `${API}/api/intel/alerts?limit=${LIST_FETCH_LIMIT}&offset=0`;
     if (brand) url += `&brand_id=${brand}`;
     if (level) url += `&priority=${level}`;
     if (cat) url += `&category=${encodeURIComponent(cat)}`;
     if (status) url += `&status=${status}`;
     const res = await fetch(url, { headers: intelHeaders() });
     const data = await res.json();
-    if (reset) allAlerts = data;
-    else allAlerts = allAlerts.concat(data);
-    alertsHasMore = data.length >= PAGE_SIZE;
-    document.getElementById('alerts-load-more').style.display = alertsHasMore ? '' : 'none';
-    document.getElementById('alert-count').textContent = `共 ${allAlerts.length} 条${alertsHasMore ? '+' : ''}`;
-    renderAlerts(allAlerts);
+    allAlerts = data;
+    renderAlertsPaged();
   } catch(e) {
     allAlerts = [];
+    alertsPage = 1;
     container.innerHTML = '<div class="loading">⚠️ 加载失败，请确认后端已启动</div>';
+    renderListPagination('alerts-pagination', 'alert-count', 1, 0);
   }
 }
-
-function loadMoreAlerts() { alertsOffset += PAGE_SIZE; loadAlerts(false); }
 
 function renderAlerts(alerts) {
   const container = document.getElementById('alerts-container');
@@ -656,7 +723,7 @@ function renderAlerts(alerts) {
     const brandKey = a.brand_name_key || brandKeyById(a.brand_id);
     const crossLinks = brandKey
       ? `· <a href="profile.html?brand=${brandKey}">查看档案 →</a> · <a href="visit.html?brand=${brandKey}">安排拜访 →</a>`
-      : '';
+      : `· <a href="profile.html" title="通用情报，进入后请选择品牌">查看档案 →</a> · <a href="visit.html" title="通用情报，进入后请选择品牌">安排拜访 →</a>`;
     return `
     <div class="alert-row">
       <div class="alert-dot ${dotColor} ${a.priority==='P0'?'pulse':''}"></div>
@@ -683,26 +750,22 @@ function renderAlerts(alerts) {
 // ---- News (M2: + pagination) ----
 async function loadNews(reset = false) {
   const container = document.getElementById('news-container');
-  if (reset) { newsOffset = 0; allNews = []; }
+  if (reset) newsPage = 1;
   try {
     const brand = document.getElementById('filter-brand').value;
-    let url = `${API}/api/intel/news?limit=${PAGE_SIZE}&offset=${newsOffset}`;
+    let url = `${API}/api/intel/news?limit=${LIST_FETCH_LIMIT}&offset=0`;
     if (brand) url += `&brand_id=${brand}`;
     const res = await fetch(url, { headers: intelHeaders() });
     const data = await res.json();
-    if (reset) allNews = data;
-    else allNews = allNews.concat(data);
-    newsHasMore = data.length >= PAGE_SIZE;
-    document.getElementById('news-load-more').style.display = newsHasMore ? '' : 'none';
-    document.getElementById('news-count').textContent = `共 ${allNews.length} 条${newsHasMore ? '+' : ''}`;
-    renderNews(allNews);
+    allNews = data;
+    renderNewsPaged();
   } catch(e) {
     allNews = [];
+    newsPage = 1;
     container.innerHTML = '<div class="loading">⚠️ 加载失败</div>';
+    renderListPagination('news-pagination', 'news-count', 1, 0);
   }
 }
-
-function loadMoreNews() { newsOffset += PAGE_SIZE; loadNews(false); }
 
 function renderNews(news) {
   const container = document.getElementById('news-container');
@@ -779,11 +842,14 @@ async function loadAiBriefing() {
     const data = await res.json();
     if (data.llm_summary) {
       body.innerHTML = '<div class="ai-briefing-text">' + data.llm_summary + '</div>';
-      meta.textContent = data.cached ? '⚡ 来自缓存' : '🆕 实时生成';
+      var metaParts = [];
+      if (data.period_value) metaParts.push('数据周期 ' + data.period_value);
+      metaParts.push(data.cached ? '⚡ 来自缓存' : '🆕 实时生成');
+      meta.textContent = metaParts.join(' · ');
       setBadge('llm');
     } else {
-      body.innerHTML = '<div class="ai-briefing-text">' + (data.stats?.total_news || 0) + ' 条近期新闻 · ' + (data.stats?.active_alerts || 0) + ' 条活跃预警（规则版摘要）</div>';
-      meta.textContent = 'M2 规则版';
+      body.innerHTML = '<div class="ai-briefing-text">近期（近' + BRIEFING_NEWS_DAYS + '天）' + (data.stats?.total_news || 0) + ' 条新闻 · ' + (data.stats?.active_alerts || 0) + ' 条活跃预警</div>';
+      meta.textContent = 'M2 规则版 · 仅统计近' + BRIEFING_NEWS_DAYS + '天，下方新闻列表含全部历史';
       setBadge('rule');
     }
   } catch (e) {
@@ -797,6 +863,11 @@ async function refreshAiBriefing() {
   if (!brandId) { showToast('请先选择品牌'); return; }
   const b = brands.find(x => x.id == brandId);
   if (!b) return;
+  if (isReadonlyUser()) {
+    showToast('只读账号不可刷新 LLM，已显示规则版');
+    await loadAiBriefing();
+    return;
+  }
   const body = document.getElementById('ai-briefing-body');
   const badge = document.getElementById('ai-briefing-badge');
   body.innerHTML = '<div class="loading">🤖 正在生成 AI 摘要...</div>';
@@ -809,12 +880,15 @@ async function refreshAiBriefing() {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       if (res.status === 503) {
-        body.innerHTML = '<div class="ai-briefing-placeholder">LLM 未启用，请设置 LLM_ENABLED=true 后重试</div>';
-        if (badge) { badge.textContent = '规则'; badge.classList.add('rule'); }
-        showToast('LLM 未启用');
+        showToast('LLM 未启用，已显示规则版');
+      } else if (res.status === 403) {
+        showToast('只读账号不可刷新 LLM');
+      } else if (res.status === 502) {
+        showToast('LLM 暂时不可用，已显示规则版');
       } else {
-        throw new Error(err.detail || 'LLM failed');
+        showToast('LLM 失败：' + (err.detail || res.status));
       }
+      await loadAiBriefing();
       return;
     }
     const data = await res.json();
@@ -823,10 +897,12 @@ async function refreshAiBriefing() {
       document.getElementById('ai-briefing-meta').textContent = '🆕 刚刚刷新';
       if (badge) { badge.textContent = 'LLM'; badge.classList.remove('rule'); }
       showToast('✅ AI 摘要已刷新');
+    } else {
+      await loadAiBriefing();
     }
   } catch (e) {
-    body.innerHTML = '<div class="loading">⚠️ LLM 调用失败，已降级 M2 规则版</div>';
-    showToast('LLM 失败，已降级');
+    showToast('LLM 失败，已显示规则版');
+    await loadAiBriefing();
   }
 }
 
@@ -836,15 +912,25 @@ function setupFilters() {
     document.getElementById(id).addEventListener('change', () => { loadAlerts(true); loadNews(true); loadAiBriefing(); });
   });
   document.getElementById('filter-search').addEventListener('input', function() {
-    const search = this.value.toLowerCase();
-    let filtered = allAlerts;
-    if (search) {
-      filtered = allAlerts.filter(a => (a.title + (a.description||'') + (a.brand_name||'')).toLowerCase().includes(search));
-    }
-    renderAlerts(filtered);
-    document.getElementById('alert-count').textContent = `筛选 ${filtered.length} 条`;
+    alertsPage = 1;
+    renderAlertsPaged();
   });
 }
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.list-page-btn');
+  if (!btn || btn.disabled) return;
+  var pagerId = btn.getAttribute('data-list-pager');
+  var page = parseInt(btn.getAttribute('data-page'), 10);
+  if (!pagerId || page < 1) return;
+  if (pagerId === 'alerts-pagination') {
+    alertsPage = page;
+    renderAlertsPaged();
+  } else if (pagerId === 'news-pagination') {
+    newsPage = page;
+    renderNewsPaged();
+  }
+});
 
 // ---- M2: Quick-fill Templates (D-K-2) ----
 function quickFillAlert(priority, category) {
@@ -1062,9 +1148,16 @@ async function uploadCsv() {
   const formData = new FormData(); formData.append('file', file);
   let url = `${API}/api/intel/news/csv/upload`;
   if (brandId) url += `?brand_id=${brandId}`;
+  const headers = {};
+  if (window.SandAuth && SandAuth.getToken()) headers.Authorization = 'Bearer ' + SandAuth.getToken();
   try {
     showToast('正在导入...');
-    const res = await fetch(url, { method:'POST', body: formData });
+    const res = await fetch(url, { method:'POST', headers, body: formData });
+    if (!res.ok) {
+      const text = await res.text();
+      showToast('导入失败：HTTP ' + res.status + ' ' + text.slice(0, 120));
+      return;
+    }
     const result = await res.json();
     showCsvResult(result);
   } catch(e) { showToast('导入失败：' + e.message); }
@@ -1078,7 +1171,16 @@ async function importCsvJson() {
   catch(e) { showToast('JSON格式错误：' + e.message); return; }
   try {
     showToast(`正在导入 ${rows.length} 条...`);
-    const res = await fetch(`${API}/api/intel/news/csv`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({rows}) });
+    const res = await fetch(`${API}/api/intel/news/csv`, {
+      method:'POST',
+      headers: intelHeaders(),
+      body: JSON.stringify({rows})
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      showToast('导入失败：HTTP ' + res.status + ' ' + errText.slice(0, 120));
+      return;
+    }
     const result = await res.json();
     showCsvResult(result);
   } catch(e) { showToast('导入失败：' + e.message); }
@@ -1091,7 +1193,11 @@ function showCsvResult(result) {
   let html = `<div class="csv-result ${cls}"><strong>导入完成：</strong>总计 ${result.total} 条 · 成功 ${result.success} 条 · 跳过 ${result.skipped} 条`;
   if (result.errors.length > 0) {
     html += '<br><br><strong>跳过详情：</strong><br>';
-    result.errors.forEach(e => { html += `· 第${e.row}行: ${e.error}${e.title ? ' (' + e.title + ')' : ''}<br>`; });
+    result.errors.forEach(e => {
+      html += `· 第${e.row}行: ${e.error}${e.title ? ' (' + e.title + ')' : ''}`;
+      if (e.suggestion) html += ` — 建议：${e.suggestion}`;
+      html += '<br>';
+    });
   }
   html += '</div>'; area.innerHTML = html;
   if (result.success > 0) { loadNews(true); loadStats(); }
@@ -1099,16 +1205,16 @@ function showCsvResult(result) {
 
 function fillCsvSample() {
   const sample = [
-    {brand_id:1,title:"美的集团Q2营收同比增长18%",summary:"家电业务表现亮眼",source:"行业情报",sentiment:"neutral",category:"行业",keywords:"美的,Q2,增长",url:"https://example.com/1",published_at:"2026-06-10T10:00:00"},
-    {brand_id:1,title:"海尔推出新款智能冰箱对标美的",summary:"海尔新款冰箱定位中高端",source:"竞对监测",sentiment:"negative",category:"竞品",keywords:"海尔,冰箱",url:"https://example.com/2",published_at:"2026-06-09T14:00:00"},
-    {brand_id:2,title:"九阳破壁机L18京东市占回升至22%",summary:"618促销力度加大后效果显著",source:"电商监测",sentiment:"positive",category:"渠道",keywords:"九阳,破壁机",url:"https://example.com/3",published_at:"2026-06-08T08:00:00"},
-    {brand_id:3,title:"苏泊尔广告预算Q2环比下降12%",summary:"主要竞品加大618投放",source:"竞对监测",sentiment:"negative",category:"竞品",keywords:"苏泊尔,广告",url:"https://example.com/4",published_at:"2026-06-07T16:00:00"},
-    {brand_id:4,title:"小熊电器联名款首发预售突破500万",summary:"IP联名养生壶预售超预期",source:"电商监测",sentiment:"positive",category:"新品",keywords:"小熊,联名",url:"https://example.com/5",published_at:"2026-06-08T08:00:00"},
-    {brand_id:5,title:"摩飞新款咖啡机评测口碑走高",summary:"社交媒体获得大量好评",source:"社交媒体",sentiment:"positive",category:"新品",keywords:"摩飞,咖啡机",url:"https://example.com/6",published_at:"2026-06-06T10:00:00"},
-    {brand_id:2,title:"九阳K系列抖音月销+45%再创新高",summary:"抖音渠道持续放量",source:"电商监测",sentiment:"positive",category:"渠道",keywords:"九阳,K系列",url:"https://example.com/7",published_at:"2026-06-05T09:00:00"},
-    {brand_id:3,title:"苏泊尔Q2线上增速放缓至5%",summary:"线上全渠道增速放缓",source:"行业情报",sentiment:"neutral",category:"行业",keywords:"苏泊尔,Q2",url:"https://example.com/8",published_at:"2026-06-04T11:00:00"},
-    {brand_id:1,title:"美的全屋智能战略发布·厨电获资源倾斜",summary:"厨小事业部将获更多资源",source:"官方渠道",sentiment:"positive",category:"行业",keywords:"美的,全屋智能",url:"https://example.com/9",published_at:"2026-06-03T09:00:00"},
-    {brand_id:4,title:"小熊电器养生壶品类京东GMV突破420万",summary:"市占率领先第二名8个百分点",source:"电商监测",sentiment:"positive",category:"渠道",keywords:"小熊,养生壶",url:"https://example.com/10",published_at:"2026-06-02T10:00:00"}
+    {brand_id:1,title:"九牧智能马桶Q2京东GMV同比增长18%",summary:"卫浴品类表现亮眼",source:"行业情报",sentiment:"neutral",category:"行业",keywords:"九牧,Q2,增长",url:"https://example.com/1",published_at:"2026-06-10T10:00:00"},
+    {brand_id:1,title:"竞品智能马桶大幅降价促销",summary:"竞品在核心渠道开启促销",source:"竞对监测",sentiment:"negative",category:"竞品",keywords:"竞品,智能马桶",url:"https://example.com/2",published_at:"2026-06-09T14:00:00"},
+    {brand_id:2,title:"箭牌浴室柜L18京东市占回升至22%",summary:"618促销力度加大后效果显著",source:"电商监测",sentiment:"positive",category:"渠道",keywords:"箭牌,浴室柜",url:"https://example.com/3",published_at:"2026-06-08T08:00:00"},
+    {brand_id:3,title:"恒洁广告预算Q2环比下降12%",summary:"主要竞品加大618投放",source:"竞对监测",sentiment:"negative",category:"竞品",keywords:"恒洁,广告",url:"https://example.com/4",published_at:"2026-06-07T16:00:00"},
+    {brand_id:4,title:"潜水艇地漏联名款首发预售突破500万",summary:"家装辅材预售超预期",source:"电商监测",sentiment:"positive",category:"新品",keywords:"潜水艇,地漏",url:"https://example.com/5",published_at:"2026-06-08T08:00:00"},
+    {brand_id:5,title:"四季沐歌太阳能新品评测口碑走高",summary:"社交媒体获得大量好评",source:"社交媒体",sentiment:"positive",category:"新品",keywords:"四季沐歌,太阳能",url:"https://example.com/6",published_at:"2026-06-06T10:00:00"},
+    {brand_id:2,title:"箭牌智能马桶抖音月销+45%再创新高",summary:"抖音渠道持续放量",source:"电商监测",sentiment:"positive",category:"渠道",keywords:"箭牌,智能马桶",url:"https://example.com/7",published_at:"2026-06-05T09:00:00"},
+    {brand_id:3,title:"恒洁Q2线上增速放缓至5%",summary:"线上全渠道增速放缓",source:"行业情报",sentiment:"neutral",category:"行业",keywords:"恒洁,Q2",url:"https://example.com/8",published_at:"2026-06-04T11:00:00"},
+    {brand_id:1,title:"九牧全卫智能战略发布·JD获资源倾斜",summary:"卫浴事业部将获更多资源",source:"官方渠道",sentiment:"positive",category:"行业",keywords:"九牧,全卫智能",url:"https://example.com/9",published_at:"2026-06-03T09:00:00"},
+    {brand_id:4,title:"潜水艇地漏品类京东GMV突破420万",summary:"市占率领先第二名8个百分点",source:"电商监测",sentiment:"positive",category:"渠道",keywords:"潜水艇,地漏",url:"https://example.com/10",published_at:"2026-06-02T10:00:00"}
   ];
   document.getElementById('csv-paste-area').value = JSON.stringify(sample, null, 2);
   showToast('示例数据已填入（10条）');

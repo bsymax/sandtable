@@ -15,13 +15,13 @@ DEFAULT_PASSWORD = "sand123"
 # username -> (display_name, role, brand name_keys)
 ACCOUNTS = [
     ("admin", "系统管理员", "admin", []),
-    ("zhou", "周采销", "bd", ["midea"]),
-    ("wu", "吴采销", "bd", ["joyoung"]),
-    ("chen", "陈采销", "bd", ["supor"]),
-    ("li", "李采销", "bd", ["bear"]),
-    ("wang", "王采销", "bd", ["morphy"]),
-    ("demo", "演示账号", "manager", ["midea", "joyoung", "supor"]),
-    ("readonly", "只读访客", "readonly", ["bear"]),
+    ("zhou", "周采销", "bd", ["jomoo"]),
+    ("wu", "吴采销", "bd", ["arrow"]),
+    ("chen", "陈采销", "bd", ["hegii"]),
+    ("li", "李采销", "bd", ["submarine"]),
+    ("wang", "王采销", "bd", ["micoe"]),
+    ("demo", "演示账号", "manager", ["jomoo", "arrow", "hegii"]),
+    ("readonly", "只读访客", "readonly", ["micoe"]),
 ]
 
 
