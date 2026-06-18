@@ -207,6 +207,17 @@ async def _generate_briefing_llm(brand, news, alerts, latest_w, latest_metrics, 
     )
 
 
+def _briefing_rule_fallback(brand, news, alerts) -> str:
+    p0 = [a for a in alerts if a.priority == "P0"]
+    text = f"【{brand.name}】近期（近{BRIEFING_NEWS_DAYS}天）{len(news)} 条新闻"
+    if alerts:
+        text += f"，{len(alerts)} 条活跃预警"
+    if p0:
+        text += f"，P0：{p0[0].title}"
+    text += "（规则版 · LLM 不可用）"
+    return text
+
+
 def _resolve_llm_summary(cached, briefing_data: Optional[dict]) -> Optional[str]:
     if briefing_data and briefing_data.get("llm_summary"):
         return briefing_data.get("llm_summary")
@@ -898,8 +909,10 @@ async def ai_refresh_briefing(
     latest_metrics = _get_latest_brand_metrics(brand.id, db)
 
     llm_summary = await _generate_briefing_llm(brand, news, alerts, latest_w, latest_metrics, db, user)
+    source = "llm"
     if not llm_summary:
-        raise HTTPException(502, "LLM 调用失败，请稍后重试或使用 M2 规则版")
+        llm_summary = _briefing_rule_fallback(brand, news, alerts)
+        source = "fallback"
 
     now = datetime.now()
     cached = db.query(IntelBriefingCache).filter(IntelBriefingCache.brand_id == brand.id).first()
@@ -923,6 +936,7 @@ async def ai_refresh_briefing(
         brand_id=brand.id,
         brand_name=brand.name,
         llm_summary=llm_summary,
+        source=source,
         generated_at=now,
     )
 
@@ -990,6 +1004,8 @@ async def get_feed_ai_summary(
         "品牌情报助手，简体中文。", prompt, max_tokens=80,
         db=db, auth_user=user, route="intel.feed.ai_summary",
     )
+    if not ai_summary:
+        ai_summary = original
     return IntelFeedAiSummaryOut(
         item_id=item_id,
         item_type=item_type,

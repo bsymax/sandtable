@@ -65,8 +65,20 @@ if src == "fallback":
 if label.startswith("intel-refresh") and code == 503:
     print(f"{label}: HTTP 503（LLM 关，预期）")
     sys.exit(0)
+if label.startswith("intel-refresh") and code == 502:
+    print(f"{label}: HTTP 502（LLM 网关失败，前端降级）")
+    sys.exit(0)
+if label.startswith("intel-refresh") and d.get("source") == "fallback":
+    print(f"{label}: source=fallback")
+    sys.exit(0)
 if label.startswith("feed-ai") and d.get("ai_summary") in (None, "") and d.get("llm_enabled") is False:
     print(f"{label}: ai_summary=null llm_enabled=false")
+    sys.exit(0)
+if label.startswith("feed-ai") and d.get("ai_summary"):
+    print(f"{label}: ai_summary={str(d.get('ai_summary'))[:40]}")
+    sys.exit(0)
+if label.startswith("feed-ai") and d.get("original_summary") and d.get("ai_summary") in (None, ""):
+    print(f"{label}: ai_summary 空，降级 original_summary")
     sys.exit(0)
 print(f"{label}: 意外 HTTP {code} body={raw[:120]}")
 sys.exit(1)

@@ -477,6 +477,7 @@ class IntelBriefingRefreshOut(BaseModel):
     brand_id: int
     brand_name: str
     llm_summary: str
+    source: str = "llm"
     generated_at: Optional[datetime] = None
 
 

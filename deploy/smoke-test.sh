@@ -9,11 +9,11 @@ check() {
   local path="$1" expect="$2"
   local code body
   code=$(curl -s -o /tmp/sandtable-smoke.out -w "%{http_code}" --max-time 15 "${BASE}${path}")
-  body=$(head -c 200 /tmp/sandtable-smoke.out)
+  body=$(head -c 8192 /tmp/sandtable-smoke.out)
   if [[ "$code" == "200" ]] && echo "$body" | grep -q "$expect"; then
     echo "  OK  ${path}"
   else
-    echo "  FAIL ${path} (HTTP ${code}) ${body}"
+    echo "  FAIL ${path} (HTTP ${code}) $(head -c 120 /tmp/sandtable-smoke.out)"
     return 1
   fi
 }
@@ -22,8 +22,8 @@ check "/api/brands" "jomoo" || check "/api/brands" "midea" || check "/api/brands
 check "/api/health" "brand"
 check "/" "工作台"
 check "/profile.html" "品牌"
-check "/visit.html" "拜访"
+check "/visit.html" "智能拜访"
 check "/intel.html" "情报"
-check "/docs" "swagger" || check "/docs" "openapi"
+check "/docs" "swagger-ui" || check "/docs" "openapi.json" || check "/docs" "FastAPI"
 
 echo "==> 完成"

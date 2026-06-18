@@ -895,8 +895,16 @@ async function refreshAiBriefing() {
     if (data.llm_summary) {
       body.innerHTML = '<div class="ai-briefing-text">' + data.llm_summary + '</div>';
       document.getElementById('ai-briefing-meta').textContent = '🆕 刚刚刷新';
-      if (badge) { badge.textContent = 'LLM'; badge.classList.remove('rule'); }
-      showToast('✅ AI 摘要已刷新');
+      if (badge) {
+        if (data.source === 'fallback') {
+          badge.textContent = '规则';
+          badge.classList.add('rule');
+        } else {
+          badge.textContent = 'LLM';
+          badge.classList.remove('rule');
+        }
+      }
+      showToast(data.source === 'fallback' ? 'LLM 不可用，已显示规则版' : '✅ AI 摘要已刷新');
     } else {
       await loadAiBriefing();
     }
