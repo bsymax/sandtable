@@ -21,6 +21,7 @@ from deps_auth import AuthUser, get_current_user_optional, require_name_key, req
 from llm_prompts import (
     blurb_fallback,
     build_strategy_llm_context,
+    is_strategy_field_empty,
     parse_strategy_json,
     resolve_strategy_baseline,
 )
@@ -156,10 +157,14 @@ def update_brand_profile(
         profile.taboo_updated_at = datetime.now()
 
     if payload.competitive_landscape is not None:
-        profile.competitive_landscape = payload.competitive_landscape
+        profile.competitive_landscape = (
+            None if is_strategy_field_empty(payload.competitive_landscape) else payload.competitive_landscape
+        )
 
     if payload.growth_opportunities is not None:
-        profile.growth_opportunities = payload.growth_opportunities
+        profile.growth_opportunities = (
+            None if is_strategy_field_empty(payload.growth_opportunities) else payload.growth_opportunities
+        )
 
     contacts_changed = False
 
@@ -332,7 +337,8 @@ async def ai_blurb(
     ).count()
     fallback = blurb_fallback(brand.name, metrics, alert_n)
     text = await complete(
-        "你是品牌经营解读助手，一段话概括风险与机会，简体中文，可含少量 HTML strong 标签。",
+        "你是品牌经营解读助手，一段话概括风险与机会，简体中文，可含少量 HTML strong 标签。"
+        "经营指标为月频：使用「月成交（万元）」与「成交同比」，勿写「周 GMV」。",
         fallback.replace("（规则版解读 · LLM 未启用）", ""),
         max_tokens=300,
         db=db,

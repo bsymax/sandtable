@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>品牌情报流 · 智能拜访助手 · M2</title>
+<title>品牌情报流 · 品牌沙盘</title>
 <style>
 :root {
   --bg: #f4f5f9;
@@ -208,7 +208,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 
 <div id="main">
 <div class="topbar">
-  <div class="breadcrumb"><a href="index.html">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 M2 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">品牌情报流</span></div>
+  <div class="breadcrumb"><a href="index.html">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">品牌情报流</span></div>
   <div class="topbar-right">
     <span id="today-date">—</span>
     <span style="color:var(--text-muted);">|</span>
@@ -219,10 +219,8 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 
 <div class="content">
   <div class="m1-banner">
-    <span class="m1-scope-tag">情报席</span>
-    <span class="m2-scope-tag">M2</span>
-    <span class="m3-scope-tag">M3·LLM</span>
-    外部新闻抓取 + 内部周报 + <strong>AI 智能摘要</strong> · CSV 批量导入 · 分页浏览 · 简报缓存 · LLM 可降级。
+    <span class="m1-scope-tag">品牌情报</span>
+    外部新闻抓取 + 内部周报 + <strong>AI 智能摘要</strong> · CSV 批量导入 · 分页浏览 · 简报缓存。
   </div>
 
   <div class="intel-page-header">
@@ -232,12 +230,12 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
     </div>
     <div class="ai-briefing-hero" id="ai-briefing-card">
       <div class="ai-briefing-hero-head">
-        <span>🤖 AI 品牌简报 <span class="ai-badge" id="ai-briefing-badge">M3</span></span>
+        <span>🤖 AI 品牌简报 <span class="ai-badge" id="ai-briefing-badge">智能</span></span>
         <button class="btn-sm-outline" type="button" onclick="refreshAiBriefing()">🔄 刷新</button>
         <span class="hero-meta" id="ai-briefing-meta"></span>
       </div>
       <div class="ai-briefing-hero-body" id="ai-briefing-body">
-        <div class="ai-briefing-placeholder">在下方筛选栏选择<strong>具体品牌</strong>，此处显示 AI 简报（LLM 关时为规则版摘要）</div>
+        <div class="ai-briefing-placeholder">在下方筛选栏选择<strong>具体品牌</strong>，此处显示 AI 简报（智能分析暂不可用时为简要摘要）</div>
       </div>
     </div>
   </div>
@@ -276,7 +274,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
     <button class="btn-primary" onclick="openAlertForm()">+ 录入情报</button>
     <button class="btn-outline" onclick="openNewsForm()">📰 录入新闻</button>
     <button class="btn-outline" onclick="openWeeklyForm()">📝 写周报</button>
-    <button class="btn-outline" onclick="openCsvModal()" title="CSV批量导入（M2新增）">📥 CSV导入</button>
+    <button class="btn-outline" onclick="openCsvModal()" title="CSV批量导入">📥 CSV导入</button>
   </div>
 
   <!-- M2 录入模板快捷栏 -->
@@ -493,10 +491,10 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 </div>
 </div>
 
-<!-- M2 CSV 批量导入 Modal -->
+<!-- CSV 批量导入 Modal -->
 <div class="modal-overlay" id="modal-csv">
 <div class="modal-box wide">
-  <h3>📥 CSV 批量导入新闻（M2 新增）</h3>
+  <h3>📥 CSV 批量导入新闻</h3>
 
   <div class="tab-row">
     <button class="tab-btn active" onclick="switchCsvTab('file')" id="csv-tab-file">📁 上传CSV文件</button>
@@ -542,7 +540,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 <div id="appToast" class="toast"></div>
 
 <script src="js/api-base.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/auth.js?v=20260622-llm"></script>
 <script>
 const API = M1_API_BASE;
 const PAGE_SIZE = 5;
@@ -593,6 +591,14 @@ function getFilteredAlerts() {
   });
 }
 
+function getFilteredNews() {
+  var search = (document.getElementById('filter-search').value || '').toLowerCase();
+  if (!search) return allNews;
+  return allNews.filter(function(n) {
+    return (n.title + (n.summary || '') + (n.brand_name || '') + (n.source || '')).toLowerCase().includes(search);
+  });
+}
+
 function renderAlertsPaged() {
   var filtered = getFilteredAlerts();
   var p = paginateList(filtered, alertsPage);
@@ -602,7 +608,8 @@ function renderAlertsPaged() {
 }
 
 function renderNewsPaged() {
-  var p = paginateList(allNews, newsPage);
+  var filtered = getFilteredNews();
+  var p = paginateList(filtered, newsPage);
   newsPage = p.page;
   renderNews(p.slice);
   renderListPagination('news-pagination', 'news-count', p.page, p.total);
@@ -818,11 +825,11 @@ async function loadAiBriefing() {
   const brandId = document.getElementById('filter-brand').value;
   function setBadge(mode) {
     if (!badge) return;
-    badge.textContent = mode === 'llm' ? 'LLM' : mode === 'rule' ? '规则' : 'M3';
+    badge.textContent = mode === 'llm' ? '智能' : mode === 'rule' ? '简要' : '智能';
     badge.classList.toggle('rule', mode === 'rule');
   }
   if (!brandId) {
-    body.innerHTML = '<div class="ai-briefing-placeholder">在下方筛选栏选择<strong>具体品牌</strong>，此处显示 AI 简报（LLM 关时为规则版摘要）</div>';
+    body.innerHTML = '<div class="ai-briefing-placeholder">在下方筛选栏选择<strong>具体品牌</strong>，此处显示 AI 简报（智能分析暂不可用时为简要摘要）</div>';
     meta.textContent = '';
     setBadge('m3');
     return;
@@ -849,7 +856,7 @@ async function loadAiBriefing() {
       setBadge('llm');
     } else {
       body.innerHTML = '<div class="ai-briefing-text">近期（近' + BRIEFING_NEWS_DAYS + '天）' + (data.stats?.total_news || 0) + ' 条新闻 · ' + (data.stats?.active_alerts || 0) + ' 条活跃预警</div>';
-      meta.textContent = 'M2 规则版 · 仅统计近' + BRIEFING_NEWS_DAYS + '天，下方新闻列表含全部历史';
+      meta.textContent = '简要摘要 · 仅统计近' + BRIEFING_NEWS_DAYS + '天，下方新闻列表含全部历史';
       setBadge('rule');
     }
   } catch (e) {
@@ -864,14 +871,14 @@ async function refreshAiBriefing() {
   const b = brands.find(x => x.id == brandId);
   if (!b) return;
   if (isReadonlyUser()) {
-    showToast('只读账号不可刷新 LLM，已显示规则版');
+    showToast('只读账号不可刷新智能摘要，已显示简要说明');
     await loadAiBriefing();
     return;
   }
   const body = document.getElementById('ai-briefing-body');
   const badge = document.getElementById('ai-briefing-badge');
   body.innerHTML = '<div class="loading">🤖 正在生成 AI 摘要...</div>';
-  showToast('正在调用 LLM...');
+  showToast('正在生成智能摘要...');
   try {
     const res = await fetch(`${API}/api/intel/briefing/${b.name_key}/ai/refresh`, {
       method: 'POST',
@@ -880,13 +887,13 @@ async function refreshAiBriefing() {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       if (res.status === 503) {
-        showToast('LLM 未启用，已显示规则版');
+        showToast('智能分析暂不可用，已显示简要说明');
       } else if (res.status === 403) {
-        showToast('只读账号不可刷新 LLM');
+        showToast('只读账号不可刷新智能摘要');
       } else if (res.status === 502) {
-        showToast('LLM 暂时不可用，已显示规则版');
+        showToast('智能分析暂不可用，已显示简要说明');
       } else {
-        showToast('LLM 失败：' + (err.detail || res.status));
+        showToast('智能分析失败：' + (err.detail || res.status));
       }
       await loadAiBriefing();
       return;
@@ -900,16 +907,16 @@ async function refreshAiBriefing() {
           badge.textContent = '规则';
           badge.classList.add('rule');
         } else {
-          badge.textContent = 'LLM';
+          badge.textContent = '智能';
           badge.classList.remove('rule');
         }
       }
-      showToast(data.source === 'fallback' ? 'LLM 不可用，已显示规则版' : '✅ AI 摘要已刷新');
+      showToast(data.source === 'fallback' ? '智能分析暂不可用，已显示简要说明' : '✅ AI 摘要已刷新');
     } else {
       await loadAiBriefing();
     }
   } catch (e) {
-    showToast('LLM 失败，已显示规则版');
+    showToast('智能分析暂不可用，已显示简要说明');
     await loadAiBriefing();
   }
 }
@@ -921,7 +928,9 @@ function setupFilters() {
   });
   document.getElementById('filter-search').addEventListener('input', function() {
     alertsPage = 1;
+    newsPage = 1;
     renderAlertsPaged();
+    renderNewsPaged();
   });
 }
 

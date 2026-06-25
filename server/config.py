@@ -1,12 +1,20 @@
 """
 数据库连接配置 & 应用设置
+
+本地无 Docker/MySQL 时：`.env` 设 `DB_ENGINE=sqlite`（见 `.env.example`）
 """
 
 import os
+from pathlib import Path
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
 load_dotenv()
+
+_SERVER_DIR = Path(__file__).resolve().parent
+
+DB_ENGINE = os.getenv("DB_ENGINE", "mysql").strip().lower()
+IS_SQLITE = DB_ENGINE == "sqlite"
 
 DB_HOST     = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT     = int(os.getenv("DB_PORT", "3306"))
@@ -14,6 +22,10 @@ DB_USER     = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME     = os.getenv("DB_NAME", "brand_sandtable")
 DB_CHARSET  = os.getenv("DB_CHARSET", "utf8mb4")
+DB_SQLITE_PATH = os.getenv(
+    "DB_SQLITE_PATH",
+    str(_SERVER_DIR / "data" / "local_dev.sqlite"),
+)
 
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
@@ -46,8 +58,11 @@ DW_METRICS_PERIOD_TYPE = os.getenv("DW_METRICS_PERIOD_TYPE", "monthly").strip().
 if DW_METRICS_PERIOD_TYPE not in ("weekly", "monthly"):
     DW_METRICS_PERIOD_TYPE = "monthly"
 
-# SQLAlchemy 连接字符串（同步 + PyMySQL）
-DATABASE_URL = (
-    f"mysql+pymysql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    f"?charset={DB_CHARSET}"
-)
+if IS_SQLITE:
+    Path(DB_SQLITE_PATH).parent.mkdir(parents=True, exist_ok=True)
+    DATABASE_URL = f"sqlite:///{DB_SQLITE_PATH}"
+else:
+    DATABASE_URL = (
+        f"mysql+pymysql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        f"?charset={DB_CHARSET}"
+    )

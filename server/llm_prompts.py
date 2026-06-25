@@ -9,6 +9,8 @@ _PLACEHOLDER_MARKERS = (
     "请在 Tab2 手工维护",
     "（待补全竞争格局分析）",
     "（待补全增长机会）",
+    "正在生成 AI 解读",
+    "请稍候…",
 )
 
 
@@ -50,7 +52,7 @@ def _build_strategy_rules(
 
     if metrics:
         gmv = getattr(metrics, "gmv", None)
-        gmv_wow = getattr(metrics, "gmv_wow", None)
+        gmv_yoy = getattr(metrics, "gmv_yoy", None)
         jd_share = getattr(metrics, "jd_share", None)
         jd_share_wow = getattr(metrics, "jd_share_wow", None)
         cg_jd = getattr(metrics, "channel_growth_jd", None)
@@ -71,11 +73,11 @@ def _build_strategy_rules(
         elif cg_jd is not None and float(cg_jd) < -5:
             comp_lines.append(f"【压力】JD 渠道增速 {cg_jd}%，增长承压，需对齐货盘与价格策略。")
 
-        if gmv_wow is not None and float(gmv_wow) < -5:
-            comp_lines.append(f"【经营】本期 GMV 周环比 {gmv_wow}%，需跟踪主要竞对促销与排期。")
-        elif gmv is not None and gmv_wow is not None:
-            sign = "+" if float(gmv_wow) > 0 else ""
-            comp_lines.append(f"【经营】本期 GMV {gmv} 万，周环比 {sign}{gmv_wow}%。")
+        if gmv_yoy is not None and float(gmv_yoy) < -5:
+            comp_lines.append(f"【经营】本期月成交同比 {gmv_yoy}%，需跟踪主要竞对促销与排期。")
+        elif gmv is not None and gmv_yoy is not None:
+            sign = "+" if float(gmv_yoy) > 0 else ""
+            comp_lines.append(f"【经营】本期月成交 {gmv} 万，成交同比 {sign}{gmv_yoy}%。")
 
     risk_added = False
     for alert in alerts:
@@ -90,12 +92,12 @@ def _build_strategy_rules(
         risk_added = True
 
     if metrics:
-        gmv_wow = getattr(metrics, "gmv_wow", None)
+        gmv_yoy = getattr(metrics, "gmv_yoy", None)
         jd_share = getattr(metrics, "jd_share", None)
         cg_dy = getattr(metrics, "channel_growth_douyin", None)
-        if gmv_wow is not None and float(gmv_wow) > 5:
+        if gmv_yoy is not None and float(gmv_yoy) > 5:
             opp_lines.append(
-                f"【经营】GMV 周环比 +{gmv_wow}%，可趁势争取楼层、搜索专区或联合投放资源。"
+                f"【经营】月成交同比 +{gmv_yoy}%，可趁势争取楼层、搜索专区或联合投放资源。"
             )
         if jd_share is not None and float(jd_share) >= 20:
             opp_lines.append(
@@ -169,9 +171,9 @@ def build_strategy_llm_context(
         f"负责采销：{getattr(brand, 'responsible', None) or '—'}",
     ]
     if metrics and getattr(metrics, "gmv", None) is not None:
-        wow = getattr(metrics, "gmv_wow", None)
-        wow_s = f"，环比 {wow}%" if wow is not None else ""
-        lines.append(f"周 GMV {metrics.gmv} 万{wow_s}")
+        yoy = getattr(metrics, "gmv_yoy", None)
+        yoy_s = f"，成交同比 {yoy}%" if yoy is not None else ""
+        lines.append(f"月成交 {metrics.gmv} 万{yoy_s}")
     if profile and getattr(profile, "positioning", None):
         lines.append(f"品牌定位：{profile.positioning}")
     lines.extend(
@@ -222,13 +224,14 @@ def parse_strategy_json(raw: str) -> Optional[Dict[str, str]]:
 
 def blurb_fallback(brand_name: str, metrics: Any, alert_count: int) -> str:
     gmv = getattr(metrics, "gmv", None) if metrics else None
-    wow = getattr(metrics, "gmv_wow", None) if metrics else None
+    gmv_yoy = getattr(metrics, "gmv_yoy", None) if metrics else None
     parts = [f"【{brand_name}】"]
     if gmv is not None:
-        parts.append(f"周 GMV 约 {gmv} 万")
-    if wow is not None:
-        trend = "回升" if float(wow) >= 0 else "承压"
-        parts.append(f"环比 {wow}% {trend}")
+        parts.append(f"月成交约 {gmv} 万")
+    if gmv_yoy is not None:
+        trend = "回升" if float(gmv_yoy) >= 0 else "承压"
+        sign = "+" if float(gmv_yoy) > 0 else ""
+        parts.append(f"成交同比 {sign}{gmv_yoy}% {trend}")
     if alert_count:
         parts.append(f"待处理情报 {alert_count} 条")
     parts.append("（规则版解读 · LLM 未启用）")

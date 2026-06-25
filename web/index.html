@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>今日工作台 · 品牌沙盘 M1</title>
+<title>今日工作台 · 品牌沙盘</title>
 <style>
 :root {
   --bg:#f4f5f9; --card-bg:#fff; --text:#1a1f36; --text-secondary:#697386; --text-muted:#a3acba;
@@ -66,7 +66,10 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); display
 .todo-check.overdue-flag:not(.done) { border-color:var(--red-500); background:var(--red-50); }
 .todo-title { font-size:13px; font-weight:500; margin-bottom:3px; }
 .todo-meta { font-size:11px; color:var(--text-muted); }
-.todo-priority { font-size:10px; padding:1px 6px; border-radius:3px; font-weight:600; flex-shrink:0; }
+.todo-kind { font-size:10px; padding:1px 6px; border-radius:3px; font-weight:600; flex-shrink:0; }
+.kind-visit { background:#e8f2ff; color:var(--blue-500); }
+.kind-commit { background:#ecfdf5; color:var(--green-500); }
+.near-term-icon { width:18px; flex-shrink:0; margin-top:1px; font-size:14px; text-align:center; }
 .todo-pagination { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0 16px; border-top:1px solid var(--border); margin-top:4px; }
 .todo-page-info { font-size:12px; color:var(--text-muted); flex:1; text-align:center; }
 .todo-page-btn:disabled { opacity:.45; cursor:not-allowed; }
@@ -101,22 +104,22 @@ table td { padding:10px 16px; border-bottom:1px solid var(--border); }
 
 <div id="sidebar">
   <div class="sidebar-header">
-    <div class="product-name">品牌沙盘 <span style="font-size:11px;font-weight:500;color:#64748b;">M1</span></div>
+    <div class="product-name">品牌沙盘</div>
     <div class="product-sub">Brand Sandtable · 厨小事业部</div>
   </div>
   <div class="sidebar-nav">
     <div class="nav-section-title">入口</div>
     <a class="nav-item active" href="index.html"><span class="nav-icon">📋</span><span class="nav-label">今日工作台</span></a>
     <div class="nav-section-title">核心业务 · 三模块席</div>
-    <a class="nav-item" href="profile.html"><span class="nav-icon">🏢</span><span class="nav-label">品牌档案</span><span class="badge">已接真库</span></a>
-    <a class="nav-item" href="visit.html"><span class="nav-icon">🎯</span><span class="nav-label">智能拜访助手</span><span class="badge">已接真库</span></a>
-    <a class="nav-item" href="intel.html"><span class="nav-icon">🔍</span><span class="nav-label">品牌情报流</span><span class="badge">已接真库</span></a>
+    <a class="nav-item" href="profile.html"><span class="nav-icon">🏢</span><span class="nav-label">品牌档案</span><span class="badge">试点中</span></a>
+    <a class="nav-item" href="visit.html"><span class="nav-icon">🎯</span><span class="nav-label">智能拜访助手</span><span class="badge">试点中</span></a>
+    <a class="nav-item" href="intel.html"><span class="nav-icon">🔍</span><span class="nav-label">品牌情报流</span><span class="badge">试点中</span></a>
   </div>
 </div>
 
 <div id="main">
   <div class="topbar">
-    <div class="breadcrumb">品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">今日工作台</span></div>
+    <div class="breadcrumb">品牌沙盘 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">今日工作台</span></div>
     <div class="topbar-right" id="wb-topbar-right">
       <span id="wb-date">—</span>
       <span style="color:var(--text-muted);">|</span>
@@ -128,17 +131,17 @@ table td { padding:10px 16px; border-bottom:1px solid var(--border); }
   <div class="content">
     <div class="m1-banner">
       <span class="m1-scope-tag">S5</span>
-      工作台只读聚合：<strong>待办</strong> · <strong>承诺</strong> · <strong>P0/P1 情报</strong> · <strong>拜访健康度</strong>（数据来自 API，与三模块同库）
+      工作台只读聚合：<strong>近期待办</strong> · <strong>承诺</strong> · <strong>P0/P1 情报</strong> · <strong>拜访健康度</strong>（数据来自 API，与三模块同库）
     </div>
     <div class="page-title">今日工作台</div>
-    <div class="page-subtitle">待办 · 承诺 · 情报 · 拜访健康度 — 一页聚合</div>
+    <div class="page-subtitle">近期待办 · 情报 · 拜访健康度 — 一页聚合</div>
     <div id="dashboard-summary-line" class="dashboard-summary-line" aria-live="polite">
       <span class="summary-loading">正在生成今日摘要…</span>
     </div>
 
     <div class="grid-4">
       <div class="stat-card">
-        <div class="stat-label">今日待办</div>
+        <div class="stat-label">近期待办</div>
         <div class="stat-value" id="stat-todo-count">—</div>
         <div class="stat-change down" id="stat-todo-overdue">加载中</div>
       </div>
@@ -161,13 +164,18 @@ table td { padding:10px 16px; border-bottom:1px solid var(--border); }
 
     <div class="grid-2">
       <div class="card">
-        <div class="card-header"><h3>⏰ 今日待办</h3><span class="card-meta">/api/todos</span></div>
-        <div class="card-body" style="padding:0 20px;" id="todo-list"><p style="padding:16px;color:var(--text-muted);font-size:13px;">加载中…</p></div>
+        <div class="card-header"><h3>📅 待拜访</h3><span class="card-meta"><a href="visit.html?vtab=schedule">安排拜访 →</a></span></div>
+        <div class="card-body" style="padding:0 20px;" id="visit-list"><p style="padding:16px;color:var(--text-muted);font-size:13px;">加载中…</p></div>
       </div>
       <div class="card">
-        <div class="card-header"><h3>📡 近期情报</h3><span class="card-meta"><a href="intel.html">情报流 →</a></span></div>
-        <div class="card-body" style="padding:0 20px;" id="intel-feed"><p style="padding:16px;color:var(--text-muted);font-size:13px;">加载中…</p></div>
+        <div class="card-header"><h3>✅ 承诺待兑现</h3><span class="card-meta"><a href="visit.html?vtab=commitments">承诺跟踪 →</a></span></div>
+        <div class="card-body" style="padding:0 20px;" id="commitment-list"><p style="padding:16px;color:var(--text-muted);font-size:13px;">加载中…</p></div>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>📡 近期情报</h3><span class="card-meta"><a href="intel.html">情报流 →</a></span></div>
+      <div class="card-body" style="padding:0 20px;" id="intel-feed"><p style="padding:16px;color:var(--text-muted);font-size:13px;">加载中…</p></div>
     </div>
 
     <div class="card">
@@ -183,12 +191,14 @@ table td { padding:10px 16px; border-bottom:1px solid var(--border); }
 </div>
 
 <script src="js/api-base.js"></script>
-<script src="js/auth.js"></script>
+<script src="js/auth.js?v=20260622-llm"></script>
 <script>
 var WB_API = M1_API_BASE;
-var TODO_PAGE_SIZE = 6;
-var todoPage = 1;
-var todoPendingCache = [];
+var NEAR_PAGE_SIZE = 5;
+var visitPage = 1;
+var commitPage = 1;
+var visitCache = [];
+var commitCache = [];
 
 function wbApi(path, opts) {
   opts = opts || {};
@@ -215,13 +225,6 @@ function wbGo(href) {
   window.location.href = href;
 }
 
-function wbIsOverdue(t) {
-  if (t.status === 'done') return false;
-  if (t.status === 'overdue') return true;
-  if (!t.deadline) return false;
-  return String(t.deadline) < new Date().toISOString().slice(0, 10);
-}
-
 function showToast(msg) {
   var t = document.getElementById('appToast');
   if (!t) { t = document.createElement('div'); t.id = 'appToast'; t.className = 'toast'; document.body.appendChild(t); }
@@ -236,55 +239,123 @@ function levelCls(l) {
   return x === 's' ? 'level-s' : (x === 'a' ? 'level-a' : 'level-b');
 }
 
-function renderTodoPagination(total, page) {
-  var pages = Math.ceil(total / TODO_PAGE_SIZE);
+function renderTodoPagination(total, page, listKey) {
+  var pages = Math.ceil(total / NEAR_PAGE_SIZE);
   if (pages <= 1) return '';
   if (page < 1) page = 1;
   if (page > pages) page = pages;
   var prevDisabled = page <= 1 ? ' disabled' : '';
   var nextDisabled = page >= pages ? ' disabled' : '';
   return '<div class="todo-pagination">' +
-    '<button type="button" class="btn-sm-outline todo-page-btn" data-page="' + (page - 1) + '"' + prevDisabled + '>上一页</button>' +
+    '<button type="button" class="btn-sm-outline todo-page-btn" data-list="' + listKey + '" data-page="' + (page - 1) + '"' + prevDisabled + '>上一页</button>' +
     '<span class="todo-page-info">第 ' + page + ' / ' + pages + ' 页 · 共 ' + total + ' 条</span>' +
-    '<button type="button" class="btn-sm-outline todo-page-btn" data-page="' + (page + 1) + '"' + nextDisabled + '>下一页</button>' +
+    '<button type="button" class="btn-sm-outline todo-page-btn" data-list="' + listKey + '" data-page="' + (page + 1) + '"' + nextDisabled + '>下一页</button>' +
     '</div>';
 }
 
-function renderTodos(todos) {
-  var list = document.getElementById('todo-list');
+function wbVisitTypeLabel(t) {
+  var m = { urgent: '紧急', regular: '定期', renewal: '续约' };
+  return m[t] || t || '拜访';
+}
+
+function wbPartyLabel(p) {
+  return p === 'bd' ? '我方' : '品牌方';
+}
+
+function buildVisitItems(scheduledVisits, brandKeyById) {
+  var today = new Date().toISOString().slice(0, 10);
+  var items = (scheduledVisits || []).map(function(v) {
+    return {
+      id: 'v-' + v.id,
+      title: (v.brand_name || '—') + ' · ' + String(v.purpose || '').slice(0, 28),
+      meta: '计划 ' + wbFmtDate(v.visit_date) + ' · ' + wbVisitTypeLabel(v.visit_type),
+      overdue: v.status === 'scheduled' && String(v.visit_date) < today,
+      sortDate: v.visit_date ? String(v.visit_date) : '9999-12-31',
+      href: 'visit.html?vtab=record&visit=' + v.id + (brandKeyById[v.brand_id] ? '&brand=' + brandKeyById[v.brand_id] : ''),
+    };
+  });
+  items.sort(function(a, b) {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    if (a.sortDate < b.sortDate) return -1;
+    if (a.sortDate > b.sortDate) return 1;
+    return 0;
+  });
+  return items;
+}
+
+function buildCommitmentItems(commitments, brandKeyById, visitById) {
+  var today = new Date().toISOString().slice(0, 10);
+  var items = [];
+  (commitments || []).forEach(function(c) {
+    if (c.status !== 'pending') return;
+    var visit = visitById[c.visit_id] || {};
+    var brandKey = brandKeyById[visit.brand_id] || '';
+    var dl = c.deadline ? String(c.deadline) : '';
+    items.push({
+      id: 'c-' + c.id,
+      title: String(c.content || '承诺事项').slice(0, 48),
+      meta: (visit.brand_name || '—') + ' · ' + wbPartyLabel(c.party) + ' · 截止 ' + wbFmtDate(c.deadline),
+      overdue: !!dl && dl < today,
+      sortDate: dl || '9999-12-31',
+      href: 'visit.html?vtab=commitments' + (brandKey ? '?brand=' + brandKey : ''),
+    });
+  });
+  items.sort(function(a, b) {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    if (a.sortDate < b.sortDate) return -1;
+    if (a.sortDate > b.sortDate) return 1;
+    return 0;
+  });
+  return items;
+}
+
+function renderNearTermList(listId, items, page, listKey, emptyHtml, actionLabel) {
+  var list = document.getElementById(listId);
   if (!list) return;
-  var pending = todos.filter(function(t) { return t.status !== 'done'; });
-  todoPendingCache = pending;
-  var overdueN = pending.filter(wbIsOverdue).length;
-  document.getElementById('stat-todo-count').textContent = String(pending.length);
+  if (!items.length) {
+    list.innerHTML = emptyHtml;
+    return;
+  }
+  var pages = Math.max(1, Math.ceil(items.length / NEAR_PAGE_SIZE));
+  if (page > pages) page = pages;
+  if (page < 1) page = 1;
+  var start = (page - 1) * NEAR_PAGE_SIZE;
+  var slice = items.slice(start, start + NEAR_PAGE_SIZE);
+  list.innerHTML = slice.map(function(it) {
+    var titleStyle = it.overdue ? ' style="color:var(--red-500);"' : '';
+    return '<div class="todo-item" data-near-id="' + wbEsc(it.id) + '">' +
+      '<div style="flex:1;min-width:0"><div class="todo-title"' + titleStyle + '>' + wbEsc(it.title) + '</div>' +
+      '<div class="todo-meta">' + wbEsc(it.meta) + '</div></div>' +
+      '<button type="button" class="btn-sm-outline near-term-go" data-href="' + wbEsc(it.href) + '">' + actionLabel + '</button>' +
+      '</div>';
+  }).join('') + renderTodoPagination(items.length, page, listKey);
+}
+
+function updateNearTermStats(visits, commits) {
+  var all = (visits || []).concat(commits || []);
+  var overdueN = all.filter(function(it) { return it.overdue; }).length;
+  document.getElementById('stat-todo-count').textContent = String(all.length);
   var odEl = document.getElementById('stat-todo-overdue');
   odEl.innerHTML = overdueN ? '<span class="arrow">↑</span>' + overdueN + '项已逾期' : '无逾期';
   odEl.className = overdueN ? 'stat-change down' : 'stat-change';
-  if (!pending.length) {
-    todoPage = 1;
-    list.innerHTML = '<p style="padding:16px;color:var(--text-muted);font-size:13px;">🎉 暂无未完成待办</p>';
-    return;
-  }
-  var pages = Math.max(1, Math.ceil(pending.length / TODO_PAGE_SIZE));
-  if (todoPage > pages) todoPage = pages;
-  if (todoPage < 1) todoPage = 1;
-  var start = (todoPage - 1) * TODO_PAGE_SIZE;
-  var slice = pending.slice(start, start + TODO_PAGE_SIZE);
-  list.innerHTML = slice.map(function(t) {
-    var pri = t.priority || 'P2';
-    var priCls = pri === 'P0' ? 'prio-p0' : (pri === 'P1' ? 'prio-p1' : 'prio-p2');
-    var od = wbIsOverdue(t);
-    var checkCls = 'todo-check' + (od ? ' overdue-flag' : '');
-    var titleStyle = od ? ' style="color:var(--red-500);"' : '';
-    var priTag = od
-      ? '<span class="todo-priority prio-p0" style="background:var(--red-500);color:#fff;">超期</span>'
-      : '<span class="todo-priority ' + priCls + '">' + pri + '</span>';
-    return '<div class="todo-item" data-id="' + t.id + '">' +
-      '<div class="' + checkCls + '" role="button" tabindex="0" title="标记完成"></div>' +
-      '<div style="flex:1"><div class="todo-title"' + titleStyle + '>' + wbEsc(t.title) + '</div>' +
-      '<div class="todo-meta">品牌：' + wbEsc(t.brand_name || '—') + ' · 负责人：' + wbEsc(t.assignee || '采销') +
-      ' · 截止：' + wbFmtDate(t.deadline) + '</div></div>' + priTag + '</div>';
-  }).join('') + renderTodoPagination(pending.length, todoPage);
+}
+
+function renderNearTerm(visitItems, commitItems) {
+  visitCache = visitItems || [];
+  commitCache = commitItems || [];
+  updateNearTermStats(visitCache, commitCache);
+  if (!visitCache.length) visitPage = 1;
+  if (!commitCache.length) commitPage = 1;
+  renderNearTermList(
+    'visit-list', visitCache, visitPage, 'visit',
+    '<p style="padding:16px;color:var(--text-muted);font-size:13px;">🎉 暂无待拜访<br><span style="font-size:11px;"><a href="visit.html?vtab=schedule" style="color:var(--blue-500);">去安排拜访</a></span></p>',
+    '去记录'
+  );
+  renderNearTermList(
+    'commitment-list', commitCache, commitPage, 'commit',
+    '<p style="padding:16px;color:var(--text-muted);font-size:13px;">🎉 暂无待兑现承诺<br><span style="font-size:11px;"><a href="visit.html?vtab=record" style="color:var(--blue-500);">拜访后录入</a></span></p>',
+    '去跟进'
+  );
 }
 
 function renderIntelFeed(alerts) {
@@ -364,10 +435,31 @@ function loadSummaryLine() {
   });
 }
 
-function loadWorkbench() {
-  wbApi('/api/todos').then(renderTodos).catch(function(e) {
-    document.getElementById('todo-list').innerHTML = '<p style="padding:16px;color:var(--red-500);font-size:13px;">待办加载失败：' + wbEsc(e.message) + '</p>';
+function loadNearTerm() {
+  return Promise.all([
+    wbApi('/api/visits'),
+    wbApi('/api/commitments?status=pending'),
+    wbApi('/api/brands'),
+  ]).then(function(res) {
+    var allVisits = res[0] || [];
+    var scheduled = allVisits.filter(function(v) { return v.status === 'scheduled'; });
+    var visitById = {};
+    allVisits.forEach(function(v) { visitById[v.id] = v; });
+    var brandKeyById = {};
+    (res[2] || []).forEach(function(b) { brandKeyById[b.id] = b.name_key; });
+    renderNearTerm(
+      buildVisitItems(scheduled, brandKeyById),
+      buildCommitmentItems(res[1], brandKeyById, visitById)
+    );
+  }).catch(function(e) {
+    var err = '<p style="padding:16px;color:var(--red-500);font-size:13px;">加载失败：' + wbEsc(e.message) + '</p>';
+    document.getElementById('visit-list').innerHTML = err;
+    document.getElementById('commitment-list').innerHTML = err;
   });
+}
+
+function loadWorkbench() {
+  loadNearTerm();
   wbApi('/api/intel/alerts?status=pending&limit=20').then(renderIntelFeed).catch(function() {
     document.getElementById('intel-feed').innerHTML = '<p style="padding:16px;color:var(--text-muted);">情报加载失败</p>';
   });
@@ -377,30 +469,26 @@ function loadWorkbench() {
   loadStats();
 }
 
-function toggleTodo(id) {
-  wbApi('/api/todos/' + id, { method: 'PUT', body: { status: 'done' } })
-    .then(function() {
-      showToast('待办已完成');
-      return loadWorkbench();
-    })
-    .catch(function(e) { showToast('更新失败：' + e.message); });
-}
-
-document.getElementById('todo-list').addEventListener('click', function(e) {
+document.querySelector('.content').addEventListener('click', function(e) {
+  var goBtn = e.target.closest('.near-term-go');
+  if (goBtn && goBtn.dataset.href) {
+    wbGo(goBtn.dataset.href);
+    return;
+  }
   var pageBtn = e.target.closest('.todo-page-btn');
   if (pageBtn && !pageBtn.disabled) {
     var nextPage = parseInt(pageBtn.dataset.page, 10);
-    if (nextPage >= 1) {
-      todoPage = nextPage;
-      renderTodos(todoPendingCache);
+    var listKey = pageBtn.dataset.list;
+    if (nextPage >= 1 && listKey === 'visit') {
+      visitPage = nextPage;
+      renderNearTermList('visit-list', visitCache, visitPage, 'visit',
+        '<p style="padding:16px;color:var(--text-muted);font-size:13px;">🎉 暂无待拜访</p>', '去记录');
+    } else if (nextPage >= 1 && listKey === 'commit') {
+      commitPage = nextPage;
+      renderNearTermList('commitment-list', commitCache, commitPage, 'commit',
+        '<p style="padding:16px;color:var(--text-muted);font-size:13px;">🎉 暂无待兑现承诺</p>', '去跟进');
     }
-    return;
   }
-  var check = e.target.closest('.todo-check');
-  if (!check) return;
-  var item = check.closest('.todo-item');
-  if (!item || !item.dataset.id) return;
-  toggleTodo(item.dataset.id);
 });
 
 (function init() {

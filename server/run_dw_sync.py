@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 from database import SessionLocal
-from dw_sync import DEFAULT_SAMPLE_CSV, import_csv_file, retry_batch
+from dw_sync import DEFAULT_CATEGORY_CSV, DEFAULT_SAMPLE_CSV, import_category_from_csv, import_csv_file, retry_batch
 
 
 def main() -> int:
@@ -34,10 +34,24 @@ def main() -> int:
         metavar="BATCH_KEY",
         help="按批次 source_name 重跑同一 CSV 文件",
     )
+    parser.add_argument(
+        "--category",
+        action="store_true",
+        help="导入 brand_category_monthly.csv 合并二级类目 JSON",
+    )
     args = parser.parse_args()
 
     db = SessionLocal()
     try:
+        if args.category:
+            path = Path(args.csv) if args.csv else DEFAULT_CATEGORY_CSV
+            if not path.is_file():
+                print(f"文件不存在: {path}", file=sys.stderr)
+                return 1
+            count = import_category_from_csv(db, path)
+            print(f"category merged={count} path={path}")
+            return 0
+
         if args.retry_batch:
             batch = retry_batch(db, args.retry_batch)
         else:

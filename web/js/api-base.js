@@ -14,6 +14,9 @@
     var host = global.location.hostname;
     var port = global.location.port;
     if (host === '127.0.0.1' || host === 'localhost') {
+      if (port === '8001' || port === '8010') {
+        return 'http://' + host + ':' + port;
+      }
       if (port !== '8000') {
         return 'http://127.0.0.1:8000';
       }

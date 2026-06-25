@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>品牌档案 · 品牌沙盘 M2</title>
+<title>品牌档案 · 品牌沙盘</title>
 <style>
 :root {
   --bg:#f4f5f9; --card-bg:#fff; --text:#1a1f36; --text-secondary:#697386; --text-muted:#a3acba;
@@ -77,7 +77,6 @@ table th { text-align:left; padding:10px 16px; background:#f8f9fc; border-bottom
 table td { padding:10px 16px; border-bottom:1px solid var(--border); }
 table tr:hover td { background:#f8fafd; }
 table td.warn-cell { background:var(--amber-50); }
-table td.bad-cell { color:var(--red-500); font-weight:600; }
 table tr.jd-row td { background:var(--blue-50); }
 .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
 .tag-red { background:var(--red-50); color:var(--red-500); }
@@ -123,19 +122,24 @@ table tr.jd-row td { background:var(--blue-50); }
 .profile-rule-box.editing .rule-view { display:none; }
 .profile-rule-box.editing .rule-edit { display:block; }
 .profile-rule-box .rule-edit { display:none; }
-.profile-benchmark-panel { border:1px solid var(--border); border-radius:8px; overflow:hidden; }
-.profile-benchmark-panel summary { padding:12px 16px; font-size:13px; font-weight:600; cursor:pointer; background:#fafbfc; list-style:none; }
-.profile-benchmark-panel summary::before { content:'▶ '; font-size:10px; color:var(--text-muted); }
-.profile-benchmark-panel[open] summary::before { content:'▼ '; }
-.profile-benchmark-body { padding:14px 16px; border-top:1px solid var(--border); }
 .profile-health-ring { position:relative; width:72px; height:72px; flex-shrink:0; }
 .profile-health-ring svg { transform:rotate(-90deg); }
 .profile-health-ring .ring-score { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:18px; font-weight:700; color:var(--text); }
 .profile-health-ring .ring-label { font-size:10px; font-weight:500; color:var(--text-muted); }
 .profile-chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.profile-chart-box.span-full { grid-column:1 / -1; }
 @media (max-width:900px) { .profile-chart-grid { grid-template-columns:1fr; } }
 .profile-chart-box { background:#fff; border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
 .profile-chart-box h4 { font-size:12px; font-weight:600; color:var(--text-secondary); margin:0 0 12px; }
+.profile-chart-sub { font-size:11px; color:var(--text-muted); margin:-8px 0 10px; line-height:1.45; }
+.profile-chart-box h4 + .profile-chart-sub { margin-top:-6px; }
+.profile-channel-combo table { width:100%; font-size:12px; border-collapse:collapse; }
+.profile-channel-combo th, .profile-channel-combo td { padding:8px 10px; border-bottom:1px solid var(--border); text-align:right; }
+.profile-channel-combo th:first-child, .profile-channel-combo td:first-child { text-align:left; }
+.profile-channel-combo th { font-size:11px; color:var(--text-muted); font-weight:600; background:#fafbfc; }
+.profile-channel-combo tr.jd-row td:first-child { color:var(--primary); }
+.profile-chart-box h4:only-child { margin-bottom:12px; }
+.profile-chart-box h4 + .profile-chart-sub + .profile-chart-canvas { margin-top:0; }
 .profile-chart-canvas { position:relative; height:220px; }
 .profile-ai-oneline, #profile-ai-blurb { font-size:13px; line-height:1.65; padding:10px 14px; background:var(--blue-50); border:1px solid #bfdbfe; border-radius:8px; grid-column:1/-1; }
 .profile-ai-oneline strong, #profile-ai-blurb strong { color:var(--blue-600); }
@@ -193,6 +197,9 @@ table tr.jd-row td { background:var(--blue-50); }
 .profile-readonly-banner { display:none; margin:0 0 12px; padding:10px 14px; font-size:12px; line-height:1.55; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; }
 .profile-readonly-banner.show { display:block; }
 .metrics-empty-banner { margin-bottom:12px; padding:10px 14px; font-size:12px; line-height:1.55; color:var(--text-secondary); background:#f8fafc; border:1px dashed var(--border); border-radius:8px; }
+.metrics-period-hint { margin:0 0 12px; font-size:12px; line-height:1.55; color:var(--text-secondary); }
+.metrics-period-hint strong { color:var(--text); font-weight:600; }
+.metrics-period-hint.is-pending { color:var(--text-muted); }
 .kpi-value.is-empty { color:var(--text-muted); font-size:22px; font-weight:600; }
 .profile-strategy-box { border:1px solid var(--border); border-radius:8px; padding:14px; font-size:13px; line-height:1.65; min-height:120px; }
 .profile-strategy-box.editing .strategy-view { display:none; }
@@ -240,7 +247,7 @@ table tr.jd-row td { background:var(--blue-50); }
 
 <div id="main">
 <div class="topbar">
-  <div class="breadcrumb"><a href="index.html">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 M1 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">品牌档案</span></div>
+  <div class="breadcrumb"><a href="index.html">← 工作台</a> <span style="margin:0 6px;color:#c1c9d2;">›</span> 品牌沙盘 <span style="margin:0 6px;color:#c1c9d2;">›</span> <span class="current">品牌档案</span></div>
   <div class="topbar-right">
     <span id="top-date">—</span>
     <span style="color:var(--text-muted);">|</span>
@@ -250,14 +257,10 @@ table tr.jd-row td { background:var(--blue-50); }
 </div>
 
 <div class="content">
-  <div class="m1-banner">
-    <span class="m1-scope-tag">品牌席 · M4</span>
-    <strong>数据截至月份</strong> · <strong>bi_csv 月频</strong> · <strong>只读禁写</strong> · Tab1/Tab2 LLM 降级仍有效。
-  </div>
   <div class="page-title">品牌档案</div>
-  <div class="page-subtitle">经营数据 + 主数据维护 · 指标来自 brand_metrics（monthly）· 展示「数据截至 YYYY-MM」</div>
+  <div class="page-subtitle">五品牌经营看板 · 京东渠道口径 · 数据每月更新</div>
 
-  <div id="profile-readonly-banner" class="profile-readonly-banner">🔒 当前为<strong>只读账号</strong>：联系人、潜规则与竞争/机会不可编辑保存（M4-A 后接 403）。</div>
+  <div id="profile-readonly-banner" class="profile-readonly-banner">🔒 当前为<strong>只读账号</strong>，无法保存联系人、潜规则与竞争/机会等修改。</div>
   <div id="error-banner" class="error-banner"></div>
 
   <div class="tab-bar" id="profile-tabs">
@@ -287,8 +290,6 @@ var BRAND_TABS = [
 /** 登录后由 /api/brands 过滤；未登录等同 BRAND_TABS */
 var visibleBrandTabs = BRAND_TABS.slice();
 var LEVEL_LABEL = { S:'S-战略级', A:'A-核心级', B:'B-成长级', C:'C-观察级' };
-var BENCH_TOP = { margin:24.8, cvr:5.6, adRate:4.2 };
-
 function demoDataBadge() {
   return '<span class="demo-data-badge">【示范数据】</span>';
 }
@@ -315,7 +316,46 @@ var DEMO_GAP_SKUS = {
 };
 
 function hasDemoCategoryMetrics(m) {
-  return !!(m && (m.category_distribution || m.gross_margin != null));
+  return false;
+}
+
+function classifyCategoryLayout(jd, tm, tb, dy) {
+  var vals = [
+    { ch: 'jd', v: jd },
+    { ch: 'tm', v: tm },
+    { ch: 'tb', v: tb },
+    { ch: 'dy', v: dy }
+  ].filter(function(x) { return x.v != null && !isNaN(x.v); });
+  if (!vals.length) return { label: '待观察', cls: 'blue' };
+  var sorted = vals.slice().sort(function(a, b) { return b.v - a.v; });
+  var maxV = sorted[0].v;
+  var minV = sorted[sorted.length - 1].v;
+  var jdV = jd != null ? jd : null;
+  if (jdV == null) return { label: '待观察', cls: 'blue' };
+  if (jdV >= maxV - 0.05) return { label: '优势类目', cls: 'green' };
+  if (jdV <= minV + 0.05) return { label: '加强追赶', cls: 'amber' };
+  if (maxV - jdV >= 10) return { label: '加强追赶', cls: 'amber' };
+  return { label: '待观察', cls: 'blue' };
+}
+
+function getJdBrandCategoryShare(s) {
+  if (!s) return null;
+  if (s.jd_brand_share != null) return s.jd_brand_share;
+  if (s.jd_platform_share != null) return s.jd_platform_share;
+  if (s.avg != null) return s.avg;
+  return null;
+}
+
+/** 品牌下类目占比 < minShare% 的不展示（默认 1%） */
+function filterCategoryDisplay(dist, share, minShare) {
+  minShare = minShare != null ? minShare : 1;
+  var filteredDist = (dist || []).filter(function(c) {
+    return c.share != null && c.share >= minShare;
+  });
+  var names = {};
+  filteredDist.forEach(function(c) { names[c.name] = true; });
+  var filteredShare = (share || []).filter(function(s) { return names[s.name]; });
+  return { dist: filteredDist, share: filteredShare };
 }
 
 var BRAND_EXTRA = {
@@ -363,8 +403,14 @@ var gStrategyUserEdited = {};
 var gBlurbState = null;
 var gBlurbLoadToken = 0;
 
-/** M3：与 visit/intel 一致 — 默认规则版一屏可见；真 LLM 由 M3.LLM_ROUTES 控制 */
+/** M5：本地开发才允许 ?llm=mock / ?readonly=1（附录 G-12） */
+function isProfileLocalDev() {
+  var h = window.location.hostname;
+  return h === '127.0.0.1' || h === 'localhost';
+}
+
 function isProfileDevMock() {
+  if (!isProfileLocalDev()) return false;
   return new URLSearchParams(window.location.search).get('llm') === 'mock';
 }
 
@@ -390,12 +436,12 @@ function strategySourceBadge(source) {
   else if (source === 'loading') cls += ' src-loading';
   else cls += ' src-rule';
   var labels = {
-    ai: '🤖 AI 生成',
+    ai: '🤖 智能摘要',
     db: '✏️ 人工编辑',
-    stored: '📄 库内文案',
-    loading: '⏳ AI 生成中…',
-    fallback: '📋 规则解读',
-    error: '📋 规则解读'
+    stored: '📄 已保存文案',
+    loading: '⏳ 生成中…',
+    fallback: '📋 简要分析',
+    error: '📋 简要分析'
   };
   return '<span class="' + cls + '" data-source="' + source + '">' + (labels[source] || labels.fallback) + '</span>';
 }
@@ -403,11 +449,11 @@ function strategySourceBadge(source) {
 function strategyMetaText(source, side) {
   var text = '';
   if (source === 'db') text = '人工编辑 · 保存后刷新仍在';
-  else if (source === 'stored') text = '种子/库内文案 · 可编辑保存';
-  else if (source === 'ai') text = 'AI 生成 · 可编辑保存为正式文案';
-  else if (source === 'loading') text = '正在请求 AI 解读…';
-  else if (source === 'error') text = 'AI 不可用 · 已降级规则解读 · 可编辑保存';
-  else text = '规则解读 · 基于经营/情报 · 可编辑保存';
+  else if (source === 'stored') text = '已保存文案 · 可继续编辑';
+  else if (source === 'ai') text = '智能摘要 · 可编辑保存为正式文案';
+  else if (source === 'loading') text = '正在生成摘要…';
+  else if (source === 'error') text = '智能服务暂不可用 · 已显示简要分析 · 可编辑保存';
+  else text = '简要分析 · 基于经营与情报 · 可编辑保存';
   return '<span class="strategy-meta-text">' + text + '</span>';
 }
 
@@ -461,10 +507,10 @@ function getGmvYoy(m) {
   return m.gmv_yoy != null ? m.gmv_yoy : null;
 }
 
-/** JD 行展示市占变化；TM/DY/TB 展示渠道增速（与成交同比不重复） */
+/** 四渠道均展示销售额同比增速（JD/TM/DY/TB） */
 function channelTableGrowth(ch, m) {
   if (!m) return null;
-  if (ch === 'JD') return m.jd_share_wow;
+  if (ch === 'JD') return m.channel_growth_jd != null ? m.channel_growth_jd : getGmvYoy(m);
   if (ch === 'TM') return m.channel_growth_tmall;
   if (ch === 'DY') return m.channel_growth_douyin;
   if (ch === 'TB') return m.channel_growth_taobao;
@@ -581,7 +627,7 @@ function buildProfileAiBlurb(data, briefing) {
     if (m.jd_share != null) biz += '；JD 市占 ' + m.jd_share + '%';
     chunks.push(biz + '。');
   } else {
-    chunks.push('【经营】暂无本期指标，建议先补 brand_metrics。');
+    chunks.push('【经营】暂无本期指标，经营看板待数据更新。');
   }
 
   var riskTitles = [];
@@ -771,7 +817,7 @@ function loadProfileBlurbContent(key, data) {
     gBlurbState.html = buildProfileAiBlurb(data, gBriefing);
     gBlurbState.isHtml = true;
     gBlurbState.source = 'fallback';
-    gBlurbState.degradeHint = 'LLM 暂不可用，已显示规则解读。';
+    gBlurbState.degradeHint = '智能摘要暂不可用，已显示简要分析。';
     updateBlurbDom();
   });
 }
@@ -859,9 +905,9 @@ function hasRealMetricsRow(m) {
   return m.gmv != null || m.sales_volume != null || m.jd_share != null || m.sku_count != null;
 }
 
-/** M4-A：readonly 禁写；本地可 ?readonly=1 预览 */
+/** M5：readonly 禁写；?readonly=1 仅本地开发预览 */
 function isProfileReadOnly() {
-  if (new URLSearchParams(window.location.search).get('readonly') === '1') return true;
+  if (isProfileLocalDev() && new URLSearchParams(window.location.search).get('readonly') === '1') return true;
   var u = window.SandAuth && SandAuth.getCachedUser ? SandAuth.getCachedUser() : null;
   if (!u) return false;
   var role = String(u.role || u.user_role || '').toLowerCase();
@@ -889,12 +935,19 @@ function applyReadOnlyUi() {
   }
 }
 
-function renderDataAsOfHtml(metrics, history) {
+/** 经营看板 KPI 区说明：指标均为当月值（非「数据截至」badge） */
+function renderMetricsPeriodHint(metrics, history) {
   var period = getLatestPeriodValue(metrics, history);
   if (period) {
-    return '<span class="profile-data-asof" id="profile-data-asof" title="brand_metrics 最新 period_value">数据截至 ' + formatDataAsOfLabel(period) + '</span>';
+    return '<p class="metrics-period-hint" id="profile-metrics-period-hint"><strong>' + formatDataAsOfLabel(period) + ' 当月</strong> · 成交、成交同比、销量、销量同比、动销 SPU 等均为 JD 渠道当月值；渠道表含市占</p>';
   }
-  return '<span class="profile-data-asof is-pending" id="profile-data-asof" title="等待 bi_csv 月频导入">数据截至 —（待导入 YYYY-MM）</span>';
+  return '<p class="metrics-period-hint is-pending" id="profile-metrics-period-hint">经营指标待更新</p>';
+}
+
+function renderTrendChartTitle(metrics, history) {
+  var period = getLatestPeriodValue(metrics, history);
+  var endLabel = period ? formatDataAsOfLabel(period) : '—';
+  return '成交趋势 · 近12个月（截至 ' + endLabel + '）· JD 渠道';
 }
 
 function destroyCharts() {
@@ -957,13 +1010,6 @@ var chartLightOpts = {
     y: { ticks: { color: '#697386' }, grid: { color: 'rgba(0,0,0,0.04)' } }
   }
 };
-var BENCH_RANKS = {
-  jomoo: { margin:11, cvr:12, adRate:15 },
-  arrow: { margin:9, cvr:10, adRate:12 },
-  hegii: { margin:8, cvr:9, adRate:14 },
-  submarine: { margin:6, cvr:8, adRate:10 },
-  micoe: { margin:5, cvr:7, adRate:11 }
-};
 
 function initCharts(key, metricsHistory, latest) {
   if (typeof Chart === 'undefined') return;
@@ -990,56 +1036,18 @@ function initCharts(key, metricsHistory, latest) {
   }
 
   if (!latest) {
-    showChartEmpty('chart-share-' + key, '暂无渠道占比数据');
-    showChartEmpty('chart-growth-' + key, '暂无渠道增速数据');
     showChartEmpty('chart-cat-' + key, '暂无类目分布数据');
     return;
   }
 
-  var shareCtx = document.getElementById('chart-share-' + key);
-  var shareData = [latest.jd_share, latest.tmall_share, latest.douyin_share, latest.taobao_share];
-  if (!hasNumericValues(shareData)) {
-    showChartEmpty('chart-share-' + key, '暂无渠道占比数据');
-  } else if (shareCtx) {
-    var shareOpts = JSON.parse(JSON.stringify(chartLightOpts));
-    shareOpts.scales.y.ticks.callback = function(v) { return v + '%'; };
-    chartStore.share = new Chart(shareCtx, {
-      type: 'bar',
-      data: {
-        labels: ['JD', 'TM', 'DY', 'TB'],
-        datasets: [{
-          label: '市占%',
-          data: shareData,
-          backgroundColor: ['#cd3b32', '#e6a700', '#64748b', '#475569']
-        }]
-      },
-      options: shareOpts
-    });
-  }
-
-  var growthCtx = document.getElementById('chart-growth-' + key);
-  var growths = [latest.jd_share_wow, latest.channel_growth_tmall, latest.channel_growth_douyin, latest.channel_growth_taobao];
-  if (!hasNumericValues(growths)) {
-    showChartEmpty('chart-growth-' + key, '暂无渠道增速数据');
-  } else if (growthCtx) {
-    var growthOpts = JSON.parse(JSON.stringify(chartLightOpts));
-    growthOpts.scales.y.ticks.callback = function(v) { return v + '%'; };
-    chartStore.growth = new Chart(growthCtx, {
-      type: 'bar',
-      data: {
-        labels: ['JD', 'TM', 'DY', 'TB'],
-        datasets: [{
-          label: '变化%',
-          data: growths,
-          backgroundColor: growths.map(function(v) { return (v || 0) >= 0 ? '#0e7c4b' : '#cd3b32'; })
-        }]
-      },
-      options: growthOpts
-    });
-  }
-
   var catCtx = document.getElementById('chart-cat-' + key);
-  var cats = parseJson(latest.category_distribution, []);
+  var catFiltered = filterCategoryDisplay(
+    parseJson(latest.category_distribution, []),
+    parseJson(latest.category_share, [])
+  );
+  var cats = catFiltered.dist.slice().sort(function(a, b) {
+    return (b.share || 0) - (a.share || 0);
+  }).slice(0, 12);
   if (!cats.length) {
     showChartEmpty('chart-cat-' + key, '暂无类目分布数据');
   } else if (catCtx) {
@@ -1050,9 +1058,9 @@ function initCharts(key, metricsHistory, latest) {
       data: {
         labels: cats.map(function(c) { return c.name; }),
         datasets: [{
-          label: '成交占比%',
+          label: '品牌下类目占比%',
           data: cats.map(function(c) { return c.share; }),
-          backgroundColor: ['#0d7aff', '#e6a700', '#64748b', '#0e7c4b', '#cd3b32'].slice(0, cats.length)
+          backgroundColor: ['#0d7aff', '#e6a700', '#64748b', '#0e7c4b', '#cd3b32', '#8b5cf6', '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#ec4899', '#06b6d4'].slice(0, cats.length)
         }]
       },
       options: catOpts
@@ -1174,7 +1182,7 @@ function renderGapPanel(key, m) {
 
 function renderKpiCards(m, key) {
   if (!m || !hasRealMetricsRow(m)) {
-    return '<div class="metrics-empty-banner">暂无月度经营指标。请通过 <strong>bi_csv</strong> 导入底表（period_type=monthly，period_value=YYYY-MM）；当前不影响档案编辑与 LLM 降级。</div>' +
+    return '<div class="metrics-empty-banner">暂无月度经营指标，数据更新后将自动展示成交、销量与渠道市占；档案编辑与简要分析不受影响。</div>' +
       '<div class="profile-kpi-row">' +
       '<div class="profile-kpi-card"><div class="kpi-label">成交（本期）</div><span class="kpi-value is-empty">—</span><span class="kpi-sub">待导入</span></div>' +
       '<div class="profile-kpi-card"><div class="kpi-label">成交同比</div><span class="kpi-value is-empty">—</span><span class="kpi-sub">%</span></div>' +
@@ -1210,20 +1218,26 @@ window.toggleGapPanel = function(key) {
   if (el) el.classList.toggle('open');
 };
 
-function renderChannelTable(m) {
-  if (!m) return '';
+function renderChannelComboPanel(m) {
+  if (!m) {
+    return '<div class="profile-chart-box profile-channel-combo"><h4>渠道市占 · 增速</h4><div class="profile-chart-sub">暂无数据</div></div>';
+  }
   var rows = [
-    { ch:'JD', share:m.jd_share, growth:channelTableGrowth('JD', m), growthHint:'市占变化', highlight:true },
-    { ch:'TM', share:m.tmall_share, growth:channelTableGrowth('TM', m), growthHint:'渠道增速' },
-    { ch:'DY', share:m.douyin_share, growth:channelTableGrowth('DY', m), growthHint:'渠道增速' },
-    { ch:'TB', share:m.taobao_share, growth:channelTableGrowth('TB', m), growthHint:'渠道增速' }
+    { ch:'JD', share:m.jd_share, growth:channelTableGrowth('JD', m), highlight:true },
+    { ch:'TM', share:m.tmall_share, growth:channelTableGrowth('TM', m) },
+    { ch:'DY', share:m.douyin_share, growth:channelTableGrowth('DY', m) },
+    { ch:'TB', share:m.taobao_share, growth:channelTableGrowth('TB', m) }
   ];
   var html = rows.map(function(r) {
     var gc = trendClass(r.growth);
-    var growthTitle = r.growthHint ? ' title="' + r.growthHint + '"' : '';
-    return '<tr class="' + (r.highlight ? 'jd-row' : '') + '"><td><b>' + r.ch + '</b></td><td>' + (r.share != null ? r.share + '%' : '—') + '</td><td class="kpi-sub ' + gc + '"' + growthTitle + '>' + (r.growth != null ? fmtPct(r.growth, true) : '—') + '</td></tr>';
+    return '<tr class="' + (r.highlight ? 'jd-row' : '') + '"><td><b>' + r.ch + '</b></td>' +
+      '<td>' + (r.share != null ? r.share + '%' : '—') + '</td>' +
+      '<td class="kpi-sub ' + gc + '">' + (r.growth != null ? fmtPct(r.growth, true) : '—') + '</td></tr>';
   }).join('');
-  return '<div class="card"><div class="card-header"><h3>渠道市占</h3><span class="card-meta">JD 行=市占变化 · TM/DY/TB=渠道增速 · 不含成交同比</span></div><div class="card-body no-padding"><table><tr><th>渠道</th><th>市占%</th><th>变化/增速%</th></tr>' + html + '</table></div></div>';
+  return '<div class="profile-chart-box profile-channel-combo">' +
+    '<h4>渠道市占 · 增速</h4>' +
+    '<p class="profile-chart-sub">JD/TM/DY/TB · 市占% · 各渠道销售额同比增速</p>' +
+    '<table><tr><th>渠道</th><th>市占%</th><th>销售增速%</th></tr>' + html + '</table></div>';
 }
 
 function getCategoryChannelPct(s) {
@@ -1242,53 +1256,34 @@ function getCategoryChannelPct(s) {
 }
 
 function renderCategoryTable(m) {
-  var dist = parseJson(m && m.category_distribution, []);
-  var share = parseJson(m && m.category_share, []);
+  var parsed = filterCategoryDisplay(
+    parseJson(m && m.category_distribution, []),
+    parseJson(m && m.category_share, [])
+  );
+  var dist = parsed.dist;
+  var share = parsed.share;
   var shareMap = {};
   share.forEach(function(s) { shareMap[s.name] = s; });
   if (!dist.length) return '<div class="card"><div class="card-header"><h3>类目维度市占</h3></div><div class="card-body"><span style="color:var(--text-muted);">暂无数据</span></div></div>';
-  var demoTag = hasDemoCategoryMetrics(m) ? demoDataBadge() : '';
   var rows = dist.map(function(c) {
     var s = shareMap[c.name] || {};
     var ch = getCategoryChannelPct(s);
-    var jdPlatform = s.jd_platform_share != null ? s.jd_platform_share : s.avg;
-    var warn = ch.jd != null && jdPlatform != null && ch.jd < jdPlatform;
-    var opp;
-    if (warn) opp = '<span class="tag tag-amber">JD布局偏弱</span>';
-    else if (ch.jd != null && jdPlatform != null && ch.jd >= jdPlatform + 5) opp = '<span class="tag tag-green">JD优势类目</span>';
-    else opp = '<span class="tag tag-blue">可观察</span>';
+    var jdBrandShare = getJdBrandCategoryShare(s);
+    var layout = classifyCategoryLayout(ch.jd, ch.tm, ch.tb, ch.dy);
+    var tagCls = layout.cls === 'green' ? 'tag-green' : layout.cls === 'amber' ? 'tag-amber' : 'tag-blue';
     var chSum = (ch.jd || 0) + (ch.tm || 0) + (ch.tb || 0) + (ch.dy || 0);
-    var sumHint = chSum === 100 ? '' : ' title="渠道合计' + chSum + '%"';
-    return '<tr' + (warn ? ' class="warn-row"' : '') + '><td' + (warn ? ' class="warn-cell"' : '') + '>' + c.name + '</td><td>' + (c.share != null ? c.share + '%' : '—') + '</td>' +
-      '<td>' + (jdPlatform != null ? jdPlatform + '%' : '—') + '</td>' +
-      '<td' + (warn ? ' class="warn-cell"' : '') + sumHint + '>' + (ch.jd != null ? ch.jd + '%' : '—') + '</td>' +
+    var sumHint = Math.abs(chSum - 100) <= 0.2 ? '' : ' title="渠道合计' + chSum.toFixed(1) + '%"';
+    var rowCls = layout.label === '加强追赶' ? ' class="warn-row"' : '';
+    return '<tr' + rowCls + '><td' + (layout.label === '加强追赶' ? ' class="warn-cell"' : '') + '>' + c.name + '</td>' +
+      '<td>' + (c.share != null ? c.share + '%' : '—') + '</td>' +
+      '<td>' + (jdBrandShare != null ? jdBrandShare + '%' : '—') + '</td>' +
+      '<td' + sumHint + '>' + (ch.jd != null ? ch.jd + '%' : '—') + '</td>' +
       '<td>' + (ch.tm != null ? ch.tm + '%' : '—') + '</td>' +
       '<td>' + (ch.tb != null ? ch.tb + '%' : '—') + '</td>' +
       '<td>' + (ch.dy != null ? ch.dy + '%' : '—') + '</td>' +
-      '<td>' + opp + '</td></tr>';
+      '<td><span class="tag ' + tagCls + '">' + layout.label + '</span></td></tr>';
   }).join('');
-  return '<div class="card"><div class="card-header"><h3>类目维度市占' + demoTag + '</h3><span class="card-meta">品牌下类目占比=京东渠道品类布局 · JD品类整体占比=平台基准 · JD/TM/TB/DY 四渠道合计100%</span></div><div class="card-body no-padding"><table><tr><th>三级类目</th><th>品牌下类目占比</th><th>JD品类整体占比</th><th>JD</th><th>TM</th><th>TB</th><th>DY</th><th>布局机会</th></tr>' + rows + '</table></div></div>';
-}
-
-function benchInterpret(name, rank, higherBetter) {
-  if (rank == null) return '—';
-  if (name === '毛利率' || name === 'UV转化率') return rank <= 8 ? '议价空间较好' : '低于头部';
-  return rank <= 8 ? '费率健康' : '费率偏高';
-}
-
-function renderBenchmark(m, key) {
-  if (!m) return '';
-  var ranks = BENCH_RANKS[key] || { margin:10, cvr:10, adRate:10 };
-  var items = [
-    { name:'毛利率', val:m.gross_margin, top:BENCH_TOP.margin, rank:ranks.margin, higherBetter:true },
-    { name:'UV转化率', val:m.uv_conversion, top:BENCH_TOP.cvr, rank:ranks.cvr, higherBetter:true },
-    { name:'广告费率', val:m.ad_rate, top:BENCH_TOP.adRate, rank:ranks.adRate, higherBetter:false }
-  ];
-  var rows = items.map(function(it) {
-    var bad = it.val == null ? false : (it.higherBetter ? it.val < it.top : it.val > it.top);
-    return '<tr><td>' + it.name + '</td><td' + (bad ? ' class="bad-cell"' : '') + '>' + (it.val != null ? it.val + '%' : '—') + '</td><td>' + it.top + '%</td><td>#' + it.rank + '</td><td>' + benchInterpret(it.name, it.rank, it.higherBetter) + '</td></tr>';
-  }).join('');
-  return '<details class="profile-benchmark-panel"><summary>📊 品类对标（毛利率 / 转化率 / 广告费率 vs TOP20）' + (hasDemoCategoryMetrics(m) ? demoDataBadge() : '') + '</summary><div class="profile-benchmark-body"><table><tr><th>指标</th><th>本品牌</th><th>品类TOP20均值</th><th>排名</th><th>解读</th></tr>' + rows + '</table><p style="font-size:12px;color:var(--text-muted);margin-top:10px">帮助判断议价空间与投放效率 · 底表接入前为示范数据</p></div></details>';
+  return '<div class="card"><div class="card-header"><h3>类目维度市占</h3><span class="card-meta">二级品类 · 仅展示品牌下类目占比≥1% · 品牌下类目占比=品类四渠道销售/品牌总销售 · JD品类占比=品类JD销售/品牌JD总销售 · JD/TM/TB/DY=品类内四渠道占比</span></div><div class="card-body no-padding"><table><tr><th>二级类目</th><th>品牌下类目占比</th><th>JD品类占比</th><th>JD</th><th>TM</th><th>TB</th><th>DY</th><th>布局机会</th></tr>' + rows + '</table></div></div>';
 }
 
 function renderIntelList(items, cls) {
@@ -1412,17 +1407,15 @@ function renderHistoryTab(key, brand) {
 
 function renderDashboard(data) {
   var m = enrichMetricsFromHistory(data.metrics, gMetricsHistory);
-  return renderKpiCards(m, currentKey) + renderGapPanel(currentKey, m) +
+  return renderMetricsPeriodHint(data.metrics, gMetricsHistory) + renderKpiCards(m, currentKey) + renderGapPanel(currentKey, m) +
     '<div class="profile-chart-grid">' +
-    '<div class="profile-chart-box"><h4>成交趋势 · 近12月 · JD渠道（异常段标红）</h4><div class="profile-chart-canvas"><canvas id="chart-gmv-' + currentKey + '"></canvas></div></div>' +
-    '<div class="profile-chart-box"><h4>渠道市占 · JD / TM / DY / TB</h4><div class="profile-chart-canvas"><canvas id="chart-share-' + currentKey + '"></canvas></div></div>' +
+    '<div class="profile-chart-box"><h4>' + renderTrendChartTitle(data.metrics, gMetricsHistory) + '</h4><div class="profile-chart-canvas"><canvas id="chart-gmv-' + currentKey + '"></canvas></div></div>' +
+    renderChannelComboPanel(m) +
     '</div>' +
     '<div class="profile-chart-grid">' +
-    '<div class="profile-chart-box"><h4>渠道变化 · JD 市占变化 / TM·DY·TB 渠道增速</h4><div class="profile-chart-canvas"><canvas id="chart-growth-' + currentKey + '"></canvas></div></div>' +
-    '<div class="profile-chart-box"><h4>三级类目成交占比' + (hasDemoCategoryMetrics(m) ? demoDataBadge() : '') + '</h4><div class="profile-chart-canvas"><canvas id="chart-cat-' + currentKey + '"></canvas></div></div>' +
+    '<div class="profile-chart-box span-full"><h4>二级类目占比（品牌下类目占比≥1% · Top12）</h4><div class="profile-chart-canvas"><canvas id="chart-cat-' + currentKey + '"></canvas></div></div>' +
     '</div>' +
-    renderCategoryTable(m) +
-    renderBenchmark(m, currentKey);
+    renderCategoryTable(m);
 }
 
 function contactOrgLabel(c) {
@@ -1774,7 +1767,7 @@ function loadStrategyContent(key, data) {
       gStrategyState.opp.source = 'fallback';
     }
     gStrategyState.degraded = true;
-    gStrategyState.banner = 'LLM 暂不可用（' + (err && err.message ? err.message : '请求失败') + '），已自动显示规则解读。';
+    gStrategyState.banner = '智能分析暂不可用，已自动显示简要分析。';
     updateStrategyDom();
   });
 }
@@ -1821,10 +1814,10 @@ function renderBrand(data, opts) {
     '<div class="profile-top-left"><h2 class="profile-brand-name">' + b.name + '</h2><span class="level-badge level-' + lv + '">' + (LEVEL_LABEL[b.level] || b.level) + '</span></div>' +
     renderCompletenessRing(data) +
     renderProfileAiBlurbShell(data) +
-    '<div class="profile-top-meta">' + renderDataAsOfHtml(data.metrics, gMetricsHistory) +
+    '<div class="profile-top-meta">' +
     '<span>负责采销：' + (b.responsible || '—') + '</span>' +
     '<span>档案更新：' + ((data.profile && data.profile.taboo_updated_at) ? String(data.profile.taboo_updated_at).slice(0, 10) : '—') + '</span>' +
-    '<span>数据说明：JD口径 · 近12月 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 10) + '</span>' +
+    '<span>数据说明：JD 渠道口径 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 10) + '</span>' +
     '<button class="btn-sm-outline no-print" onclick="window.print()">🖨 打印摘要</button></div></div>' +
     '<div class="tab-bar profile-inner-tabs" id="profile-inner-tabs">' +
     '<div class="tab-item' + (currentPTab === 'dashboard' ? ' active' : '') + '" data-ptab="dashboard">📊 经营看板</div>' +

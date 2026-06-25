@@ -6,7 +6,7 @@ M3-A 测试账号种子
 默认密码均为 sand123（仅本机/演示环境）
 """
 
-from auth_utils import hash_password
+from auth_utils import hash_password_sha256
 from database import SessionLocal
 from models import Brand, User, UserBrand
 
@@ -36,7 +36,7 @@ def _brand_map(db):
 
 def seed_users(db):
     brand_ids = _brand_map(db)
-    pwd_hash = hash_password(DEFAULT_PASSWORD)
+    pwd_hash = hash_password_sha256(DEFAULT_PASSWORD)
     created = 0
 
     for username, display_name, role, keys in ACCOUNTS:

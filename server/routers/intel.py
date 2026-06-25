@@ -35,6 +35,8 @@ router = APIRouter()
 
 BRIEFING_CACHE_TTL = 30  # minutes
 BRIEFING_NEWS_DAYS = 14   # 简报与新闻列表「近期」统一口径
+# 活跃预警：与 profile / intel stats 一致，含 linked，仅排除 closed
+_ACTIVE_ALERT_STATUS = IntelAlert.status != "closed"
 
 
 # ================================================================
@@ -807,7 +809,7 @@ async def get_brand_briefing(
 
     alerts = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(
         IntelAlert.brand_id == brand.id,
-        IntelAlert.status.in_(["pending", "confirmed"]),
+        _ACTIVE_ALERT_STATUS,
     ).order_by(case((IntelAlert.priority == "P0", 0), (IntelAlert.priority == "P1", 1), else_=2)).all()
 
     latest_w = _weekly_metrics_query(db).filter(
@@ -901,7 +903,7 @@ async def ai_refresh_briefing(
     ).order_by(desc(IntelNews.published_at)).limit(10).all()
     alerts = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(
         IntelAlert.brand_id == brand.id,
-        IntelAlert.status.in_(["pending", "confirmed"]),
+        _ACTIVE_ALERT_STATUS,
     ).all()
     latest_w = _weekly_metrics_query(db).filter(
         BrandMetrics.brand_id == brand.id
@@ -954,7 +956,7 @@ async def ai_briefing_summary(
         raise HTTPException(404, "品牌不存在")
     alerts = db.query(IntelAlert).filter(
         IntelAlert.brand_id == brand.id,
-        IntelAlert.status.in_(["pending", "confirmed"]),
+        _ACTIVE_ALERT_STATUS,
     ).all()
     p0 = [a for a in alerts if a.priority == "P0"]
     fallback = f"【{brand.name}】当前 {len(alerts)} 条活跃预警"

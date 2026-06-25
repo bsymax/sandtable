@@ -160,8 +160,8 @@
   function renderCommitmentsTable(commitments, visitMap, options) {
     options = options || {};
     var showBrand = options.showBrand !== false;
-    var onStatusChange = options.onStatusChange || 'updateCommitmentStatus';
-    var colSpan = showBrand ? 6 : (options.readOnly ? 4 : 5);
+    var readOnly = options.readOnly;
+    var colSpan = showBrand ? (readOnly ? 6 : 7) : (readOnly ? 5 : 6);
     if (!commitments.length) {
       return '<tr><td colspan="' + colSpan + '" style="text-align:center;padding:28px 16px;color:var(--text-muted);">' +
         '<div style="font-size:28px;margin-bottom:6px;">✅</div>' +
@@ -172,21 +172,34 @@
       var visit = visitMap[c.visit_id] || {};
       var eff = effectiveCommitmentStatus(c);
       var auto = (eff !== c.status);
-      return '<tr>' +
-        (showBrand ? '<td>' + (visit.brand_name || '—') + '</td>' : '') +
-        '<td>' + truncate(c.content, 40) + '</td>' +
-        '<td>' + (c.party === 'bd' ? '我方' : '品牌方') + '</td>' +
-        '<td>' + commitmentStatusTag(eff) +
-          (auto ? ' <span style="font-size:10px;color:var(--text-muted);" title="已过截止日期，系统自动判定为未兑现，可在右侧手动调整">·自动</span>' : '') + '</td>' +
-        '<td>' + formatDate(c.deadline) + '</td>' +
-        (options.readOnly ? '' :
-          '<td><select class="form-select" style="width:110px;padding:4px 8px;font-size:12px;" onchange="' +
-            onStatusChange + '(' + c.id + ', this.value)">' +
-            '<option value="pending"' + (eff === 'pending' ? ' selected' : '') + '>待兑现</option>' +
-            '<option value="fulfilled"' + (eff === 'fulfilled' ? ' selected' : '') + '>已兑现</option>' +
-            '<option value="broken"' + (eff === 'broken' ? ' selected' : '') + '>未兑现</option>' +
-          '</select></td>') +
-        '</tr>';
+      var row = '<tr>';
+      if (showBrand) row += '<td>' + (visit.brand_name || '—') + '</td>';
+      if (readOnly) {
+        row += '<td>' + truncate(c.content, 40) + '</td>';
+        row += '<td>' + (c.party === 'bd' ? '我方' : '品牌方') + '</td>';
+      } else {
+        row += '<td><input type="text" class="form-input" style="width:100%;min-width:160px;padding:4px 8px;font-size:12px;" value="' + (c.content || '').replace(/"/g, '&quot;') + '" data-commit-id="' + c.id + '" data-field="content"></td>';
+        row += '<td><select class="form-select" style="width:80px;padding:4px 6px;font-size:12px;" data-commit-id="' + c.id + '" data-field="party">' +
+          '<option value="bd"' + (c.party === 'bd' ? ' selected' : '') + '>我方</option>' +
+          '<option value="brand"' + (c.party !== 'bd' ? ' selected' : '') + '>品牌方</option>' +
+          '</select></td>';
+      }
+      row += '<td>' + commitmentStatusTag(eff) +
+        (auto ? ' <span style="font-size:10px;color:var(--text-muted);" title="已过截止日期，系统自动判定为未兑现，可在右侧手动调整">·自动</span>' : '') + '</td>';
+      if (readOnly) {
+        row += '<td>' + formatDate(c.deadline) + '</td>';
+      } else {
+        row += '<td><input type="date" class="form-input" style="width:120px;padding:4px 8px;font-size:12px;" value="' + (c.deadline || '') + '" data-commit-id="' + c.id + '" data-field="deadline"></td>';
+      }
+      if (!readOnly) {
+        row += '<td><select class="form-select" style="width:110px;padding:4px 8px;font-size:12px;" onchange="updateCommitmentStatus(' + c.id + ', this.value)">' +
+          '<option value="pending"' + (eff === 'pending' ? ' selected' : '') + '>待兑现</option>' +
+          '<option value="fulfilled"' + (eff === 'fulfilled' ? ' selected' : '') + '>已兑现</option>' +
+          '<option value="broken"' + (eff === 'broken' ? ' selected' : '') + '>未兑现</option>' +
+          '</select></td>';
+      }
+      row += '</tr>';
+      return row;
     }).join('');
   }
 

@@ -183,21 +183,35 @@ def create_record(
     visit.status = "completed"
     visit.record_id = record.id
 
-    for c in _parse_commitment_lines(payload.commitments_raw, payload.visit_id, record.id):
-        db.add(c)
+    if payload.ai_commitments:
+        for ac in payload.ai_commitments:
+            content = (ac.get("content") or "").strip()
+            if not content:
+                continue
+            db.add(Commitment(
+                visit_id=payload.visit_id,
+                record_id=record.id,
+                content=content[:255],
+                party=ac.get("party") or "brand",
+                status="pending",
+                deadline=_parse_date(ac.get("deadline")),
+            ))
+    else:
+        for c in _parse_commitment_lines(payload.commitments_raw, payload.visit_id, record.id):
+            db.add(c)
 
-    for td in payload.todos:
-        db.add(Todo(
-            record_id=record.id,
-            visit_id=payload.visit_id,
-            priority=td.get("priority", "P2"),
-            title=td.get("title", ""),
-            deadline=_parse_date(td.get("deadline")),
-            assignee=td.get("assignee", visit.brand.responsible),
-        ))
-
-    # 如果没有传入待办，生成默认 4 条
-    if not payload.todos:
+    if payload.todos:
+        for td in payload.todos:
+            db.add(Todo(
+                record_id=record.id,
+                visit_id=payload.visit_id,
+                priority=td.get("priority", "P2"),
+                title=td.get("title", ""),
+                deadline=_parse_date(td.get("deadline")),
+                assignee=td.get("assignee", visit.brand.responsible),
+            ))
+    elif payload.todos is None:
+        # 兼容旧前端：未传 todos 时仍生成默认待办
         default_todos = [
             {"priority": "P0", "title": "跟进联合投放方案确认",    "offset_days": 2},
             {"priority": "P0", "title": "跟进新品排期确认",        "offset_days": 5},
@@ -272,8 +286,8 @@ async def ai_extract_record(
     if record.commitments_raw:
         for line in record.commitments_raw.splitlines():
             line = line.strip().lstrip("-•·").strip()
-            if len(line) >= 4:
-                rule_commits.append({"title": line, "priority": "P1"})
+            if len(line) >= 2:
+                rule_commits.append({"content": line, "party": "brand", "title": line})
 
     ctx = f"拜访纪要：\n{record.topics or ''}\n承诺原文：\n{record.commitments_raw or ''}\n"
     ctx += '输出 JSON：{"todos":[{"title":"","priority":"P1|P2"}],"commitments":[{"title":"","priority":"P1"}]}'
@@ -357,12 +371,32 @@ def update_commitment(
     visit = db.query(Visit).filter(Visit.id == c.visit_id).first()
     if visit:
         require_brand_id(user, visit.brand_id)
-    if payload.status:
-        c.status = payload.status
-        if payload.status == "fulfilled":
+
+    data = payload.model_dump(exclude_unset=True)
+    if "content" in data:
+        text = (data["content"] or "").strip()
+        if not text:
+            raise HTTPException(400, "承诺内容不能为空")
+        if len(text) > 255:
+            raise HTTPException(400, "承诺内容不能超过 255 字")
+        c.content = text
+    if "party" in data:
+        party = (data["party"] or "").strip().lower()
+        if party not in ("brand", "bd"):
+            raise HTTPException(400, "承诺方须为 brand 或 bd")
+        c.party = party
+    if "deadline" in data:
+        c.deadline = data["deadline"]
+    if "status" in data and data["status"]:
+        status = data["status"]
+        if status not in ("pending", "fulfilled", "broken"):
+            raise HTTPException(400, "status 须为 pending / fulfilled / broken")
+        c.status = status
+        if status == "fulfilled":
             c.fulfilled_at = datetime.now()
-    if payload.deadline:
-        c.deadline = payload.deadline
+        elif status in ("pending", "broken"):
+            c.fulfilled_at = None
+
     db.commit()
     db.refresh(c)
     return c

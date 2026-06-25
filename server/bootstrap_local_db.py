@@ -94,6 +94,23 @@ def main():
     except Exception as exc:
         print(f"skip dw_import_batch.source: {exc}")
 
+    for col, ddl in (
+        ("must_change_password", "TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'M5: 强制改密'"),
+        ("password_algo", "ENUM('sha256','bcrypt') NOT NULL DEFAULT 'sha256' COMMENT 'M5: 密码算法'"),
+        ("dept", "VARCHAR(128) NULL COMMENT 'M5: 部门展示'"),
+        ("last_login_at", "DATETIME NULL COMMENT 'M5: 最近登录'"),
+    ):
+        if not _has_column(cur, "users", col):
+            cur.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
+            print(f"OK: users.{col}")
+
+    cur.execute(
+        "UPDATE users SET must_change_password = 1 "
+        "WHERE password_algo = 'sha256' AND must_change_password = 0"
+    )
+    if cur.rowcount:
+        print(f"OK: 已标记 {cur.rowcount} 个 sha256 账号需首次改密")
+
     cur.execute("DELETE FROM brand_metrics WHERE period_type = 'weekly'")
     if cur.rowcount:
         print(f"OK: 已清理 weekly 种子 {cur.rowcount} 行")

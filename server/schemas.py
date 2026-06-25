@@ -115,8 +115,9 @@ class RecordCreate(BaseModel):
     undone_items: Optional[str] = None
     relation_change: str = "flat"
     next_visit_date: Optional[date] = None
-    # AI 待办抽取
-    todos: List[dict] = []                # [{priority, title, deadline, assignee}]
+    # AI 待办抽取（None=旧默认待办 · []=M5 不生成待办）
+    todos: Optional[List[dict]] = None
+    ai_commitments: List[dict] = []  # AI 抽取的承诺 [{content, party, deadline}]
 
 
 class RecordOut(BaseModel):
@@ -155,6 +156,8 @@ class CommitmentOut(BaseModel):
 
 
 class CommitmentUpdate(BaseModel):
+    content: Optional[str] = None
+    party: Optional[str] = None           # brand | bd
     status: Optional[str] = None           # pending | fulfilled | broken
     deadline: Optional[date] = None
 
@@ -551,7 +554,9 @@ class LoginOut(BaseModel):
     user_id: int
     username: str
     display_name: str
+    dept: Optional[str] = None
     role: str
+    must_change_password: bool = False
     brands: List[UserBrandOut]
 
 
@@ -559,8 +564,61 @@ class MeOut(BaseModel):
     user_id: int
     username: str
     display_name: str
+    dept: Optional[str] = None
     role: str
+    must_change_password: bool = False
     brands: List[UserBrandOut]
+
+
+class ChangePasswordIn(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class ChangePasswordOut(BaseModel):
+    message: str = "密码已更新"
+    must_change_password: bool = False
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    dept: Optional[str] = None
+    role: str
+    is_active: bool
+    must_change_password: bool = False
+    last_login_at: Optional[datetime] = None
+    brands: List[UserBrandOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class AdminUserCreateIn(BaseModel):
+    username: str
+    display_name: str
+    role: str
+    dept: Optional[str] = None
+    password: Optional[str] = None
+    brand_keys: List[str] = []
+
+
+class AdminUserUpdateIn(BaseModel):
+    display_name: Optional[str] = None
+    dept: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class AdminUserBrandsIn(BaseModel):
+    brand_keys: List[str]
+
+
+class ResetPasswordOut(BaseModel):
+    temp_password: str
+    must_change_password: bool = True
+    message: str = "临时密码已生成，请通过 IM 告知用户"
 
 
 # ==============================
@@ -576,6 +634,55 @@ class LlmStatusOut(BaseModel):
     daily_cap: int = 0
     user_daily_cap: int = 0
     readonly_llm: bool = False
+
+
+class LlmConfigSnapshotOut(BaseModel):
+    llm_enabled_flag: bool
+    gateway_url_set: bool
+    gateway_host: str = ""
+    gateway_endpoint: str = ""
+    api_key_set: bool
+    api_key_hint: str = ""
+    model: str
+    timeout_sec: float
+    runtime_enabled: bool
+
+
+class LlmTodayStatsOut(BaseModel):
+    total: int = 0
+    success: int = 0
+    error: int = 0
+    quota: int = 0
+    disabled: int = 0
+    fallback: int = 0
+
+
+class LlmRouteStatOut(BaseModel):
+    route: str
+    total: int
+    success: int
+    error: int
+    other: int
+
+
+class LlmAdminOverviewOut(BaseModel):
+    status: LlmStatusOut
+    config: LlmConfigSnapshotOut
+    today: LlmTodayStatsOut
+    route_stats: List[LlmRouteStatOut] = []
+    last_error: Optional[str] = None
+    tips: List[str] = []
+
+
+class LlmProbeOut(BaseModel):
+    ok: bool
+    latency_ms: int = 0
+    http_status: Optional[int] = None
+    sample: Optional[str] = None
+    model: Optional[str] = None
+    endpoint: Optional[str] = None
+    error: Optional[str] = None
+    hint: Optional[str] = None
 
 
 class LlmCallLogOut(BaseModel):

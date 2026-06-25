@@ -2,19 +2,29 @@
 数据库会话管理
 """
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 
-from config import DATABASE_URL
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=10,
-    max_overflow=20,
-    pool_recycle=3600,
-    echo=False,  # 生产环境改为 False
-)
+from config import DATABASE_URL, IS_SQLITE
+
+if IS_SQLITE:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        echo=False,
+    )
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=3600,
+        echo=False,
+    )
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 

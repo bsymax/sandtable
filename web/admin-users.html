@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用户管理 · 品牌沙盘</title>
+<style>
+body { margin:0; background:#f4f5f9; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+.wrap { max-width:1100px; margin:0 auto; padding:24px; }
+h1 { font-size:22px; margin:0 0 8px; }
+.sub { color:#697386; font-size:13px; margin-bottom:20px; }
+.panel { background:#fff; border:1px solid #e3e8ee; border-radius:10px; padding:16px; margin-bottom:16px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th, td { padding:10px 8px; border-bottom:1px solid #eef2f7; text-align:left; }
+th { color:#697386; font-weight:600; }
+.btn { padding:6px 10px; border:1px solid #d0d7e2; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; margin-right:6px; }
+.btn-primary { background:#0d7aff; color:#fff; border-color:#0d7aff; }
+.err { color:#cd3b32; font-size:13px; margin-bottom:12px; }
+.form-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+.form-row input, .form-row select { padding:8px 10px; border:1px solid #e3e8ee; border-radius:6px; font-size:13px; }
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:2000; align-items:center; justify-content:center; }
+.modal-bg.show { display:flex; }
+.modal { background:#fff; border-radius:10px; padding:20px; width:90%; max-width:420px; }
+.modal h3 { margin:0 0 12px; font-size:16px; }
+.temp-pwd { font-family:monospace; background:#f8fafc; padding:8px; border-radius:6px; word-break:break-all; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>用户管理</h1>
+  <p class="sub">仅 admin 可访问 · 重置密码请复制临时密码后通过 IM 告知对接人</p>
+  <div class="err" id="err"></div>
+  <div class="panel">
+    <div class="form-row">
+      <input id="new-username" placeholder="username（小写）">
+      <input id="new-display" placeholder="姓名">
+      <select id="new-role">
+        <option value="bd">bd</option>
+        <option value="manager">manager</option>
+        <option value="readonly">readonly</option>
+        <option value="admin">admin</option>
+      </select>
+      <input id="new-dept" placeholder="部门">
+      <input id="new-brands" placeholder="brand_keys 逗号分隔">
+      <button class="btn btn-primary" id="btn-create">新建用户</button>
+    </div>
+  </div>
+  <div class="panel">
+    <table>
+      <thead><tr><th>用户名</th><th>姓名</th><th>角色</th><th>部门</th><th>品牌</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <a href="index.html">← 返回工作台</a>
+  · <a href="admin-llm.html">llm状态</a>
+</div>
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3>临时密码（仅显示一次）</h3>
+    <p class="temp-pwd" id="temp-pwd"></p>
+    <button class="btn btn-primary" id="modal-close">已复制，关闭</button>
+  </div>
+</div>
+<script src="js/api-base.js"></script>
+<script src="js/auth.js?v=20260622-llm"></script>
+<script>
+(function () {
+  var err = document.getElementById('err');
+  var tbody = document.getElementById('tbody');
+
+  function showErr(msg) { err.textContent = msg || ''; }
+  function api(path, opts) {
+    opts = opts || {};
+    opts.headers = SandAuth.authHeaders(opts.headers || {});
+    return fetch((window.M1_API_BASE || '') + path, opts).then(function (r) {
+      return r.json().then(function (body) {
+        if (!r.ok) throw new Error(body.detail || body.message || ('HTTP ' + r.status));
+        return body;
+      });
+    });
+  }
+
+  function ensureAdmin() {
+    return SandAuth.fetchMe().then(function (user) {
+      if (!user) { window.location.href = 'login.html?next=admin-users.html'; return null; }
+      if (user.must_change_password) {
+        window.location.href = 'change-password.html?next=admin-users.html';
+        return null;
+      }
+      if (user.role !== 'admin') {
+        showErr('仅管理员可访问');
+        throw new Error('403');
+      }
+      return user;
+    });
+  }
+
+  function brandNames(brands) {
+    if (!brands || !brands.length) return '—';
+    return brands.map(function (b) { return b.name_key; }).join(', ');
+  }
+
+  function renderRows(users) {
+    tbody.innerHTML = users.map(function (u) {
+      return '<tr>' +
+        '<td>' + u.username + '</td>' +
+        '<td>' + u.display_name + '</td>' +
+        '<td>' + u.role + '</td>' +
+        '<td>' + (u.dept || '—') + '</td>' +
+        '<td>' + brandNames(u.brands) + '</td>' +
+        '<td>' + (u.is_active ? '启用' : '停用') + (u.must_change_password ? ' · 待改密' : '') + '</td>' +
+        '<td><button class="btn" data-reset="' + u.id + '">重置密码</button></td>' +
+        '</tr>';
+    }).join('');
+    tbody.querySelectorAll('[data-reset]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-reset');
+        api('/api/auth/admin/users/' + id + '/reset-password', { method: 'POST', body: '{}' })
+          .then(function (res) {
+            document.getElementById('temp-pwd').textContent = res.temp_password;
+            document.getElementById('modal').classList.add('show');
+            loadUsers();
+          })
+          .catch(function (ex) { showErr(ex.message); });
+      });
+    });
+  }
+
+  function loadUsers() {
+    return api('/api/auth/admin/users').then(renderRows);
+  }
+
+  document.getElementById('btn-create').addEventListener('click', function () {
+    showErr('');
+    var payload = {
+      username: document.getElementById('new-username').value.trim(),
+      display_name: document.getElementById('new-display').value.trim(),
+      role: document.getElementById('new-role').value,
+      dept: document.getElementById('new-dept').value.trim() || null,
+      brand_keys: document.getElementById('new-brands').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean)
+    };
+    api('/api/auth/admin/users', { method: 'POST', body: JSON.stringify(payload) })
+      .then(function () { loadUsers(); })
+      .catch(function (ex) { showErr(ex.message); });
+  });
+
+  document.getElementById('modal-close').addEventListener('click', function () {
+    document.getElementById('modal').classList.remove('show');
+  });
+
+  ensureAdmin().then(function (user) {
+    if (user) loadUsers().catch(function (ex) { showErr(ex.message); });
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>

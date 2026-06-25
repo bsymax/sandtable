@@ -3,7 +3,10 @@
 # 用法: bash scripts/dx-m3-smoke.sh [http://127.0.0.1:8000]
 set -euo pipefail
 BASE="${1:-http://127.0.0.1:8000}"
+SMOKE_BASE="$BASE"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=smoke-auth.sh
+source "$ROOT/scripts/smoke-auth.sh"
 PASS=0
 FAIL=0
 
@@ -12,10 +15,13 @@ bad() { echo "  FAIL $1"; FAIL=$((FAIL + 1)); }
 
 login() {
   local user="$1"
-  curl -s -X POST "$BASE/api/auth/login" \
-    -H 'Content-Type: application/json' \
-    -d "{\"username\":\"$user\",\"password\":\"sand123\"}" \
-    | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))"
+  local pwd="$SMOKE_PASSWORD"
+  case "$user" in
+    admin) pwd="$SMOKE_ADMIN_PASSWORD" ;;
+    readonly) pwd="$SMOKE_READONLY_PASSWORD" ;;
+    zhou|demo) pwd="$SMOKE_PASSWORD" ;;
+  esac
+  smoke_login_token "$user" "$pwd"
 }
 
 echo "==> D-X-M3 smoke @ $BASE"

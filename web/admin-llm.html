@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM 状态 · 品牌沙盘</title>
+<style>
+body { margin:0; background:#f4f5f9; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+.wrap { max-width:1100px; margin:0 auto; padding:24px; }
+h1 { font-size:22px; margin:0 0 8px; }
+.sub { color:#697386; font-size:13px; margin-bottom:20px; }
+.nav { margin-bottom:16px; font-size:13px; }
+.nav a { color:#0d7aff; text-decoration:none; margin-right:12px; }
+.panel { background:#fff; border:1px solid #e3e8ee; border-radius:10px; padding:16px; margin-bottom:16px; }
+.panel h2 { font-size:15px; margin:0 0 12px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+.stat { background:#f8fafc; border:1px solid #eef2f7; border-radius:8px; padding:12px; }
+.stat .label { font-size:11px; color:#697386; }
+.stat .val { font-size:18px; font-weight:700; margin-top:4px; }
+.stat.ok .val { color:#059669; }
+.stat.bad .val { color:#dc2626; }
+.stat.warn .val { color:#d97706; }
+.kv { font-size:13px; line-height:1.8; }
+.kv code { background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:12px; }
+.btn { padding:8px 14px; border:1px solid #d0d7e2; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; margin-right:8px; }
+.btn-primary { background:#0d7aff; color:#fff; border-color:#0d7aff; }
+.btn:disabled { opacity:.6; cursor:not-allowed; }
+.err { color:#cd3b32; font-size:13px; margin-bottom:12px; }
+.okbox { color:#059669; font-size:13px; margin-top:10px; white-space:pre-wrap; }
+.failbox { color:#b45309; font-size:13px; margin-top:10px; white-space:pre-wrap; }
+.tips { margin:0; padding-left:18px; font-size:13px; line-height:1.65; color:#334155; }
+.tips li { margin-bottom:6px; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th, td { padding:8px 6px; border-bottom:1px solid #eef2f7; text-align:left; vertical-align:top; }
+th { color:#697386; font-weight:600; }
+.tag { display:inline-block; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600; }
+.tag-ok { background:#ecfdf5; color:#059669; }
+.tag-bad { background:#fef2f2; color:#dc2626; }
+.tag-warn { background:#fffbeb; color:#b45309; }
+.mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; word-break:break-all; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>LLM 网关状态</h1>
+  <p class="sub">仅 admin · 查看 DeepSeek/网关连通、今日调用与排查 · 密钥不在此页展示</p>
+  <div class="nav">
+    <a href="index.html">← 工作台</a>
+    <a href="admin-users.html">用户管理</a>
+  </div>
+  <div class="err" id="err"></div>
+
+  <div class="panel">
+    <h2>运行状态</h2>
+    <div class="grid" id="stat-grid">
+      <div class="stat" id="stat-runtime"><div class="label">业务可用 runtime_enabled</div><div class="val">—</div></div>
+      <div class="stat" id="stat-success"><div class="label">今日 success</div><div class="val">—</div></div>
+      <div class="stat" id="stat-error"><div class="label">今日 error</div><div class="val">—</div></div>
+      <div class="stat" id="stat-quota"><div class="label">今日 quota</div><div class="val">—</div></div>
+    </div>
+    <div style="margin-top:14px;">
+      <button class="btn btn-primary" id="btn-probe">网关探活（发 ping）</button>
+      <button class="btn" id="btn-refresh">刷新概览</button>
+    </div>
+    <div id="probe-result"></div>
+  </div>
+
+  <div class="panel">
+    <h2>当前配置（只读 · 改 .env 后需 restart sandtable）</h2>
+    <div class="kv" id="config-kv">加载中…</div>
+    <p style="font-size:12px;color:#697386;margin:12px 0 0;">
+      本机同步：<code>bash deploy/point-config-llm-cloud.sh</code> · 重启：<code>systemctl restart sandtable</code>
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>快速排查</h2>
+    <ul class="tips" id="tips"></ul>
+    <p style="font-size:12px;color:#697386;margin-top:10px;" id="last-error"></p>
+  </div>
+
+  <div class="panel">
+    <h2>今日按 route 统计</h2>
+    <table><thead><tr><th>route</th><th>total</th><th>success</th><th>error</th><th>other</th></tr></thead>
+    <tbody id="route-tbody"><tr><td colspan="5">加载中…</td></tr></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h2>最近调用审计</h2>
+    <table><thead><tr><th>时间</th><th>用户</th><th>route</th><th>status</th><th>ms</th><th>message</th></tr></thead>
+    <tbody id="audit-tbody"><tr><td colspan="6">加载中…</td></tr></tbody></table>
+  </div>
+</div>
+<script src="js/api-base.js"></script>
+<script src="js/auth.js?v=20260622-llm"></script>
+<script>
+(function () {
+  var errEl = document.getElementById('err');
+  var probeEl = document.getElementById('probe-result');
+
+  function showErr(msg) { errEl.textContent = msg || ''; }
+  function api(path, opts) {
+    opts = opts || {};
+    opts.headers = SandAuth.authHeaders(opts.headers || {});
+    return fetch((window.M1_API_BASE || '') + path, opts).then(function (r) {
+      return r.json().then(function (body) {
+        if (!r.ok) throw new Error(body.detail || body.message || ('HTTP ' + r.status));
+        return body;
+      });
+    });
+  }
+
+  function statusTag(ok) {
+    return ok
+      ? '<span class="tag tag-ok">可用</span>'
+      : '<span class="tag tag-bad">不可用</span>';
+  }
+
+  function statClass(id, kind) {
+    var el = document.getElementById(id);
+    el.classList.remove('ok', 'bad', 'warn');
+    if (kind) el.classList.add(kind);
+  }
+
+  function renderOverview(data) {
+    var cfg = data.config || {};
+    var today = data.today || {};
+    var st = data.status || {};
+
+    document.getElementById('stat-runtime').querySelector('.val').innerHTML =
+      statusTag(cfg.runtime_enabled);
+    statClass('stat-runtime', cfg.runtime_enabled ? 'ok' : 'bad');
+
+    document.getElementById('stat-success').querySelector('.val').textContent = today.success || 0;
+    statClass('stat-success', today.success > 0 ? 'ok' : '');
+
+    document.getElementById('stat-error').querySelector('.val').textContent = today.error || 0;
+    statClass('stat-error', today.error > 0 ? 'bad' : 'ok');
+
+    document.getElementById('stat-quota').querySelector('.val').textContent = today.quota || 0;
+    statClass('stat-quota', today.quota > 0 ? 'warn' : '');
+
+    document.getElementById('config-kv').innerHTML =
+      'LLM_ENABLED <code>' + cfg.llm_enabled_flag + '</code><br>' +
+      'runtime_enabled <code>' + cfg.runtime_enabled + '</code>（三项齐全且 flag=true）<br>' +
+      '网关 host <code>' + (cfg.gateway_host || '—') + '</code><br>' +
+      'endpoint <code class="mono">' + (cfg.gateway_endpoint || '—') + '</code><br>' +
+      'API Key <code>' + (cfg.api_key_hint || '—') + '</code> · set=' + cfg.api_key_set + '<br>' +
+      'model <code>' + (cfg.model || st.model || '—') + '</code> · timeout <code>' + (cfg.timeout_sec || st.timeout_sec) + 's</code><br>' +
+      '配额 全站 <code>' + (st.daily_cap || 0) + '</code> / 用户 <code>' + (st.user_daily_cap || 0) + '</code> · readonly_llm <code>' + st.readonly_llm + '</code>';
+
+    document.getElementById('tips').innerHTML = (data.tips || []).map(function (t) {
+      return '<li>' + t + '</li>';
+    }).join('') || '<li>暂无</li>';
+
+    document.getElementById('last-error').textContent = data.last_error
+      ? '最近异常：' + data.last_error
+      : '';
+
+    var routes = data.route_stats || [];
+    document.getElementById('route-tbody').innerHTML = routes.length
+      ? routes.map(function (r) {
+        return '<tr><td class="mono">' + r.route + '</td><td>' + r.total + '</td><td>' + r.success +
+          '</td><td>' + r.error + '</td><td>' + r.other + '</td></tr>';
+      }).join('')
+      : '<tr><td colspan="5">今日暂无调用</td></tr>';
+  }
+
+  function renderAudit(rows) {
+    document.getElementById('audit-tbody').innerHTML = (rows || []).map(function (r) {
+      var t = r.created_at ? String(r.created_at).replace('T', ' ').slice(0, 19) : '—';
+      var cls = r.status === 'success' ? 'tag-ok' : (r.status === 'error' ? 'tag-bad' : 'tag-warn');
+      return '<tr><td>' + t + '</td><td>' + (r.username || '—') + '</td><td class="mono">' + r.route +
+        '</td><td><span class="tag ' + cls + '">' + r.status + '</span></td><td>' + (r.latency_ms != null ? r.latency_ms : '—') +
+        '</td><td class="mono">' + (r.message || '—') + '</td></tr>';
+    }).join('') || '<tr><td colspan="6">暂无</td></tr>';
+  }
+
+  function loadAll() {
+    showErr('');
+    return Promise.all([
+      api('/api/llm/admin/overview'),
+      api('/api/llm/audit?limit=40')
+    ]).then(function (res) {
+      renderOverview(res[0]);
+      renderAudit(res[1]);
+    }).catch(function (e) {
+      showErr(e.message || String(e));
+    });
+  }
+
+  function ensureAdmin() {
+    return SandAuth.fetchMe().then(function (user) {
+      if (!user) { window.location.href = 'login.html?next=admin-llm.html'; return null; }
+      if (user.must_change_password) {
+        window.location.href = 'change-password.html?next=admin-llm.html';
+        return null;
+      }
+      if (user.role !== 'admin') {
+        showErr('仅管理员可访问');
+        throw new Error('403');
+      }
+      return user;
+    });
+  }
+
+  document.getElementById('btn-refresh').addEventListener('click', loadAll);
+  document.getElementById('btn-probe').addEventListener('click', function () {
+    var btn = document.getElementById('btn-probe');
+    btn.disabled = true;
+    probeEl.innerHTML = '<div class="okbox">探活中…</div>';
+    api('/api/llm/admin/probe', { method: 'POST', body: '{}' })
+      .then(function (res) {
+        if (res.ok) {
+          probeEl.innerHTML = '<div class="okbox">✅ 探活成功 · ' + res.latency_ms + 'ms · HTTP ' + res.http_status +
+            '\n模型 ' + (res.model || '') + '\n回复：' + (res.sample || '') + '\nendpoint：' + (res.endpoint || '') + '</div>';
+        } else {
+          probeEl.innerHTML = '<div class="failbox">❌ 探活失败 · ' + (res.error || '') +
+            (res.hint ? '\n提示：' + res.hint : '') + '</div>';
+        }
+        return loadAll();
+      })
+      .catch(function (e) {
+        probeEl.innerHTML = '<div class="failbox">❌ ' + (e.message || e) + '</div>';
+      })
+      .finally(function () { btn.disabled = false; });
+  });
+
+  ensureAdmin().then(function (user) {
+    if (user) loadAll();
+  });
+})();
+</script>
+</body>
+</html>

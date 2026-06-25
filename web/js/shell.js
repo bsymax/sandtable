@@ -24,10 +24,10 @@
     { section: '入口', items: [
       { href: 'index.html', icon: '\uD83D\uDCCB', label: '今日工作台', badge: null },
     ]},
-    { section: '核心业务 · 三模块席', items: [
-      { href: 'profile.html', icon: '\uD83C\uDFE2', label: '品牌档案', badge: '已接真库' },
-      { href: 'visit.html',   icon: '\uD83C\uDFAF', label: '智能拜访助手', badge: '已接真库' },
-      { href: 'intel.html',   icon: '\uD83D\uDD0D', label: '品牌情报流', badge: '已接真库' },
+    { section: '核心业务', items: [
+      { href: 'profile.html', icon: '\uD83C\uDFE2', label: '品牌档案', badge: null },
+      { href: 'visit.html',   icon: '\uD83C\uDFAF', label: '智能拜访助手', badge: null },
+      { href: 'intel.html',   icon: '\uD83D\uDD0D', label: '品牌情报流', badge: null },
     ]},
   ];
 
@@ -66,18 +66,17 @@
 
   function breadcrumbHtml(moduleName) {
     var sep = '<span style="margin:0 6px;color:#c1c9d2;">›</span>';
-    return '<a href="index.html">← 工作台</a> ' + sep + ' 品牌沙盘 M1 ' + sep +
+    return '<a href="index.html">← 工作台</a> ' + sep + ' 品牌沙盘 ' + sep +
       ' <span class="current">' + moduleName + '</span>';
   }
 
   function topbarRightHtml() {
     var d = new Date();
     var wd = ['日', '一', '二', '三', '四', '五', '六'];
-    var html = '<span id="m1s-top-date">' + d.toISOString().slice(0, 10) + ' 周' + wd[d.getDay()] + '</span>' +
+    return '<span id="m1s-top-date">' + d.toISOString().slice(0, 10) + ' 周' + wd[d.getDay()] + '</span>' +
       '<span style="color:#a3acba;">|</span>' +
-      '<span>厨小事业部 · 采销二组</span>' +
+      '<a href="login.html" style="color:#0d7aff;text-decoration:none;">登录</a>' +
       '<div class="user-avatar">访</div>';
-    return html;
   }
 
   function ensureMainWrapper() {
@@ -126,7 +125,7 @@
     if (moduleName) document.body.classList.add('m1s-module');
 
     var html = '<div class="m1s-header">' +
-      '<div class="m1s-name">品牌沙盘 <small>M1</small></div>' +
+      '<div class="m1s-name">品牌沙盘</div>' +
       '<div class="m1s-sub">Brand Sandtable · 厨小事业部</div>' +
       '</div><div class="m1s-nav">';
     NAV.forEach(function (sec) {

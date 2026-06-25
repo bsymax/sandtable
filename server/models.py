@@ -306,7 +306,14 @@ class User(Base):
     id            = Column(Integer, primary_key=True, autoincrement=True)
     username      = Column(String(64), nullable=False, unique=True)
     password_hash = Column(String(128), nullable=False)
+    password_algo = Column(
+        Enum("sha256", "bcrypt"),
+        nullable=False,
+        default="sha256",
+        comment="M5: 密码哈希算法",
+    )
     display_name  = Column(String(64), nullable=False)
+    dept          = Column(String(128), nullable=True, comment="M5: 部门展示")
     role          = Column(
         Enum("admin", "bd", "manager", "readonly"),
         nullable=False,
@@ -314,8 +321,10 @@ class User(Base):
         comment="admin=全品牌；manager=团队；bd=负责品牌",
     )
     is_active     = Column(Boolean, default=True)
+    must_change_password = Column(Boolean, default=False, comment="M5: 强制改密")
     created_at    = Column(DateTime, server_default=func.now())
     updated_at    = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    last_login_at = Column(DateTime, nullable=True, comment="M5: 最近登录")
 
     brands   = relationship("UserBrand", back_populates="user", lazy="selectin")
     sessions = relationship("UserSession", back_populates="user", lazy="selectin")

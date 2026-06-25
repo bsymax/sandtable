@@ -3,7 +3,10 @@
 # 用法: bash scripts/dx-m4-smoke.sh [http://127.0.0.1:8000]
 set -euo pipefail
 BASE="${1:-http://127.0.0.1:8000}"
+SMOKE_BASE="$BASE"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=smoke-auth.sh
+source "$ROOT/scripts/smoke-auth.sh"
 PASS=0
 FAIL=0
 
@@ -12,10 +15,12 @@ bad() { echo "  FAIL $1"; FAIL=$((FAIL + 1)); }
 
 login() {
   local user="$1"
-  curl -s -X POST "$BASE/api/auth/login" \
-    -H 'Content-Type: application/json' \
-    -d "{\"username\":\"$user\",\"password\":\"sand123\"}" \
-    | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))"
+  local pwd="$SMOKE_PASSWORD"
+  case "$user" in
+    "$SMOKE_ADMIN_USER") pwd="$SMOKE_ADMIN_PASSWORD" ;;
+    "$SMOKE_READONLY_USER") pwd="$SMOKE_READONLY_PASSWORD" ;;
+  esac
+  smoke_login_token "$user" "$pwd"
 }
 
 echo "==> D-X-M4 smoke @ $BASE"
@@ -32,7 +37,7 @@ fi
 
 echo ""
 echo "-- 1. M4-A readonly 禁写（403）--"
-RO=$(login readonly)
+RO=$(login "$SMOKE_READONLY_USER")
 for spec in \
   "POST|/api/visits|{\"brand_id\":1,\"visit_date\":\"2026-06-11\",\"visit_type\":\"regular\",\"purpose\":\"smoke\"}" \
   "PUT|/api/brands/profile/jomoo|{}" \
@@ -51,7 +56,7 @@ done
 
 echo ""
 echo "-- 2. M4-B LLM 状态含配额字段 + 审计接口 --"
-ADMIN=$(login admin)
+ADMIN=$(login "$SMOKE_ADMIN_USER")
 if curl -s "$BASE/api/llm/status" -H "Authorization: Bearer $ADMIN" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)

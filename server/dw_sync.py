@@ -29,6 +29,9 @@ TEXT_FIELDS = {"category_distribution", "category_share"}
 DEFAULT_SAMPLE_CSV = (
     Path(__file__).resolve().parent.parent / "data" / "dw" / "brand_metrics_monthly.csv"
 )
+DEFAULT_CATEGORY_CSV = (
+    Path(__file__).resolve().parent.parent / "data" / "dw" / "brand_category_monthly.csv"
+)
 BI_MAPPING_PATH = Path(__file__).resolve().parent.parent / "data" / "dw" / "bi_mapping.json"
 
 
@@ -309,3 +312,40 @@ def retry_batch(db: Session, batch_key: str) -> DwImportBatch:
         source_name=batch.source_name,
         apply_bi=apply_bi,
     )
+
+
+def import_category_from_csv(
+    db: Session,
+    path: Path | None = None,
+) -> int:
+    """从 brand_category_monthly.csv 合并二级类目 JSON 到 brand_metrics。"""
+    csv_path = Path(path) if path else DEFAULT_CATEGORY_CSV
+    if not csv_path.is_file():
+        raise FileNotFoundError(f"类目 CSV 不存在: {csv_path}")
+
+    brands = {b.name_key: b for b in db.query(Brand).all()}
+    count = 0
+    with csv_path.open(newline="", encoding="utf-8-sig") as handle:
+        for row in csv.DictReader(handle):
+            key = (row.get("name_key") or "").strip().lower()
+            period = (row.get("period_value") or "").strip()
+            brand = brands.get(key)
+            if not brand or not period:
+                continue
+            metric = (
+                db.query(BrandMetrics)
+                .filter(
+                    BrandMetrics.brand_id == brand.id,
+                    BrandMetrics.period_type == "monthly",
+                    BrandMetrics.period_value == period,
+                )
+                .first()
+            )
+            if not metric:
+                continue
+            metric.category_distribution = row.get("category_distribution") or None
+            metric.category_share = row.get("category_share") or None
+            count += 1
+
+    db.commit()
+    return count

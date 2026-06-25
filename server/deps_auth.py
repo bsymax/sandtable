@@ -108,6 +108,16 @@ def require_writable(user: Optional[AuthUser]) -> None:
         raise HTTPException(403, "只读账号不可修改")
 
 
+def require_admin(user: AuthUser) -> None:
+    if not user.is_admin:
+        raise HTTPException(403, "仅管理员可操作")
+
+
+def get_admin_user(user: AuthUser = Depends(get_current_user)) -> AuthUser:
+    require_admin(user)
+    return user
+
+
 def get_writable_user_optional(
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ) -> Optional[AuthUser]:
