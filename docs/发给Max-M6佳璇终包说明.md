@@ -124,5 +124,5 @@
 |----|------|
 | 建材 6 品牌 responsible | seed 仍为「待定」，待业务提供采销姓名 |
 | 深度指标 gross_margin 等 | 建材 CSV 暂无，完整度第 10 项可能不满 |
-| 谈参 PDF | 依赖外网 cdn html2pdf；生产可考虑本地化 js |
+| 谈参 PDF | **已本地化** `web/js/html2pdf.bundle.min.js`（jiaxuan-m6-0702 · 不依赖 CDN） |
 | Tab3/4 情报拜访 | 仍依赖开开模块 API（8000 主工程） |

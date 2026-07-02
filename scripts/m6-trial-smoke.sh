@@ -46,6 +46,8 @@ has_text() {
 echo ""
 echo "-- 3. 工具包 + 拜访导入 --"
 has_text "$BASE/toolkit/talking-points.html" "tp-report-doc" && ok "talking-points 页" || bad "talking-points"
+has_text "$BASE/toolkit/talking-points.html" "../js/html2pdf.bundle.min.js" && ok "谈参 PDF 本地 js" || bad "谈参仍用 CDN"
+has_text "$BASE/js/html2pdf.bundle.min.js" "html2pdf" && ok "html2pdf 静态文件" || bad "html2pdf 404"
 has_text "$BASE/toolkit/brand-report.html" "talking-points" && ok "brand-report→谈参" || bad "brand-report"
 has_text "$BASE/visit.html" "历史导入" && ok "visit 历史导入 Tab" || bad "visit 导入"
 has_text "$BASE/visit.html" "填写说明" && ok "visit 双表头模板" || bad "visit 模板"
