@@ -56,7 +56,7 @@ def load_rows(path: Path) -> list:
         return list(reader)
 
 
-def import_users(db, rows, dry_run: bool, strict: bool) -> dict:
+def import_users(db, rows, dry_run: bool, strict: bool, preset_password: str | None = None) -> dict:
     brand_ids = _brand_map(db)
     active = _active_keys(brand_ids)
     legacy = load_legacy_name_key_map()
@@ -98,7 +98,10 @@ def import_users(db, rows, dry_run: bool, strict: bool) -> dict:
             stats["legacy_mapped"] += 1
 
         user = db.query(User).filter(User.username == username).first()
-        temp_pwd = generate_temp_password()
+        if preset_password:
+            temp_pwd = preset_password
+        else:
+            temp_pwd = generate_temp_password()
         err = validate_new_password(username, temp_pwd)
         if err:
             raise SystemExit(f"行{i} 临时密码生成失败: {err}")
@@ -154,6 +157,11 @@ def main():
     parser.add_argument("csv_path", type=Path)
     parser.add_argument("--dry-run", action="store_true", help="不写库，仅校验与预览")
     parser.add_argument("--strict", action="store_true", help="未知 brand_key 立即失败")
+    parser.add_argument(
+        "--preset-password",
+        metavar="PWD",
+        help="M6 统一初始密码（全员相同；须满足密码强度规则）",
+    )
     args = parser.parse_args()
 
     if not args.csv_path.is_file():
@@ -163,10 +171,17 @@ def main():
     if len(rows) < 1:
         raise SystemExit("CSV 无数据行")
 
+    if args.preset_password:
+        err = validate_new_password("_preset_check", args.preset_password)
+        if err:
+            raise SystemExit(f"--preset-password 不符合规则: {err}")
+
     db = SessionLocal()
     try:
         print(f"==> 导入 {args.csv_path.name} · {len(rows)} 行 · dry_run={args.dry_run}")
-        stats = import_users(db, rows, args.dry_run, args.strict)
+        if args.preset_password:
+            print("    使用统一初始密码（M6 模式）")
+        stats = import_users(db, rows, args.dry_run, args.strict, args.preset_password)
         print(
             f"==> 完成 created={stats['created']} updated={stats['updated']} "
             f"skipped={stats['skipped']} bindings={stats['bindings']} "

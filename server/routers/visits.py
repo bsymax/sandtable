@@ -2,13 +2,16 @@
 拜访模块路由
 来源：peixiao-m1-0610/backend/main.py，2026-06-10 由 Max 拆分入主工程（逻辑零改动）。
 归属：培翛。涵盖 拜访安排 / 拜访记录 / 承诺 / 待办 / 频率健康度。
+M6: 新增 POST /api/visits/import-history 历史拜访批量导入
 """
 
 import re
+import csv
+import io
 from datetime import date, time, datetime, timedelta
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func, case
 
@@ -28,6 +31,7 @@ from schemas import (
     CommitmentOut, CommitmentUpdate,
     TodoOut, TodoUpdate,
     HealthItem, ApiResponse, AiExtractOut,
+    VisitImportResult,
 )
 from llm_service import complete
 
@@ -499,6 +503,176 @@ def visit_health(
         ))
 
     return result
+
+
+# ================================================================
+#  M6 历史拜访批量导入
+# ================================================================
+@router.post("/api/visits/import-history", response_model=VisitImportResult, tags=["拜访"])
+async def import_history_visits(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """上传 CSV/Excel 批量导入已完成的历史拜访 + 记录"""
+    require_writable(user)
+
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = content.decode("gbk")
+        except Exception:
+            raise HTTPException(400, "文件编码不支持，请保存为 UTF-8")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(400, "CSV 表头为空")
+
+    # 跳过中文表头/填写说明行：以 brand_key 开头的行为英文字段名行（培翛 M6-0701-3）
+    text_lines = text.splitlines()
+    header_idx = None
+    for i, line in enumerate(text_lines):
+        first_cell = (line.split(",")[0] if line else "").strip().lower()
+        if first_cell == "brand_key":
+            header_idx = i
+            break
+    if header_idx is None:
+        raise HTTPException(400, "CSV 未找到 brand_key 表头行，请使用模板下载的格式")
+
+    reader2 = csv.DictReader(io.StringIO("\n".join(text_lines[header_idx:])))
+    if not reader2.fieldnames:
+        raise HTTPException(400, "CSV 表头为空")
+    norm = {h.strip().lower().replace(" ", "_"): h for h in reader2.fieldnames}
+
+    def get_col(row, *names):
+        for n in names:
+            if n in norm and norm[n] in row:
+                v = (row[norm[n]] or "").strip()
+                if v:
+                    return v
+        return ""
+
+    brand_cache = {b.name_key: b for b in db.query(Brand).filter(Brand.status == "active").all()}
+    brand_cache.update({b.name: b for b in brand_cache.values()})
+
+    created = 0
+    updated = 0
+    failed = 0
+    errors = []
+
+    for idx, row in enumerate(reader2, start=header_idx + 2):
+        try:
+            brand_key_val = get_col(row, "brand_key")
+            # 跳过说明行、空行、占位行
+            if not brand_key_val or brand_key_val.startswith("【") or brand_key_val.upper() == "YYYY-MM-DD":
+                continue
+            brand = brand_cache.get(brand_key_val) or brand_cache.get(brand_key_val.lower())
+            if not brand:
+                failed += 1
+                errors.append({"row": idx, "reason": f"品牌 '{brand_key_val}' 未找到"})
+                continue
+            # 跳过用户无权限的品牌行（不中断整个导入）
+            if user and not user.is_admin:
+                allowed = getattr(user, 'brand_ids', None)
+                if allowed is not None and brand.id not in (allowed or []):
+                    failed += 1
+                    errors.append({"row": idx, "reason": f"无品牌 '{brand_key_val}' 权限"})
+                    continue
+
+            visit_date_str = get_col(row, "visit_date")
+            if not visit_date_str:
+                failed += 1
+                errors.append({"row": idx, "reason": "缺少 visit_date"})
+                continue
+            visit_date_val = _parse_date(visit_date_str)
+            if not visit_date_val:
+                failed += 1
+                errors.append({"row": idx, "reason": f"日期格式错误: {visit_date_str}"})
+                continue
+
+            purpose = get_col(row, "purpose")
+            visit_type_val = get_col(row, "visit_type") or "regular"
+            if visit_type_val not in ("urgent", "regular", "renewal"):
+                visit_type_val = "regular"
+
+            # 判重：brand_id + visit_date + purpose(前50字)
+            purpose_key = (purpose or "")[:50]
+            existing = db.query(Visit).filter(
+                Visit.brand_id == brand.id,
+                Visit.visit_date == visit_date_val,
+                func.left(Visit.purpose, 50) == purpose_key,
+            ).first()
+
+            if existing:
+                # 更新已有拜访和记录
+                existing.visit_type = visit_type_val
+                existing.purpose = purpose or existing.purpose
+                existing.status = "completed"
+                existing.notes = get_col(row, "participants") or existing.notes
+                record = db.query(VisitRecord).filter(
+                    VisitRecord.visit_id == existing.id
+                ).first()
+                if not record:
+                    record = VisitRecord(visit_id=existing.id)
+                    db.add(record)
+                    db.flush()
+                record.topics = get_col(row, "topics") or record.topics
+                record.commitments_raw = get_col(row, "commitments_raw") or record.commitments_raw
+                record.undone_items = get_col(row, "undone_items") or record.undone_items
+                rc = get_col(row, "relation_change")
+                if rc in ("up", "flat", "down"):
+                    record.relation_change = rc
+                nvd = get_col(row, "next_visit_date")
+                if nvd:
+                    record.next_visit_date = _parse_date(nvd)
+                updated += 1
+            else:
+                visit = Visit(
+                    brand_id=brand.id,
+                    visit_date=visit_date_val,
+                    visit_time=time(14, 0),
+                    visit_type=visit_type_val,
+                    purpose=purpose or "(历史导入)",
+                    notes=get_col(row, "participants") or None,
+                    status="completed",
+                )
+                db.add(visit)
+                db.flush()
+                record = VisitRecord(
+                    visit_id=visit.id,
+                    topics=get_col(row, "topics") or None,
+                    commitments_raw=get_col(row, "commitments_raw") or None,
+                    undone_items=get_col(row, "undone_items") or None,
+                    relation_change=(get_col(row, "relation_change") or "flat"),
+                    next_visit_date=_parse_date(get_col(row, "next_visit_date")),
+                )
+                db.add(record)
+                db.flush()
+                visit.record_id = record.id
+
+                # 从 commitments_raw 按行拆条写入承诺
+                if record.commitments_raw:
+                    for c_item in _parse_commitment_lines(
+                        record.commitments_raw, visit.id, record.id
+                    ):
+                        db.add(c_item)
+
+                created += 1
+
+        except Exception as e:
+            failed += 1
+            errors.append({"row": idx, "reason": str(e)})
+
+    db.commit()
+
+    return VisitImportResult(
+        created=created,
+        updated=updated,
+        failed=failed,
+        errors=errors,
+    )
 
 
 # ================================================================

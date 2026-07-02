@@ -9,13 +9,13 @@
 """
 
 from datetime import datetime
-import json
+from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import get_db, engine
 from config import DW_METRICS_PERIOD_TYPE
 from deps_auth import AuthUser, get_current_user_optional, require_name_key, require_writable
 from llm_prompts import (
@@ -27,57 +27,44 @@ from llm_prompts import (
 )
 from llm_service import complete
 from models import Brand, BrandContact, BrandProfile, BrandMetrics, IntelAlert
-from completeness import calc_completeness
+from completeness import calc_completeness, count_brand_intel, count_brand_interactions
+from org_structure import apply_org_update, dump_org_structure, parse_org_structure, sync_org_from_contacts
 from schemas import (
     BrandProfileDetailOut, BrandOut, BrandProfileOut, ContactOut, BrandMetricsOut,
-    BrandProfileUpdate, AiStrategyOut, AiBlurbOut,
+    BrandProfileUpdate, AiStrategyOut, AiBlurbOut, OrgImageOut, normalize_role_tag,
 )
 
 router = APIRouter()
 
-_ROLE_SUFFIXES = ("总经理", "副总经理", "总监", "副总监", "经理", "主管", "负责人", "VP")
+UPLOAD_ROOT = Path(__file__).resolve().parent.parent / "uploads"
+ORG_UPLOAD_ROOT = UPLOAD_ROOT / "org"
+ORG_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+ALLOWED_ORG_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MAX_ORG_IMAGE_BYTES = 5 * 1024 * 1024
 
 
-def _parse_org_structure(raw: Optional[str]) -> dict:
-    if not raw:
-        return {"root": "", "lead": "", "nodes": []}
-    try:
-        data = json.loads(raw)
-        if isinstance(data, dict):
-            return {
-                "root": data.get("root") or "",
-                "lead": data.get("lead") or "",
-                "nodes": list(data.get("nodes") or []),
-            }
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return {"root": "", "lead": "", "nodes": []}
+def _remove_org_image_file(image_url: str | None) -> None:
+    if not image_url or not image_url.startswith("/uploads/org/"):
+        return
+    rel = image_url[len("/uploads/org/"):]
+    path = ORG_UPLOAD_ROOT / rel
+    if path.is_file():
+        try:
+            path.unlink()
+        except OSError:
+            pass
 
 
-def _contact_org_label(name: str, title: Optional[str]) -> str:
-    title = (title or "").strip()
-    if not title:
-        return name
-    for suffix in _ROLE_SUFFIXES:
-        if suffix in title:
-            return f"{name} · {suffix}"
-    if len(title) <= 6:
-        return f"{name} · {title}"
-    return f"{name} · {title[-4:]}"
-
-
-def _sync_org_nodes_from_contacts(profile: BrandProfile, contacts: List[BrandContact]) -> None:
-    org = _parse_org_structure(profile.org_structure)
-    org["nodes"] = [
-        _contact_org_label(c.name, c.title)
-        for c in contacts
-        if c.is_active
-    ]
-    profile.org_structure = json.dumps(org, ensure_ascii=False)
-
-
-def _build_profile_response(brand, profile, contacts, metrics):
-    comp = calc_completeness(profile, contacts, metrics)
+def _build_profile_response(brand, profile, contacts, metrics, db: Session):
+    intel_count = count_brand_intel(db, engine, brand.id)
+    interaction_count = count_brand_interactions(db, engine, brand.id)
+    comp = calc_completeness(
+        profile,
+        contacts,
+        metrics,
+        intel_count=intel_count,
+        interaction_count=interaction_count,
+    )
     return BrandProfileDetailOut(
         brand=BrandOut.model_validate(brand),
         profile=BrandProfileOut.model_validate(profile) if profile else None,
@@ -107,7 +94,7 @@ def get_brand_profile(
         .first()
     )
     contacts = [c for c in brand.contacts if c.is_active]
-    return _build_profile_response(brand, profile, contacts, metrics)
+    return _build_profile_response(brand, profile, contacts, metrics, db)
 
 
 @router.get("/api/brands/metrics/{name_key}", response_model=List[BrandMetricsOut], tags=["品牌档案"])
@@ -166,6 +153,19 @@ def update_brand_profile(
             None if is_strategy_field_empty(payload.growth_opportunities) else payload.growth_opportunities
         )
 
+    if payload.founded_year is not None:
+        profile.founded_year = payload.founded_year.strip() or None
+    if payload.hq is not None:
+        profile.hq = payload.hq.strip() or None
+    if payload.positioning is not None:
+        profile.positioning = payload.positioning.strip() or None
+    if payload.responsible is not None:
+        brand.responsible = payload.responsible.strip() or None
+
+    if payload.org is not None:
+        apply_org_update(profile, payload.org.model_dump(exclude_unset=True))
+        db.flush()
+
     contacts_changed = False
 
     if payload.contacts_remove:
@@ -189,7 +189,7 @@ def update_brand_profile(
                     brand_id=brand.id,
                     name=name,
                     title=item.title,
-                    role_tag=item.role_tag or "日常对接",
+                    role_tag=normalize_role_tag(item.role_tag),
                     phone=item.phone,
                     wechat=item.wechat,
                     is_active=True,
@@ -212,20 +212,12 @@ def update_brand_profile(
             if item.title is not None:
                 contact.title = item.title
             if item.role_tag is not None:
-                contact.role_tag = item.role_tag
+                contact.role_tag = normalize_role_tag(item.role_tag)
             if item.phone is not None:
                 contact.phone = item.phone
             if item.wechat is not None:
                 contact.wechat = item.wechat
             contacts_changed = True
-
-    if payload.org is not None:
-        org = _parse_org_structure(profile.org_structure)
-        if payload.org.root is not None:
-            org["root"] = payload.org.root.strip()
-        if payload.org.lead is not None:
-            org["lead"] = payload.org.lead.strip()
-        profile.org_structure = json.dumps(org, ensure_ascii=False)
 
     db.commit()
     db.refresh(profile)
@@ -236,7 +228,7 @@ def update_brand_profile(
         .all()
     )
     if contacts_changed:
-        _sync_org_nodes_from_contacts(profile, contacts)
+        sync_org_from_contacts(profile, contacts)
         db.commit()
         db.refresh(profile)
     metrics = (
@@ -245,7 +237,7 @@ def update_brand_profile(
         .order_by(BrandMetrics.period_value.desc())
         .first()
     )
-    return _build_profile_response(brand, profile, contacts, metrics)
+    return _build_profile_response(brand, profile, contacts, metrics, db)
 
 
 @router.post("/api/brands/profile/{name_key}/ai/strategy", response_model=AiStrategyOut, tags=["品牌档案"])
@@ -348,3 +340,90 @@ async def ai_blurb(
     if text:
         return AiBlurbOut(source="llm", name_key=name_key, summary=text.strip())
     return AiBlurbOut(source="fallback", name_key=name_key, summary=fallback)
+
+
+@router.post("/api/brands/profile/{name_key}/org-image", response_model=OrgImageOut, tags=["品牌档案"])
+async def upload_org_image(
+    name_key: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """上传品牌组织架构图（JPEG/PNG/WebP/GIF · 最大 5MB）"""
+    require_writable(user)
+    require_name_key(user, name_key)
+    brand = db.query(Brand).filter(Brand.name_key == name_key).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
+    profile = db.query(BrandProfile).filter(BrandProfile.brand_id == brand.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="品牌简介尚未初始化")
+
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED_ORG_IMAGE_EXT:
+        raise HTTPException(status_code=400, detail="仅支持 JPG/PNG/WebP/GIF 图片")
+
+    content = await file.read()
+    if len(content) > MAX_ORG_IMAGE_BYTES:
+        raise HTTPException(status_code=400, detail="图片不能超过 5MB")
+    if not content:
+        raise HTTPException(status_code=400, detail="文件为空")
+
+    brand_dir = ORG_UPLOAD_ROOT / name_key
+    brand_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"org-{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"
+    dest = brand_dir / filename
+    dest.write_bytes(content)
+
+    org = parse_org_structure(profile.org_structure)
+    _remove_org_image_file(org.get("image_url"))
+    image_url = f"/uploads/org/{name_key}/{filename}"
+    org["image_url"] = image_url
+    org["image_updated_at"] = datetime.now().strftime("%Y-%m-%d")
+    profile.org_structure = dump_org_structure(org)
+    db.commit()
+    db.refresh(profile)
+
+    return OrgImageOut(
+        image_url=image_url,
+        image_updated_at=org["image_updated_at"],
+        org_structure=profile.org_structure,
+    )
+
+
+@router.delete("/api/brands/profile/{name_key}/org-image", response_model=BrandProfileDetailOut, tags=["品牌档案"])
+def delete_org_image(
+    name_key: str,
+    db: Session = Depends(get_db),
+    user: Optional[AuthUser] = Depends(get_current_user_optional),
+):
+    """删除已上传的组织架构图"""
+    require_writable(user)
+    require_name_key(user, name_key)
+    brand = db.query(Brand).filter(Brand.name_key == name_key).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail=f"品牌不存在: {name_key}")
+    profile = db.query(BrandProfile).filter(BrandProfile.brand_id == brand.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="品牌简介尚未初始化")
+
+    org = parse_org_structure(profile.org_structure)
+    _remove_org_image_file(org.get("image_url"))
+    org.pop("image_url", None)
+    org.pop("image_updated_at", None)
+    profile.org_structure = dump_org_structure(org)
+    db.commit()
+    db.refresh(profile)
+
+    contacts = (
+        db.query(BrandContact)
+        .filter(BrandContact.brand_id == brand.id, BrandContact.is_active == True)
+        .all()
+    )
+    metrics = (
+        db.query(BrandMetrics)
+        .filter(BrandMetrics.brand_id == brand.id, BrandMetrics.period_type == DW_METRICS_PERIOD_TYPE)
+        .order_by(BrandMetrics.period_value.desc())
+        .first()
+    )
+    return _build_profile_response(brand, profile, contacts, metrics, db)

@@ -58,6 +58,8 @@ DW_METRICS_PERIOD_TYPE = os.getenv("DW_METRICS_PERIOD_TYPE", "monthly").strip().
 if DW_METRICS_PERIOD_TYPE not in ("weekly", "monthly"):
     DW_METRICS_PERIOD_TYPE = "monthly"
 
+INTEL_HIDE_DEMO = os.getenv("INTEL_HIDE_DEMO", "true").lower() not in ("0", "false", "no")
+
 if IS_SQLITE:
     Path(DB_SQLITE_PATH).parent.mkdir(parents=True, exist_ok=True)
     DATABASE_URL = f"sqlite:///{DB_SQLITE_PATH}"

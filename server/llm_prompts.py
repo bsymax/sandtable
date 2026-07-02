@@ -13,6 +13,20 @@ _PLACEHOLDER_MARKERS = (
     "请稍候…",
 )
 
+# 旧 M2 seed 固定句（卫浴 5 品牌）· 视为空库以走规则 fallback
+_LEGACY_M2_STRATEGY = {
+    "国内卫浴龙头，JD 市占领先；与箭牌、恒洁在智能马桶/花洒品类直接竞争。",
+    "陶瓷卫浴核心品牌，TM/TB 份额较高；与九牧在 JD 智能马桶价格带重叠。",
+    "中高端卫浴定位，全渠道布局；DY 增速波动需关注内容电商投入。",
+    "五金地漏细分强势；卫浴主品类占比提升中。",
+    "太阳能+卫浴延伸品牌，季节性强；DY/TB 占比较高。",
+    "智能马桶品类可争取 JD 品类日；动销商品数（SPU）结构优化带动成交回升。",
+    "JD 市占提升空间大，可谈联合搜索与新品首发。",
+    "套餐化 SPU 引入 JD，提升客单与动销商品数宽度。",
+    "地漏品类优势可带动卫浴配件组合装上架。",
+    "旺季前锁定 JD 热水器/卫浴联合促销资源。",
+}
+
 
 def _truncate(text: Optional[str], n: int = 55) -> str:
     if not text:
@@ -26,6 +40,8 @@ def is_strategy_field_empty(val: Optional[str]) -> bool:
         return True
     t = str(val).strip()
     if t.startswith("（待补全"):
+        return True
+    if t in _LEGACY_M2_STRATEGY:
         return True
     return any(m in t for m in _PLACEHOLDER_MARKERS)
 

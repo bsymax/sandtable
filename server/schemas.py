@@ -276,7 +276,7 @@ class BrandProfileDetailOut(BaseModel):
     contacts: List[ContactOut] = []
     metrics: Optional[BrandMetricsOut] = None
     completeness_score: int = 0
-    completeness_max: int = 10
+    completeness_max: int = 12
     completeness_percent: int = 0
 
 
@@ -297,6 +297,33 @@ class ContactCreate(BaseModel):
     wechat: Optional[str] = None
 
 
+class OrgBranchIn(BaseModel):
+    id: Optional[str] = None
+    label: str
+
+
+class OrgNodeIn(BaseModel):
+    id: Optional[str] = None
+    label: str
+    contact_id: Optional[int] = None
+    branch_id: Optional[str] = None
+
+
+class OrgUpdate(BaseModel):
+    root: Optional[str] = None
+    lead: Optional[str] = None
+    branches: Optional[List[OrgBranchIn]] = None
+    nodes: Optional[List[OrgNodeIn]] = None
+    clear_image: Optional[bool] = None
+
+
+def normalize_role_tag(raw: Optional[str]) -> str:
+    text = (raw or "").strip()
+    if not text:
+        return "日常对接"
+    return text[:32]
+
+
 class OrgStructurePatch(BaseModel):
     root: Optional[str] = None
     lead: Optional[str] = None
@@ -306,10 +333,20 @@ class BrandProfileUpdate(BaseModel):
     taboos: Optional[str] = None
     competitive_landscape: Optional[str] = None
     growth_opportunities: Optional[str] = None
+    founded_year: Optional[str] = None
+    hq: Optional[str] = None
+    positioning: Optional[str] = None
+    responsible: Optional[str] = None
     contacts: Optional[List[ContactPatch]] = None
     contacts_add: Optional[List[ContactCreate]] = None
     contacts_remove: Optional[List[int]] = None
-    org: Optional[OrgStructurePatch] = None
+    org: Optional[OrgUpdate] = None
+
+
+class OrgImageOut(BaseModel):
+    image_url: str
+    image_updated_at: Optional[str] = None
+    org_structure: Optional[str] = None
 
 
 # ==============================
@@ -787,3 +824,18 @@ class DwStatusOut(BaseModel):
 
 class DwImportResultOut(BaseModel):
     batch: DwBatchOut
+
+
+# ==============================
+# M6 历史拜访导入
+# ==============================
+class ImportErrorRow(BaseModel):
+    row: int
+    reason: str
+
+
+class VisitImportResult(BaseModel):
+    created: int = 0
+    updated: int = 0
+    failed: int = 0
+    errors: List[ImportErrorRow] = []

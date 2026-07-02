@@ -89,6 +89,10 @@ table tr.jd-row td { background:var(--blue-50); }
 .profile-basic-dl { display:grid; grid-template-columns:88px 1fr; gap:8px 12px; font-size:13px; }
 .profile-basic-dl dt { color:var(--text-secondary); }
 .profile-basic-dl dd { margin:0; }
+.intro-basic-box.editing .intro-view { display:none; }
+.intro-basic-box.editing .intro-edit { display:block; }
+.intro-basic-box .intro-edit { display:none; }
+.intro-edit .form-label:first-child { margin-top:0; }
 .person-card, .person-card-editable { border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:10px; background:#fff; }
 .person-card:last-child, .person-card-editable:last-child { margin-bottom:0; }
 .profile-expire-warn { font-size:11px; color:var(--red-500); background:var(--red-50); padding:8px 12px; border-radius:6px; margin-top:8px; line-height:1.5; }
@@ -109,6 +113,25 @@ table tr.jd-row td { background:var(--blue-50); }
 .org-row { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; position:relative; }
 .org-row::before { content:''; position:absolute; top:0; left:20%; right:20%; height:2px; background:var(--border); }
 .org-row .org-node { margin-top:14px; }
+.org-branches-row { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
+.org-branch-col { display:flex; flex-direction:column; align-items:center; min-width:110px; max-width:160px; }
+.org-branch-title { font-size:11px; font-weight:600; color:var(--text-secondary); padding:4px 8px; border:1px dashed var(--border); border-radius:4px; margin-bottom:6px; text-align:center; }
+.org-node.contact-linked { background:#f0f9ff; border-color:#93c5fd; }
+.org-node.manual { border-style:dashed; }
+.org-node-empty { color:var(--text-muted); font-size:11px; min-width:80px; }
+.org-default-label { font-size:11px; color:var(--text-muted); margin:10px 0 4px; text-align:center; }
+.org-editor-block { margin:12px 0; padding-top:10px; border-top:1px dashed var(--border); }
+.org-editor-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+.org-editor-row .form-input, .org-editor-row .form-select { margin-bottom:0; flex:1 1 140px; }
+.org-editor-row .btn-sm-outline { flex-shrink:0; }
+.org-editor-tag { font-size:10px; color:var(--text-muted); white-space:nowrap; }
+.org-image-panel { text-align:center; padding:8px 0 12px; }
+.org-image { max-width:100%; max-height:420px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+.org-image-meta { font-size:11px; color:var(--text-muted); margin-top:6px; }
+.org-image-preview { margin-bottom:10px; text-align:center; }
+.org-image-preview img { max-width:100%; max-height:200px; border:1px solid var(--border); border-radius:6px; }
+.org-diagram-fallback { margin-top:12px; font-size:12px; }
+.org-diagram-fallback summary { cursor:pointer; color:var(--blue-600); margin-bottom:8px; }
 .org-box.editing .org-view { display:none; }
 .org-box.editing .org-edit-fields { display:block; }
 .org-edit-fields { display:none; margin-top:8px; }
@@ -251,14 +274,14 @@ table tr.jd-row td { background:var(--blue-50); }
   <div class="topbar-right">
     <span id="top-date">—</span>
     <span style="color:var(--text-muted);">|</span>
-    <span>建材业务部-国内KA卫浴组</span>
+    <span>建材业务部</span>
     <div class="user-avatar">周</div>
   </div>
 </div>
 
 <div class="content">
   <div class="page-title">品牌档案</div>
-  <div class="page-subtitle">五品牌经营看板 · 京东渠道口径 · 数据每月更新</div>
+  <div class="page-subtitle">十一品牌经营看板 · 京东渠道口径 · 数据每月更新</div>
 
   <div id="profile-readonly-banner" class="profile-readonly-banner">🔒 当前为<strong>只读账号</strong>，无法保存联系人、潜规则与竞争/机会等修改。</div>
   <div id="error-banner" class="error-banner"></div>
@@ -285,8 +308,22 @@ var BRAND_TABS = [
   { key:'arrow', label:'箭牌' },
   { key:'hegii', label:'恒洁' },
   { key:'submarine', label:'潜水艇' },
-  { key:'micoe', label:'四季沐歌' }
+  { key:'micoe', label:'四季沐歌' },
+  { key:'nippon', label:'立邦' },
+  { key:'skshu', label:'三棵树' },
+  { key:'dulux', label:'多乐士' },
+  { key:'wacker', label:'瓦克' },
+  { key:'yuhong', label:'雨虹防水' },
+  { key:'carpoly', label:'嘉宝莉' }
 ];
+/** 基础建材 6 品牌 · 类目口径与卫浴一致，颗粒度为三级类目 */
+var JC_BRAND_KEYS = ['nippon','skshu','dulux','wacker','yuhong','carpoly'];
+function isJcBrand(key) {
+  return JC_BRAND_KEYS.indexOf(key) >= 0;
+}
+function categoryLevelLabel(key) {
+  return isJcBrand(key) ? '三级类目' : '二级类目';
+}
 /** 登录后由 /api/brands 过滤；未登录等同 BRAND_TABS */
 var visibleBrandTabs = BRAND_TABS.slice();
 var LEVEL_LABEL = { S:'S-战略级', A:'A-核心级', B:'B-成长级', C:'C-观察级' };
@@ -467,8 +504,7 @@ function isStrategyUserEdited(key, side) {
 function strategyFieldNeedsLlm(p, key, side) {
   if (isStrategyUserEdited(key, side)) return false;
   var val = side === 'comp' ? p.competitive_landscape : p.growth_opportunities;
-  var ph = side === 'comp' ? '（待补全竞争格局分析）' : '（待补全增长机会）';
-  if (!isStrategyFieldEmpty(val, ph)) return false;
+  if (!strategyFieldEffectiveEmpty(val, side)) return false;
   return isStrategyLlmOn();
 }
 
@@ -852,9 +888,35 @@ function trendClass(v) {
 }
 
 function roleTagClass(tag) {
-  if (tag === '决策者') return 'tag-blue';
-  if (tag === '需加强') return 'tag-amber';
+  var t = (tag || '').trim();
+  if (!t) return 'tag-gray';
+  if (/决策|老板|总经理|VP|核心/.test(t)) return 'tag-blue';
+  if (/需加强|待建联|弱关系|待突破/.test(t)) return 'tag-amber';
+  if (/京东|JD/.test(t)) return 'tag-green';
   return 'tag-gray';
+}
+
+/** 常用角色标签（可下拉选择，也支持直接输入自定义） */
+var ROLE_TAG_SUGGESTIONS = [
+  '决策者', '电商负责人', '京东渠道对接', '天猫渠道对接', '淘宝渠道对接',
+  '抖音/内容电商', '市场品牌', '财务结算', '供应链履约', '日常对接', '需加强建联', '其他'
+];
+
+function normalizeRoleTag(raw) {
+  var t = (raw || '').trim();
+  return t ? t.slice(0, 32) : '日常对接';
+}
+
+function renderRoleTagDatalist() {
+  return '<datalist id="role-tag-suggestions">' +
+    ROLE_TAG_SUGGESTIONS.map(function(t) { return '<option value="' + escapeHtml(t) + '">'; }).join('') +
+    '</datalist>';
+}
+
+function renderRoleTagField(inputId, value) {
+  var v = escapeHtml(value || '日常对接');
+  return '<input class="form-input" id="' + inputId + '" list="role-tag-suggestions" value="' + v + '" maxlength="32" placeholder="如 京东采销对接、政策决策人">' +
+    '<p class="form-hint" style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">可从常用标签选择，也可直接输入自定义（最多 32 字）</p>';
 }
 
 function parseJson(str, fallback) {
@@ -929,7 +991,7 @@ function applyReadOnlyUi() {
     el.style.display = ro ? 'none' : '';
   });
   if (ro) {
-    document.querySelectorAll('.person-card.editing, .profile-rule-box.editing, .profile-strategy-box.editing, .org-box.editing').forEach(function(el) {
+    document.querySelectorAll('.person-card.editing, .profile-rule-box.editing, .profile-strategy-box.editing, .org-box.editing, .intro-basic-box.editing').forEach(function(el) {
       el.classList.remove('editing');
     });
   }
@@ -1041,10 +1103,9 @@ function initCharts(key, metricsHistory, latest) {
   }
 
   var catCtx = document.getElementById('chart-cat-' + key);
-  var catFiltered = filterCategoryDisplay(
-    parseJson(latest.category_distribution, []),
-    parseJson(latest.category_share, [])
-  );
+  var catDist = parseJson(latest.category_distribution, []);
+  var catShare = parseJson(latest.category_share, []);
+  var catFiltered = filterCategoryDisplay(catDist, catShare);
   var cats = catFiltered.dist.slice().sort(function(a, b) {
     return (b.share || 0) - (a.share || 0);
   }).slice(0, 12);
@@ -1071,7 +1132,7 @@ function initCharts(key, metricsHistory, latest) {
 function renderCompletenessRing(data) {
   var pct = data.completeness_percent || 0;
   var score = data.completeness_score || 0;
-  var max = data.completeness_max || 10;
+  var max = data.completeness_max || 12;
   var color = pct > 80 ? 'var(--green-500)' : pct >= 60 ? 'var(--amber-500)' : 'var(--red-500)';
   var r = 30, c = 2 * Math.PI * r, off = c * (1 - pct / 100);
   return '<div class="profile-health-ring" title="档案完整度 ' + score + '/' + max + ' · ' + pct + '%">' +
@@ -1255,7 +1316,9 @@ function getCategoryChannelPct(s) {
   return { jd: jd, tm: tm, tb: tb, dy: dy };
 }
 
-function renderCategoryTable(m) {
+function renderCategoryTable(m, brandKey) {
+  brandKey = brandKey || currentKey;
+  var catLabel = categoryLevelLabel(brandKey);
   var parsed = filterCategoryDisplay(
     parseJson(m && m.category_distribution, []),
     parseJson(m && m.category_share, [])
@@ -1283,7 +1346,7 @@ function renderCategoryTable(m) {
       '<td>' + (ch.dy != null ? ch.dy + '%' : '—') + '</td>' +
       '<td><span class="tag ' + tagCls + '">' + layout.label + '</span></td></tr>';
   }).join('');
-  return '<div class="card"><div class="card-header"><h3>类目维度市占</h3><span class="card-meta">二级品类 · 仅展示品牌下类目占比≥1% · 品牌下类目占比=品类四渠道销售/品牌总销售 · JD品类占比=品类JD销售/品牌JD总销售 · JD/TM/TB/DY=品类内四渠道占比</span></div><div class="card-body no-padding"><table><tr><th>二级类目</th><th>品牌下类目占比</th><th>JD品类占比</th><th>JD</th><th>TM</th><th>TB</th><th>DY</th><th>布局机会</th></tr>' + rows + '</table></div></div>';
+  return '<div class="card"><div class="card-header"><h3>类目维度市占</h3><span class="card-meta">' + catLabel + ' · 仅展示品牌下类目占比≥1% · 品牌下类目占比=品类四渠道销售/品牌总销售 · JD品类占比=品类JD销售/品牌JD总销售 · JD/TM/TB/DY=品类内四渠道占比</span></div><div class="card-body no-padding"><table><tr><th>' + catLabel + '</th><th>品牌下类目占比</th><th>JD品类占比</th><th>JD</th><th>TM</th><th>TB</th><th>DY</th><th>布局机会</th></tr>' + rows + '</table></div></div>';
 }
 
 function renderIntelList(items, cls) {
@@ -1407,15 +1470,16 @@ function renderHistoryTab(key, brand) {
 
 function renderDashboard(data) {
   var m = enrichMetricsFromHistory(data.metrics, gMetricsHistory);
+  var catChartTitle = categoryLevelLabel(currentKey) + '占比（品牌下类目占比≥1% · Top12）';
   return renderMetricsPeriodHint(data.metrics, gMetricsHistory) + renderKpiCards(m, currentKey) + renderGapPanel(currentKey, m) +
     '<div class="profile-chart-grid">' +
     '<div class="profile-chart-box"><h4>' + renderTrendChartTitle(data.metrics, gMetricsHistory) + '</h4><div class="profile-chart-canvas"><canvas id="chart-gmv-' + currentKey + '"></canvas></div></div>' +
     renderChannelComboPanel(m) +
     '</div>' +
     '<div class="profile-chart-grid">' +
-    '<div class="profile-chart-box span-full"><h4>二级类目占比（品牌下类目占比≥1% · Top12）</h4><div class="profile-chart-canvas"><canvas id="chart-cat-' + currentKey + '"></canvas></div></div>' +
+    '<div class="profile-chart-box span-full"><h4>' + catChartTitle + '</h4><div class="profile-chart-canvas"><canvas id="chart-cat-' + currentKey + '"></canvas></div></div>' +
     '</div>' +
-    renderCategoryTable(m);
+    renderCategoryTable(m, currentKey);
 }
 
 function contactOrgLabel(c) {
@@ -1429,21 +1493,278 @@ function contactOrgLabel(c) {
   return c.name + ' · ' + title.slice(-4);
 }
 
-function renderOrgChart(orgStr, contacts) {
-  var org = parseJson(orgStr, null) || { root: '', lead: '', nodes: [] };
-  var nodes = (contacts && contacts.length)
-    ? contacts.map(contactOrgLabel)
-    : (org.nodes || []);
-  if (!org.root && !org.lead && !nodes.length) {
-    return '<span style="color:var(--text-muted);">暂无组织架构</span>';
-  }
-  var nodeHtml = nodes.map(function(n) { return '<div class="org-node">' + escapeHtml(n) + '</div>'; }).join('');
-  return '<div class="org-chart">' +
-    (org.root ? '<div class="org-node">' + escapeHtml(org.root) + '</div><div class="org-connector"></div>' : '') +
-    (org.lead ? '<div class="org-node lead">' + escapeHtml(org.lead) + '</div><div class="org-connector"></div>' : '') +
-    (nodeHtml ? '<div class="org-row">' + nodeHtml + '</div>' : '') +
-    '</div>';
+function newOrgId(prefix) {
+  return (prefix || 'n') + Math.random().toString(36).slice(2, 10);
 }
+
+function parseOrgStructure(orgStr) {
+  var raw = parseJson(orgStr, null) || {};
+  var org = {
+    root: raw.root || '',
+    lead: raw.lead || '',
+    branches: [],
+    nodes: [],
+    image_url: raw.image_url || '',
+    image_updated_at: raw.image_updated_at || ''
+  };
+  (raw.branches || []).forEach(function(b) {
+    if (typeof b === 'string') {
+      if (b.trim()) org.branches.push({ id: newOrgId('b'), label: b.trim() });
+    } else if (b && b.label) {
+      org.branches.push({ id: b.id || newOrgId('b'), label: String(b.label).trim() });
+    }
+  });
+  (raw.nodes || []).forEach(function(n) {
+    if (typeof n === 'string') {
+      if (n.trim()) org.nodes.push({ id: newOrgId('n'), label: n.trim(), contact_id: null, branch_id: null });
+    } else if (n && n.label) {
+      org.nodes.push({
+        id: n.id || newOrgId('n'),
+        label: String(n.label).trim(),
+        contact_id: n.contact_id != null ? n.contact_id : null,
+        branch_id: n.branch_id || null
+      });
+    }
+  });
+  return org;
+}
+
+function guessContactBranchId(contact, branches) {
+  var title = (contact.title || '').trim();
+  var role = (contact.role_tag || '').trim();
+  var hay = title + ' ' + role;
+  if (!hay.trim()) return null;
+  var i, b, label, kw;
+  for (i = 0; i < branches.length; i++) {
+    b = branches[i];
+    label = b.label || '';
+    if (label && (label.indexOf(title) >= 0 || title.indexOf(label) >= 0 || label.indexOf(role) >= 0 || role.indexOf(label) >= 0)) {
+      return b.id;
+    }
+  }
+  var keywords = ['京东', 'JD', '天猫', '淘宝', '抖音', '内容电商', '电商', '市场', '品牌', '财务', '结算', '供应链', '履约'];
+  for (i = 0; i < branches.length; i++) {
+    label = branches[i].label || '';
+    for (var k = 0; k < keywords.length; k++) {
+      kw = keywords[k];
+      if (label.indexOf(kw) >= 0 && hay.indexOf(kw) >= 0) return branches[i].id;
+    }
+  }
+  return null;
+}
+
+function mergeOrgWithContacts(org, contacts) {
+  org = JSON.parse(JSON.stringify(org));
+  contacts = contacts || [];
+  var activeIds = {};
+  contacts.forEach(function(c) { activeIds[c.id] = true; });
+  org.nodes = org.nodes.filter(function(n) {
+    return !n.contact_id || activeIds[n.contact_id];
+  });
+  var byContact = {};
+  org.nodes.forEach(function(n) {
+    if (n.contact_id) byContact[n.contact_id] = n;
+  });
+  contacts.forEach(function(c) {
+    var label = contactOrgLabel(c);
+    var branchId = guessContactBranchId(c, org.branches);
+    if (byContact[c.id]) {
+      byContact[c.id].label = label;
+      if (branchId) byContact[c.id].branch_id = branchId;
+      return;
+    }
+    var matched = null;
+    org.nodes.forEach(function(n) {
+      if (n.contact_id || matched) return;
+      if ((n.label || '').indexOf(c.name) >= 0) {
+        n.contact_id = c.id;
+        n.label = label;
+        if (branchId) n.branch_id = branchId;
+        matched = n;
+      }
+    });
+    if (!matched) {
+      org.nodes.push({
+        id: newOrgId('n'),
+        label: label,
+        contact_id: c.id,
+        branch_id: branchId
+      });
+    }
+  });
+  return org;
+}
+
+function renderOrgNodeHtml(node) {
+  var cls = 'org-node' + (node.contact_id ? ' contact-linked' : ' manual');
+  return '<div class="' + cls + '" title="' + (node.contact_id ? '关键人物' : '自定义岗位') + '">' + escapeHtml(node.label) + '</div>';
+}
+
+function renderOrgDiagram(org) {
+  if (!org.root && !org.lead && !org.nodes.length && !org.branches.length) {
+    return '<span style="color:var(--text-muted);">暂无简图节点</span>';
+  }
+  var html = '<div class="org-chart">';
+  if (org.root) {
+    html += '<div class="org-node">' + escapeHtml(org.root) + '</div><div class="org-connector"></div>';
+  }
+  if (org.lead) {
+    html += '<div class="org-node lead">' + escapeHtml(org.lead) + '</div>';
+  }
+  if (org.branches.length) {
+    html += '<div class="org-connector"></div><div class="org-branches-row">';
+    org.branches.forEach(function(b) {
+      var nodes = org.nodes.filter(function(n) { return n.branch_id === b.id; });
+      html += '<div class="org-branch-col"><div class="org-branch-title">' + escapeHtml(b.label) + '</div>';
+      if (nodes.length) {
+        nodes.forEach(function(n) { html += renderOrgNodeHtml(n); });
+      } else {
+        html += '<div class="org-node org-node-empty">—</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  var defaultNodes = org.nodes.filter(function(n) { return !n.branch_id; });
+  if (defaultNodes.length) {
+    if (org.branches.length) {
+      html += '<div class="org-default-label">基层 / 未归属分支</div>';
+    } else if (org.lead || org.root) {
+      html += '<div class="org-connector"></div>';
+    }
+    html += '<div class="org-row">';
+    defaultNodes.forEach(function(n) { html += renderOrgNodeHtml(n); });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderOrgChart(orgStr, contacts) {
+  var org = mergeOrgWithContacts(parseOrgStructure(orgStr), contacts);
+  if (org.image_url) {
+    return '<div class="org-image-panel">' +
+      '<img class="org-image" src="' + escapeHtml(org.image_url) + '" alt="组织架构图">' +
+      (org.image_updated_at ? '<div class="org-image-meta">上传于 ' + escapeHtml(org.image_updated_at) + '</div>' : '') +
+      '</div>' +
+      '<details class="org-diagram-fallback"><summary>查看系统简图</summary>' +
+      renderOrgDiagram(org) + '</details>';
+  }
+  if (!org.root && !org.lead && !org.nodes.length && !org.branches.length) {
+    return '<span style="color:var(--text-muted);">暂无组织架构 · 可编辑架构或上传图片</span>';
+  }
+  return renderOrgDiagram(org);
+}
+
+var gOrgEditorState = null;
+
+function mountOrgEditor(orgStr, contacts) {
+  var parsed = parseOrgStructure(orgStr);
+  gOrgEditorState = mergeOrgWithContacts(parsed, contacts);
+  gOrgEditorState.image_url = parsed.image_url || '';
+  gOrgEditorState.image_updated_at = parsed.image_updated_at || '';
+  renderOrgEditorDom();
+}
+
+function renderOrgEditorDom() {
+  var mount = document.getElementById('org-editor-mount');
+  if (!mount || !gOrgEditorState) return;
+  var org = gOrgEditorState;
+  var branchOpts = function(selectedId) {
+    var opts = '<option value="">基层 / 默认下层</option>';
+    org.branches.forEach(function(b) {
+      opts += '<option value="' + escapeHtml(b.id) + '"' + (selectedId === b.id ? ' selected' : '') + '>' + escapeHtml(b.label) + '</option>';
+    });
+    return opts;
+  };
+  var branchRows = org.branches.map(function(b, idx) {
+    return '<div class="org-editor-row" data-branch-idx="' + idx + '">' +
+      '<input class="form-input" data-org-branch-label value="' + escapeHtml(b.label) + '" placeholder="分支名称，如 京东渠道组">' +
+      '<button type="button" class="btn-sm-outline profile-write-btn" onclick="removeOrgBranch(' + idx + ')">删除</button></div>';
+  }).join('');
+  var nodeRows = org.nodes.map(function(n, idx) {
+    var linked = !!n.contact_id;
+    return '<div class="org-editor-row" data-node-idx="' + idx + '">' +
+      '<input class="form-input" data-org-node-label value="' + escapeHtml(n.label) + '" placeholder="岗位/姓名"' +
+      (linked ? ' readonly title="关联关键人物，请在左侧编辑"' : '') + '>' +
+      '<select class="form-select" data-org-node-branch' + (linked ? '' : '') + '>' + branchOpts(n.branch_id) + '</select>' +
+      (linked ? '<span class="org-editor-tag">关键人物</span>' : '') +
+      '<button type="button" class="btn-sm-outline profile-write-btn"' + (linked ? ' disabled title="请在关键人物删除"' : ' onclick="removeOrgManualNode(' + idx + ')"') + '>删除</button></div>';
+  }).join('');
+  var imageBlock =
+    '<div class="org-editor-block"><div class="form-label">架构图图片</div>' +
+    '<p style="font-size:11px;color:var(--text-muted);margin:0 0 8px;">JPG/PNG/WebP/GIF · 最大 5MB · 上传后优先展示图片</p>' +
+    (org.image_url
+      ? '<div class="org-image-preview"><img src="' + escapeHtml(org.image_url) + '" alt="预览">' +
+        '<div style="margin-top:8px;"><button type="button" class="btn-sm-outline profile-write-btn" onclick="removeOrgImage()">删除图片</button></div></div>'
+      : '') +
+    '<input type="file" id="org-image-file" accept="image/jpeg,image/png,image/webp,image/gif" class="form-input" style="padding:6px;">' +
+    '<button type="button" class="btn-sm-outline profile-write-btn" style="margin-top:8px;" onclick="uploadOrgImage()">上传图片</button></div>';
+  mount.innerHTML =
+    imageBlock +
+    '<label class="form-label">顶层（集团/公司）</label><input class="form-input" id="org-root" value="' + escapeHtml(org.root || '') + '">' +
+    '<label class="form-label">中层（事业部/部门）</label><input class="form-input" id="org-lead" value="' + escapeHtml(org.lead || '') + '">' +
+    '<div class="org-editor-block"><div class="form-label">分支（可选）</div>' + (branchRows || '<p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">暂无分支，可点击下方添加</p>') +
+    '<button type="button" class="btn-sm-outline profile-write-btn" onclick="addOrgBranch()">+ 添加分支</button></div>' +
+    '<div class="org-editor-block"><div class="form-label">人员 / 岗位</div>' + (nodeRows || '<p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">暂无节点</p>') +
+    '<button type="button" class="btn-sm-outline profile-write-btn" onclick="addOrgManualNode()">+ 添加岗位/人员</button>' +
+    '<p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">关键人物与分支/岗位名称、职务一致时自动归入对应分支；无匹配则默认在基层节点。标记「关键人物」的节点请在左侧维护。</p></div>';
+}
+
+function syncOrgEditorFromDom() {
+  if (!gOrgEditorState) return null;
+  var org = gOrgEditorState;
+  org.root = (document.getElementById('org-root') && document.getElementById('org-root').value.trim()) || '';
+  org.lead = (document.getElementById('org-lead') && document.getElementById('org-lead').value.trim()) || '';
+  var mount = document.getElementById('org-editor-mount');
+  if (!mount) return org;
+  mount.querySelectorAll('[data-branch-idx]').forEach(function(row) {
+    var idx = parseInt(row.getAttribute('data-branch-idx'), 10);
+    var input = row.querySelector('[data-org-branch-label]');
+    if (org.branches[idx] && input) org.branches[idx].label = input.value.trim();
+  });
+  mount.querySelectorAll('[data-node-idx]').forEach(function(row) {
+    var idx = parseInt(row.getAttribute('data-node-idx'), 10);
+    var labelInput = row.querySelector('[data-org-node-label]');
+    var branchSelect = row.querySelector('[data-org-node-branch]');
+    if (!org.nodes[idx]) return;
+    if (!org.nodes[idx].contact_id && labelInput) {
+      org.nodes[idx].label = labelInput.value.trim();
+    }
+    if (branchSelect) {
+      org.nodes[idx].branch_id = branchSelect.value || null;
+    }
+  });
+  org.branches = org.branches.filter(function(b) { return b.label; });
+  org.nodes = org.nodes.filter(function(n) { return n.label; });
+  return org;
+}
+
+window.addOrgBranch = function() {
+  syncOrgEditorFromDom();
+  gOrgEditorState.branches.push({ id: newOrgId('b'), label: '新分支' });
+  renderOrgEditorDom();
+};
+window.removeOrgBranch = function(idx) {
+  syncOrgEditorFromDom();
+  var removed = gOrgEditorState.branches.splice(idx, 1)[0];
+  if (removed) {
+    gOrgEditorState.nodes.forEach(function(n) {
+      if (n.branch_id === removed.id) n.branch_id = null;
+    });
+  }
+  renderOrgEditorDom();
+};
+window.addOrgManualNode = function() {
+  syncOrgEditorFromDom();
+  gOrgEditorState.nodes.push({ id: newOrgId('n'), label: '新岗位', contact_id: null, branch_id: null });
+  renderOrgEditorDom();
+};
+window.removeOrgManualNode = function(idx) {
+  syncOrgEditorFromDom();
+  gOrgEditorState.nodes.splice(idx, 1);
+  renderOrgEditorDom();
+};
 
 function renderOrg(orgStr, contacts) {
   return renderOrgChart(orgStr, contacts);
@@ -1465,9 +1786,7 @@ function renderContacts(contacts) {
       '<div class="person-edit-fields">' +
       '<label class="form-label">姓名</label><input class="form-input" id="cname-' + c.id + '" value="' + escapeHtml(c.name) + '">' +
       '<label class="form-label">职务</label><input class="form-input" id="ctitle-' + c.id + '" value="' + escapeHtml(c.title || '') + '">' +
-      '<label class="form-label">角色标签</label><select class="form-select" id="crole-' + c.id + '">' +
-      ['决策者','日常对接','需加强','其他'].map(function(t) { return '<option' + (c.role_tag === t ? ' selected' : '') + '>' + t + '</option>'; }).join('') +
-      '</select>' +
+      '<label class="form-label">角色标签</label>' + renderRoleTagField('crole-' + c.id, c.role_tag) +
       '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary profile-write-btn" onclick="saveContact(' + c.id + ')">保存</button><button class="btn-sm-outline" onclick="cancelContact(' + c.id + ')">取消</button></div></div></div>';
   }).join('');
 }
@@ -1475,37 +1794,42 @@ function renderContacts(contacts) {
 function renderIntro(data) {
   var b = data.brand;
   var p = data.profile || {};
-  var org = parseJson(p.org_structure, {}) || {};
   var taboos = p.taboos || '（暂无潜规则记录）';
   var meta = p.taboo_updated_by ? ('最后更新：' + p.taboo_updated_by + ' · ' + (p.taboo_updated_at || '').slice(0, 10)) : '尚未更新';
   return '<div class="profile-intro-grid">' +
-    '<div class="card"><div class="card-header"><h3>基础信息</h3></div><div class="card-body"><dl class="profile-basic-dl">' +
-    '<dt>成立时间</dt><dd>' + (p.founded_year || '—') + '</dd>' +
-    '<dt>总部</dt><dd>' + (p.hq || '—') + '</dd>' +
-    '<dt>品牌定位</dt><dd>' + (p.positioning || '—') + '</dd>' +
-    '<dt>负责采销</dt><dd>' + (b.responsible || '—') + '</dd>' +
-    '</dl></div></div>' +
-    '<div class="card"><div class="card-header"><h3>关键人物</h3><span class="card-meta">可编辑 · 保存后同步至组织架构下层</span>' +
+    '<div class="card" id="intro-box"><div class="card-header"><h3>基础信息</h3><span class="card-meta">品牌简介 · 可编辑保存</span>' +
+    '<button class="btn-sm-outline profile-write-btn" style="margin-left:auto;" onclick="editIntro()">编辑</button></div>' +
+    '<div class="card-body"><div class="intro-basic-box" id="intro-basic-box">' +
+    '<div class="intro-view"><dl class="profile-basic-dl">' +
+    '<dt>成立时间</dt><dd id="intro-view-founded">' + escapeHtml(p.founded_year || '—') + '</dd>' +
+    '<dt>总部</dt><dd id="intro-view-hq">' + escapeHtml(p.hq || '—') + '</dd>' +
+    '<dt>品牌定位</dt><dd id="intro-view-positioning">' + escapeHtml(p.positioning || '—') + '</dd>' +
+    '<dt>负责采销</dt><dd id="intro-view-responsible">' + escapeHtml(b.responsible || '—') + '</dd>' +
+    '</dl></div>' +
+    '<div class="intro-edit">' +
+    '<label class="form-label">成立时间</label><input class="form-input" id="intro-founded" value="' + escapeHtml(p.founded_year || '') + '" placeholder="如 1990年">' +
+    '<label class="form-label">总部</label><input class="form-input" id="intro-hq" value="' + escapeHtml(p.hq || '') + '" placeholder="如 上海">' +
+    '<label class="form-label">品牌定位</label><textarea class="form-textarea" id="intro-positioning" rows="3" placeholder="品牌定位与核心品类">' + escapeHtml(p.positioning || '') + '</textarea>' +
+    '<label class="form-label">负责采销</label><input class="form-input" id="intro-responsible" value="' + escapeHtml(b.responsible || '') + '" placeholder="采销姓名">' +
+    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary profile-write-btn" onclick="saveIntro()">保存</button>' +
+    '<button class="btn-sm-outline" onclick="cancelIntro()">取消</button></div></div></div></div></div>' +
+    '<div class="card"><div class="card-header"><h3>关键人物</h3><span class="card-meta">可编辑 · 保存后按职务/分支自动同步至架构图</span>' +
     '<button class="btn-sm-outline profile-write-btn" style="margin-left:auto;" onclick="showNewContactForm()">+ 新增</button></div>' +
-    '<div class="card-body" id="contacts-mount">' + renderContacts(data.contacts) +
+    '<div class="card-body" id="contacts-mount">' + renderRoleTagDatalist() + renderContacts(data.contacts) +
     '<div class="contact-new-panel" id="contact-new-panel">' +
     '<label class="form-label">姓名</label><input class="form-input" id="cnew-name" placeholder="姓名">' +
     '<label class="form-label">职务</label><input class="form-input" id="cnew-title" placeholder="如 电商总监">' +
-    '<label class="form-label">角色标签</label><select class="form-select" id="cnew-role">' +
-    ['决策者','日常对接','需加强','其他'].map(function(t) { return '<option>' + t + '</option>'; }).join('') +
-    '</select>' +
+    '<label class="form-label">角色标签</label>' + renderRoleTagField('cnew-role', '日常对接') +
     '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary profile-write-btn" onclick="saveNewContact()">添加</button><button class="btn-sm-outline" onclick="hideNewContactForm()">取消</button></div>' +
     '</div></div></div></div>' +
     '<div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">' +
-    '<div class="card org-box" id="org-box"><div class="card-header"><h3>组织架构简图</h3><span class="card-meta">下层节点随关键人物自动更新</span>' +
-    '<button class="btn-sm-outline profile-write-btn" style="margin-left:auto;" onclick="editOrgMeta()">编辑层级</button></div>' +
+    '<div class="card org-box" id="org-box"><div class="card-header"><h3>组织架构简图</h3><span class="card-meta">可上传图片或编辑分支简图 · 关键人物自动同步</span>' +
+    '<button class="btn-sm-outline profile-write-btn" style="margin-left:auto;" onclick="editOrgMeta()">编辑架构</button></div>' +
     '<div class="card-body"><div class="org-view">' + renderOrgChart(p.org_structure, data.contacts) + '</div>' +
     '<div class="org-edit-fields">' +
-    '<label class="form-label">顶层（集团/公司）</label><input class="form-input" id="org-root" value="' + escapeHtml(org.root || '') + '">' +
-    '<label class="form-label">中层（事业部/部门）</label><input class="form-input" id="org-lead" value="' + escapeHtml(org.lead || '') + '">' +
-    '<p style="font-size:11px;color:var(--text-muted);margin:8px 0;">最下层人员卡片请在左侧「关键人物」增删改，保存后自动出现在架构图。</p>' +
-    '<div style="display:flex;gap:8px;"><button class="btn-primary profile-write-btn" onclick="saveOrgMeta()">保存层级</button><button class="btn-sm-outline" onclick="cancelOrgMeta()">取消</button></div>' +
-    '</div></div></div>' +
+    '<div id="org-editor-mount"></div>' +
+    '<div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-primary profile-write-btn" onclick="saveOrgMeta()">保存架构</button>' +
+    '<button class="btn-sm-outline" onclick="cancelOrgMeta()">取消</button></div></div></div></div>' +
     '<div class="card"><div class="card-header"><h3>品牌潜规则</h3><span class="card-meta">拜访禁忌 · 决策偏好</span><button class="btn-sm-outline profile-write-btn" style="margin-left:auto;" onclick="editTaboos()">编辑</button></div>' +
     '<div class="card-body"><div class="profile-rule-box" id="taboo-box">' +
     '<div class="rule-view" id="taboo-view" style="white-space:pre-wrap;">' + taboos + '</div>' +
@@ -1527,85 +1851,221 @@ function isStrategyFieldEmpty(val, placeholder) {
   return false;
 }
 
-/** D-J-1：库内无文案时，用 metrics + briefing + BRAND_EXTRA 拼规则解读（非 LLM） */
+/** M2 旧 seed 单行短文（无【标签】）→ 视为空，走 buildStrategyFallback */
+function isLegacyStrategySeed(val) {
+  if (!val || !String(val).trim()) return false;
+  var t = String(val).trim();
+  if (t.indexOf('【') >= 0) return false;
+  if (isStrategyFieldEmpty(t)) return false;
+  return t.length < 160;
+}
+
+function strategyFieldEffectiveEmpty(val, side) {
+  var ph = side === 'comp' ? '（待补全竞争格局分析）' : '（待补全增长机会）';
+  return isStrategyFieldEmpty(val, ph) || isLegacyStrategySeed(val);
+}
+
+/** 竞争格局 / 增长机会 · 保底文案结构（无 LLM 时）；有 LLM 时在此基础上延伸 */
+function getStrategyChannelRows(m) {
+  if (!m) return [];
+  return [
+    { name: '京东', share: m.jd_share, growth: channelTableGrowth('JD', m) },
+    { name: '天猫', share: m.tmall_share, growth: channelTableGrowth('TM', m) },
+    { name: '抖音', share: m.douyin_share, growth: channelTableGrowth('DY', m) },
+    { name: '淘宝', share: m.taobao_share, growth: channelTableGrowth('TB', m) }
+  ].filter(function(c) { return c.share != null; });
+}
+
+function analyzeStrategyCategories(m) {
+  var parsed = filterCategoryDisplay(
+    parseJson(m && m.category_distribution, []),
+    parseJson(m && m.category_share, [])
+  );
+  var shareMap = {};
+  parsed.share.forEach(function(s) { shareMap[s.name] = s; });
+  var strong = [];
+  var weak = [];
+  var growthOpps = [];
+  parsed.dist.forEach(function(c) {
+    var s = shareMap[c.name] || {};
+    var ch = getCategoryChannelPct(s);
+    var jdBrandShare = getJdBrandCategoryShare(s);
+    var layout = classifyCategoryLayout(ch.jd, ch.tm, ch.tb, ch.dy);
+    var item = {
+      name: c.name,
+      brandShare: c.share,
+      jdBrandShare: jdBrandShare,
+      ch: ch,
+      layout: layout.label
+    };
+    if (layout.label === '优势类目' || (jdBrandShare != null && jdBrandShare >= 12)) {
+      strong.push(item);
+    }
+    if (layout.label === '加强追赶') {
+      weak.push(item);
+    }
+    var maxNonJd = Math.max(ch.tm || 0, ch.tb || 0, ch.dy || 0);
+    var jdWeakInCat = ch.jd != null && maxNonJd > 0 && ch.jd < maxNonJd - 3;
+    if (c.share >= 3 && (jdWeakInCat || layout.label === '加强追赶' || (jdBrandShare != null && jdBrandShare < 8))) {
+      growthOpps.push(Object.assign({}, item, {
+        score: (c.share || 0) - (jdBrandShare || 0) + (jdWeakInCat ? 5 : 0)
+      }));
+    }
+  });
+  strong.sort(function(a, b) { return (b.jdBrandShare || 0) - (a.jdBrandShare || 0); });
+  weak.sort(function(a, b) { return (b.brandShare || 0) - (a.brandShare || 0); });
+  growthOpps.sort(function(a, b) { return b.score - a.score; });
+  return { strong: strong, weak: weak, growthOpps: growthOpps };
+}
+
+function formatCategoryExamples(items, limit, formatter) {
+  if (!items || !items.length) return '';
+  return items.slice(0, limit || 3).map(formatter).join('、');
+}
+
+function collectIntelAlerts(briefing, extra, category, maxN) {
+  var out = [];
+  if (briefing && briefing.active_alerts) {
+    briefing.active_alerts.forEach(function(a) {
+      if (a.category !== category) return;
+      if (a.priority !== 'P0' && a.priority !== 'P1') return;
+      var t = a.title || truncate(a.description, 48);
+      if (t) out.push(t);
+    });
+  }
+  if (category === '风险预警' && !out.length && extra.risks) {
+    extra.risks.slice(0, maxN || 2).forEach(function(r) {
+      if (r.title) out.push(r.title + (r.body ? '：' + truncate(r.body, 40) : ''));
+    });
+  }
+  if (category === '增长机会' && !out.length && extra.opps) {
+    extra.opps.slice(0, maxN || 2).forEach(function(o) {
+      if (o.title) out.push(o.title + (o.body ? '：' + truncate(o.body, 40) : ''));
+    });
+  }
+  return out.slice(0, maxN || 2);
+}
+
+function strategyActionHint() {
+  return '引入新品、开发包销大单品、联合营销活动或广告投放';
+}
+
+/** D-J-1：库内无文案时，用 metrics + briefing + 类目结构拼规则解读（非 LLM） */
 function buildStrategyFallback(data, briefing, key) {
-  var m = data && data.metrics;
-  var prof = data && data.profile;
+  var m = enrichMetricsFromHistory(data && data.metrics, gMetricsHistory);
   var extra = BRAND_EXTRA[key] || {};
   var compLines = [];
   var oppLines = [];
 
-  if (prof && prof.positioning) {
-    compLines.push('【定位】' + truncate(prof.positioning, 90));
+  if (!m) {
+    compLines.push('【解读】暂无本期经营指标，待数据更新后补充各渠道市占、增速与品类格局分析。');
+    oppLines.push('【解读】待经营数据更新后，结合渠道增速与品类结构梳理京东侧高增长机会类目。');
+    return {
+      competitive_landscape: compLines.join('\n'),
+      growth_opportunities: oppLines.join('\n')
+    };
   }
-  if (m) {
-    if (m.jd_share != null) {
-      var jdLine = '【渠道】JD 市占 ' + m.jd_share + '%';
-      if (m.jd_share_wow != null) {
-        jdLine += '（环比 ' + (m.jd_share_wow > 0 ? '+' : '') + m.jd_share_wow + 'pp）';
-      }
-      compLines.push(jdLine);
-    }
-    if (m.channel_growth_douyin != null && getGmvYoy(m) != null &&
-        m.channel_growth_douyin > getGmvYoy(m) + 10) {
+
+  var channels = getStrategyChannelRows(m);
+  if (channels.length) {
+    compLines.push(
+      '【渠道市占】本期四渠道市占：' +
+      channels.map(function(c) { return c.name + ' ' + c.share + '%'; }).join('、') + '。'
+    );
+    var byShare = channels.slice().sort(function(a, b) { return b.share - a.share; });
+    var shareLeader = byShare[0];
+    var jdCh = channels.filter(function(c) { return c.name === '京东'; })[0];
+    if (jdCh) {
+      var jdLeads = jdCh.share >= shareLeader.share - 0.05;
       compLines.push(
-        '【压力】抖音渠道增速 ' + m.channel_growth_douyin + '% 明显高于成交同比 ' +
-        getGmvYoy(m) + '%，需关注站外资源倾斜。'
+        '【京东地位】京东市占 ' + jdCh.share + '%，' +
+        (jdLeads
+          ? '为四渠道份额领先'
+          : '未达渠道最高（当前领先为' + shareLeader.name + ' ' + shareLeader.share + '%）') + '。'
       );
     }
-    var gmvYoy = getGmvYoy(m);
-    if (gmvYoy != null && gmvYoy < -5) {
-      compLines.push('【经营】本期成交同比 ' + gmvYoy + '%，需跟踪主要竞对促销与排期。');
-    } else if (m.gmv != null && gmvYoy != null) {
-      compLines.push('【经营】本期成交 ' + m.gmv + ' 万，同比 ' + (gmvYoy > 0 ? '+' : '') + gmvYoy + '%。');
+  }
+
+  var withGrowth = channels.filter(function(c) { return c.growth != null; });
+  if (withGrowth.length) {
+    compLines.push(
+      '【渠道增速】各渠道本期销售增速：' +
+      withGrowth.map(function(c) { return c.name + ' ' + fmtPct(c.growth, true); }).join('、') + '。'
+    );
+    if (withGrowth.length >= 2) {
+      var byGrowth = withGrowth.slice().sort(function(a, b) { return b.growth - a.growth; });
+      var gLeader = byGrowth[0];
+      var gWeak = byGrowth[byGrowth.length - 1];
+      compLines.push(
+        '【增速对比】增速领先为' + gLeader.name + '（' + fmtPct(gLeader.growth, true) + '），' +
+        '增速偏弱为' + gWeak.name + '（' + fmtPct(gWeak.growth, true) + '）。'
+      );
     }
   }
 
-  var riskAdded = false;
-  if (briefing && briefing.active_alerts) {
-    briefing.active_alerts.forEach(function(a) {
-      if (riskAdded || a.priority !== 'P0' || a.category !== '风险预警') return;
-      compLines.push('【情报】' + (a.title || truncate(a.description, 40) || 'P0 风险预警'));
-      riskAdded = true;
-    });
+  var cat = analyzeStrategyCategories(m);
+  if (cat.strong.length) {
+    compLines.push(
+      '【品类强势】京东侧优势品类示例：' +
+      formatCategoryExamples(cat.strong, 3, function(c) {
+        return c.name + (c.jdBrandShare != null ? '（JD品类占比' + c.jdBrandShare + '%）' : '');
+      }) + '。'
+    );
   }
-  if (!riskAdded && extra.risks && extra.risks.length) {
-    compLines.push('【风险】' + extra.risks[0].title + '：' + truncate(extra.risks[0].body, 55));
-  }
-
-  if (m && getGmvYoy(m) != null && getGmvYoy(m) > 5) {
-    oppLines.push('【经营】成交同比 +' + getGmvYoy(m) + '%，可趁势争取楼层、搜索专区或联合投放资源。');
-  }
-  if (m && m.jd_share != null && m.jd_share >= 20) {
-    oppLines.push('【品类】JD 市占 ' + m.jd_share + '% 具备议价基础，可谈 618 专区或新品首发排期。');
-  }
-  if (m && m.channel_growth_douyin != null && m.channel_growth_douyin > 15) {
-    oppLines.push('【渠道】抖音增速 +' + m.channel_growth_douyin + '%，可推进同价同发或搜索词换资源。');
+  if (cat.weak.length) {
+    compLines.push(
+      '【品类弱势】仍有提升空间示例：' +
+      formatCategoryExamples(cat.weak, 3, function(c) {
+        var jdInCat = c.ch.jd != null ? '，品类内京东占比' + c.ch.jd + '%' : '';
+        return c.name + (c.jdBrandShare != null ? '（JD品类占比' + c.jdBrandShare + '%' + jdInCat + '）' : '');
+      }) + '，可重点追赶京东侧渗透。'
+    );
   }
 
-  var oppAdded = false;
-  if (briefing && briefing.active_alerts) {
-    briefing.active_alerts.forEach(function(a) {
-      if (oppAdded || a.priority !== 'P0' || a.category !== '增长机会') return;
-      oppLines.push('【情报】' + (a.title || truncate(a.description, 40) || 'P0 增长机会'));
-      oppAdded = true;
-    });
-  }
-  if (!oppAdded && extra.opps && extra.opps.length) {
-    extra.opps.slice(0, 2).forEach(function(o) {
-      oppLines.push('【机会】' + o.title + '：' + truncate(o.body, 55));
-    });
-  }
-  var p0 = getP0Gaps(key, m);
-  if (p0.length) {
-    oppLines.push('【供给】P0 缺口 ' + p0.length + ' 项（如「' + p0[0].sku + '」），补齐后可拉动成交。');
+  var riskIntel = collectIntelAlerts(briefing, extra, '风险预警', 1);
+  if (riskIntel.length) {
+    compLines.push('【情报】' + riskIntel[0] + '，需关注竞对动作与渠道资源倾斜。');
   }
 
   if (!compLines.length) {
-    compLines.push('【解读】结合品类格局与渠道市占，关注主要竞对在同品类的 JD/抖音动作；可编辑保存为正式竞争分析。');
+    compLines.push('【解读】结合品类格局与渠道市占，关注主要竞对在同品类的 JD/站外动作；可编辑保存为正式竞争分析。');
   }
+
+  var fastChannels = channels.filter(function(c) {
+    return c.growth != null && c.growth >= 10 && c.name !== '京东';
+  }).map(function(c) { return c.name; });
+  if (cat.growthOpps.length) {
+    var oppIntro = fastChannels.length
+      ? '结合本期' + fastChannels.join('、') + '等渠道增速较快，'
+      : '';
+    oppLines.push(
+      '【高增长机会类目】' + oppIntro + '以下品类品牌占比较高但京东品类占比/品类内京东占比偏低，属京东侧重点拉升类目：' +
+      formatCategoryExamples(cat.growthOpps, 3, function(c) {
+        return c.name + '（品牌占比' + c.brandShare + '%，JD品类占比' + (c.jdBrandShare != null ? c.jdBrandShare + '%' : '—') + '）';
+      }) + '。'
+    );
+    oppLines.push('【策略方向】针对上述类目，可考虑' + strategyActionHint() + '，提升京东渠道份额与成交贡献。');
+  }
+
+  var oppIntel = collectIntelAlerts(briefing, extra, '增长机会', 2);
+  if (oppIntel.length) {
+    oppLines.push(
+      '【情报结合】' + oppIntel.join('；') +
+      '。可借势情报信息推进' + strategyActionHint() + '等资源争取。'
+    );
+  }
+
+  var p0 = getP0Gaps(key, m);
+  if (p0.length) {
+    oppLines.push(
+      '【供给缺口】P0 缺口 ' + p0.length + ' 项（如「' + p0[0].sku + '」），建议优先引入新品补足供给后再做包销/投放放大。'
+    );
+  }
+
   if (!oppLines.length) {
-    oppLines.push('【解读】结合成交趋势与待办事项，梳理可争取的楼层、首发与同价同发资源；可编辑保存为正式机会清单。');
+    oppLines.push(
+      '【解读】结合渠道增速与品类结构，梳理京东侧可发力类目；可编辑保存为正式机会清单。'
+    );
   }
 
   return {
@@ -1629,7 +2089,7 @@ function buildStrategyStateFromData(data, key) {
     }
     var val = side === 'comp' ? p.competitive_landscape : p.growth_opportunities;
     var ph = side === 'comp' ? '（待补全竞争格局分析）' : '（待补全增长机会）';
-    if (isStrategyFieldEmpty(val, ph)) {
+    if (strategyFieldEffectiveEmpty(val, side)) {
       if (isStrategyLlmOn()) {
         return { text: STRATEGY_LOADING_TEXT, source: 'loading', needsLlm: true };
       }
@@ -1702,8 +2162,8 @@ function fetchStrategyAi(key, data) {
       setTimeout(function() {
         var fb = buildStrategyFallback(data, gBriefing, key);
         resolve({
-          competitive_landscape: '【AI 模拟 · ' + (data.brand && data.brand.name ? data.brand.name : key) + '】\n' + fb.competitive_landscape,
-          growth_opportunities: '【AI 模拟 · 增长机会】\n' + fb.growth_opportunities,
+          competitive_landscape: '【AI 延伸 · ' + (data.brand && data.brand.name ? data.brand.name : key) + ' · 在简要分析基础上】\n' + fb.competitive_landscape,
+          growth_opportunities: '【AI 延伸 · 在简要分析基础上】\n' + fb.growth_opportunities,
           source: 'llm',
           cached: false
         });
@@ -1744,16 +2204,27 @@ function loadStrategyContent(key, data) {
   var token = ++gStrategyLoadToken;
   return fetchStrategyAi(key, data).then(function(res) {
     if (token !== gStrategyLoadToken) return;
+    var fb = buildStrategyFallback(data, gBriefing, key);
+    var fromLlm = res.source === 'llm' || res.source === 'ai';
     if (needComp) {
-      gStrategyState.comp.text = res.competitive_landscape || gStrategyState.comp.text;
-      gStrategyState.comp.source = (res.source === 'llm' || res.source === 'ai') ? 'ai' : 'fallback';
+      gStrategyState.comp.text = fromLlm
+        ? (res.competitive_landscape || fb.competitive_landscape)
+        : fb.competitive_landscape;
+      gStrategyState.comp.source = fromLlm ? 'ai' : 'fallback';
     }
     if (needOpp) {
-      gStrategyState.opp.text = res.growth_opportunities || gStrategyState.opp.text;
-      gStrategyState.opp.source = (res.source === 'llm' || res.source === 'ai') ? 'ai' : 'fallback';
+      gStrategyState.opp.text = fromLlm
+        ? (res.growth_opportunities || fb.growth_opportunities)
+        : fb.growth_opportunities;
+      gStrategyState.opp.source = fromLlm ? 'ai' : 'fallback';
     }
-    gStrategyState.banner = null;
-    gStrategyState.degraded = false;
+    if (!fromLlm) {
+      gStrategyState.degraded = true;
+      gStrategyState.banner = res.message || '智能分析暂不可用，已自动显示简要分析。';
+    } else {
+      gStrategyState.banner = null;
+      gStrategyState.degraded = false;
+    }
     updateStrategyDom();
   }).catch(function(err) {
     if (token !== gStrategyLoadToken) return;
@@ -1817,7 +2288,7 @@ function renderBrand(data, opts) {
     '<div class="profile-top-meta">' +
     '<span>负责采销：' + (b.responsible || '—') + '</span>' +
     '<span>档案更新：' + ((data.profile && data.profile.taboo_updated_at) ? String(data.profile.taboo_updated_at).slice(0, 10) : '—') + '</span>' +
-    '<span>数据说明：JD 渠道口径 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 10) + '</span>' +
+    '<span>数据说明：JD 渠道口径 · 完整度 ' + (data.completeness_score || 0) + '/' + (data.completeness_max || 12) + '</span>' +
     '<button class="btn-sm-outline no-print" onclick="window.print()">🖨 打印摘要</button></div></div>' +
     '<div class="tab-bar profile-inner-tabs" id="profile-inner-tabs">' +
     '<div class="tab-item' + (currentPTab === 'dashboard' ? ' active' : '') + '" data-ptab="dashboard">📊 经营看板</div>' +
@@ -1873,7 +2344,7 @@ window.saveContact = function(id) {
       id: id,
       name: document.getElementById('cname-' + id).value.trim(),
       title: document.getElementById('ctitle-' + id).value.trim(),
-      role_tag: document.getElementById('crole-' + id).value
+      role_tag: normalizeRoleTag(document.getElementById('crole-' + id).value)
     }]
   };
   apiReq('/api/brands/profile/' + currentKey, { method:'PUT', body: payload }).then(function(data) {
@@ -1901,7 +2372,7 @@ window.saveNewContact = function() {
       contacts_add: [{
         name: name,
         title: document.getElementById('cnew-title').value.trim(),
-        role_tag: document.getElementById('cnew-role').value
+        role_tag: normalizeRoleTag(document.getElementById('cnew-role').value)
       }]
     }
   }).then(function(data) {
@@ -1927,25 +2398,147 @@ window.removeContact = function(id) {
 window.editOrgMeta = function() {
   if (profileWriteGuard('编辑组织架构')) return;
   document.getElementById('org-box').classList.add('editing');
+  if (gData) {
+    mountOrgEditor((gData.profile && gData.profile.org_structure) || '{}', gData.contacts || []);
+  }
 };
 window.cancelOrgMeta = function() {
   document.getElementById('org-box').classList.remove('editing');
+  gOrgEditorState = null;
 };
+
+function profileUploadHeaders() {
+  var headers = profileAuthHeaders();
+  delete headers['Content-Type'];
+  return headers;
+}
+
+window.uploadOrgImage = function() {
+  if (profileWriteGuard('上传架构图')) return;
+  var input = document.getElementById('org-image-file');
+  if (!input || !input.files || !input.files[0]) {
+    showToast('请先选择图片文件');
+    return;
+  }
+  var file = input.files[0];
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('图片不能超过 5MB');
+    return;
+  }
+  var fd = new FormData();
+  fd.append('file', file);
+  fetch(API_BASE + '/api/brands/profile/' + currentKey + '/org-image', {
+    method: 'POST',
+    headers: profileUploadHeaders(),
+    body: fd
+  }).then(function(r) {
+    return r.json().then(function(body) {
+      if (!r.ok) throw new Error(body.detail || '上传失败');
+      return body;
+    });
+  }).then(function(res) {
+    if (gData && gData.profile) gData.profile.org_structure = res.org_structure;
+    if (gOrgEditorState) {
+      gOrgEditorState.image_url = res.image_url;
+      gOrgEditorState.image_updated_at = res.image_updated_at || '';
+    }
+    renderOrgEditorDom();
+    var orgView = document.querySelector('#org-box .org-view');
+    if (orgView && gData && gData.profile) {
+      orgView.innerHTML = renderOrgChart(gData.profile.org_structure, gData.contacts || []);
+    }
+    input.value = '';
+    showToast('架构图已上传');
+  }).catch(function(e) { showToast('上传失败：' + e.message); });
+};
+
+window.removeOrgImage = function() {
+  if (profileWriteGuard('删除架构图')) return;
+  if (!window.confirm('确定删除已上传的组织架构图？')) return;
+  fetch(API_BASE + '/api/brands/profile/' + currentKey + '/org-image', {
+    method: 'DELETE',
+    headers: profileAuthHeaders()
+  }).then(function(r) {
+    return r.json().then(function(body) {
+      if (!r.ok) throw new Error(body.detail || '删除失败');
+      return body;
+    });
+  }).then(function(data) {
+    gData = data;
+    gOrgEditorState = null;
+    currentPTab = 'intro';
+    renderBrand(data, { preserveBlurb: true });
+    document.getElementById('org-box').classList.add('editing');
+    mountOrgEditor(data.profile.org_structure, data.contacts || []);
+    showToast('已删除架构图');
+  }).catch(function(e) { showToast('删除失败：' + e.message); });
+};
+
 window.saveOrgMeta = function() {
   if (profileWriteGuard('保存组织架构')) return;
+  var org = syncOrgEditorFromDom();
+  if (!org) return;
   apiReq('/api/brands/profile/' + currentKey, {
     method: 'PUT',
     body: {
       org: {
-        root: document.getElementById('org-root').value.trim(),
-        lead: document.getElementById('org-lead').value.trim()
+        root: org.root,
+        lead: org.lead,
+        branches: org.branches.map(function(b) { return { id: b.id, label: b.label }; }),
+        nodes: org.nodes.map(function(n) {
+          return {
+            id: n.id,
+            label: n.label,
+            contact_id: n.contact_id,
+            branch_id: n.branch_id
+          };
+        })
       }
+    }
+  }).then(function(data) {
+    var savedOrg = parseOrgStructure(data.profile && data.profile.org_structure);
+    if (org.branches.length && !(savedOrg.branches && savedOrg.branches.length)) {
+      showToast('分支未写入成功，请硬刷新页面后重试（Ctrl+Shift+R）');
+      return;
+    }
+    gData = data;
+    gOrgEditorState = null;
+    currentPTab = 'intro';
+    renderBrand(data, { preserveBlurb: true });
+    showToast('组织架构已保存' + (savedOrg.branches.length ? '（' + savedOrg.branches.length + ' 个分支）' : ''));
+  }).catch(function(e) { showToast('保存失败：' + e.message); });
+};
+
+window.editIntro = function() {
+  if (profileWriteGuard('编辑品牌简介')) return;
+  document.getElementById('intro-basic-box').classList.add('editing');
+};
+window.cancelIntro = function() {
+  var box = document.getElementById('intro-basic-box');
+  if (!box || !gData) return;
+  box.classList.remove('editing');
+  var p = gData.profile || {};
+  var b = gData.brand || {};
+  document.getElementById('intro-founded').value = p.founded_year || '';
+  document.getElementById('intro-hq').value = p.hq || '';
+  document.getElementById('intro-positioning').value = p.positioning || '';
+  document.getElementById('intro-responsible').value = b.responsible || '';
+};
+window.saveIntro = function() {
+  if (profileWriteGuard('保存品牌简介')) return;
+  apiReq('/api/brands/profile/' + currentKey, {
+    method: 'PUT',
+    body: {
+      founded_year: document.getElementById('intro-founded').value.trim(),
+      hq: document.getElementById('intro-hq').value.trim(),
+      positioning: document.getElementById('intro-positioning').value.trim(),
+      responsible: document.getElementById('intro-responsible').value.trim()
     }
   }).then(function(data) {
     gData = data;
     currentPTab = 'intro';
     renderBrand(data, { preserveBlurb: true });
-    showToast('组织架构层级已保存');
+    showToast('品牌简介已保存');
   }).catch(function(e) { showToast('保存失败：' + e.message); });
 };
 

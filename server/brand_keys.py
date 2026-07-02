@@ -1,4 +1,4 @@
-"""品牌 name_key 解析 · CSV legacy 别名 → 库内五品牌"""
+"""品牌 name_key 解析 · CSV legacy 别名 → 库内 canonical key（M6 11 品牌）"""
 
 from __future__ import annotations
 

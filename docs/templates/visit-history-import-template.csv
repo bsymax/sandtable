@@ -1,0 +1,6 @@
+品牌标识,拜访日期,拜访类型,拜访目的,参与人员,会谈议题,承诺事项,未达成事项,关系变化,下次拜访日期
+brand_key,visit_date,visit_type,purpose,participants,topics,commitments_raw,undone_items,relation_change,next_visit_date
+【填写说明】品牌标识填品牌英文 key（如 jomoo/arrow）；日期 YYYY-MM-DD；类型 regular/urgent/renewal；关系变化 up/flat/down
+jomoo,2026-06-15,regular,季度例行拜访,张三,新品首发排期沟通,"- 品牌方确认新品排期",,flat,
+arrow,2026-06-10,urgent,联合投放方案确认,李四,联合投放方案确认,"- 我方确认联合投放预算",,flat,2026-07-01
+,YYYY-MM-DD,regular,,,,,,,

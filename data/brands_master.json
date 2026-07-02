@@ -1,12 +1,26 @@
 {
-  "_comment": "M4 方案B · 业务真品牌主数据 · id 1～5 槽位不变 · BI 映射见 data/dw/bi_mapping.json",
+  "_comment": "M6 · 11 品牌 · J-1 真名 + jc_f 嘉宝莉 · 2026-07-01 · 待 Max 扩槽 id=11",
   "brands": [
-    { "id": 1, "name_key": "jomoo", "name": "九牧", "name_en": "JOMOO", "level": "S", "responsible": "周采销", "bi_brand_id": "10001" },
-    { "id": 2, "name_key": "arrow", "name": "箭牌", "name_en": "ARROW", "level": "A", "responsible": "吴采销", "bi_brand_id": "10002" },
-    { "id": 3, "name_key": "hegii", "name": "恒洁", "name_en": "HEGII", "level": "A", "responsible": "陈采销", "bi_brand_id": "10003" },
-    { "id": 4, "name_key": "submarine", "name": "潜水艇", "name_en": "SUBMARINE", "level": "A", "responsible": "李采销", "bi_brand_id": "10004" },
-    { "id": 5, "name_key": "micoe", "name": "四季沐歌", "name_en": "MICOE", "level": "B", "responsible": "王采销", "bi_brand_id": "10005" }
+    { "id": 1, "name_key": "jomoo", "name": "九牧", "name_en": "JOMOO", "level": "S", "responsible": "周采销", "bi_brand_id": "10001", "dept_group": "KA卫浴组", "data_status": "真数" },
+    { "id": 2, "name_key": "arrow", "name": "箭牌", "name_en": "ARROW", "level": "A", "responsible": "吴采销", "bi_brand_id": "10002", "dept_group": "KA卫浴组", "data_status": "真数" },
+    { "id": 3, "name_key": "hegii", "name": "恒洁", "name_en": "HEGII", "level": "A", "responsible": "陈采销", "bi_brand_id": "10003", "dept_group": "KA卫浴组", "data_status": "真数" },
+    { "id": 4, "name_key": "submarine", "name": "潜水艇", "name_en": "SUBMARINE", "level": "A", "responsible": "李采销", "bi_brand_id": "10004", "dept_group": "KA卫浴组", "data_status": "真数" },
+    { "id": 5, "name_key": "micoe", "name": "四季沐歌", "name_en": "MICOE", "level": "B", "responsible": "王采销", "bi_brand_id": "10005", "dept_group": "KA卫浴组", "data_status": "真数" },
+    { "id": 6, "name_key": "nippon", "name": "立邦", "name_en": "NIPPON", "level": "B", "responsible": "待定", "bi_brand_id": "10006", "dept_group": "基础建材组", "data_status": "真数" },
+    { "id": 7, "name_key": "skshu", "name": "三棵树", "name_en": "SKSHU", "level": "B", "responsible": "待定", "bi_brand_id": "10007", "dept_group": "基础建材组", "data_status": "真数" },
+    { "id": 8, "name_key": "dulux", "name": "多乐士", "name_en": "DULUX", "level": "B", "responsible": "待定", "bi_brand_id": "10008", "dept_group": "基础建材组", "data_status": "真数" },
+    { "id": 9, "name_key": "wacker", "name": "瓦克", "name_en": "WACKER", "level": "B", "responsible": "待定", "bi_brand_id": "10009", "dept_group": "基础建材组", "data_status": "真数" },
+    { "id": 10, "name_key": "yuhong", "name": "雨虹防水", "name_en": "YUHONG", "level": "B", "responsible": "待定", "bi_brand_id": "10010", "dept_group": "基础建材组", "data_status": "真数" },
+    { "id": 11, "name_key": "carpoly", "name": "嘉宝莉", "name_en": "CARPOLY", "level": "B", "responsible": "待定", "bi_brand_id": "10011", "dept_group": "基础建材组", "data_status": "真数" }
   ],
+  "placeholder_to_name_key": {
+    "jc_a": "nippon",
+    "jc_b": "skshu",
+    "jc_c": "dulux",
+    "jc_d": "wacker",
+    "jc_e": "yuhong",
+    "jc_f": "carpoly"
+  },
   "legacy_name_key_map": {
     "midea": "jomoo",
     "joyoung": "arrow",
@@ -17,6 +31,22 @@
     "robam": "arrow",
     "vatti": "hegii",
     "haier": "submarine",
-    "macro": "micoe"
+    "macro": "micoe",
+    "faenza": "hegii",
+    "annwa": "submarine",
+    "jc_a": "nippon",
+    "jc_b": "skshu",
+    "jc_c": "dulux",
+    "jc_d": "wacker",
+    "jc_e": "yuhong",
+    "jc_f": "carpoly"
+  },
+  "m6_slot_rename": {
+    "jc_a": "nippon",
+    "jc_b": "skshu",
+    "jc_c": "dulux",
+    "jc_d": "wacker",
+    "jc_e": "yuhong",
+    "jc_f": "carpoly"
   }
 }

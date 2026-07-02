@@ -14,6 +14,8 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from config import SERVER_HOST, SERVER_PORT
 from database import engine
@@ -48,6 +50,11 @@ app.include_router(profile.router)
 app.include_router(brands.router)
 app.include_router(visits.router)
 app.include_router(intel.router)
+
+# 组织架构图上传目录（profile org-image）
+_uploads = Path(__file__).resolve().parent / "uploads"
+_uploads.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(_uploads)), name="uploads")
 
 
 # ---------- 入口 ----------

@@ -14,9 +14,9 @@ import io
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, func, case, or_
+from sqlalchemy import desc, func, case, or_, not_
 
-from config import DW_METRICS_PERIOD_TYPE
+from config import DW_METRICS_PERIOD_TYPE, INTEL_HIDE_DEMO
 from database import get_db
 from deps_auth import AuthUser, filter_brand_query, filter_by_brand_ids, get_current_user_optional, require_brand_id, require_name_key, require_writable
 from models import Brand, Visit, BrandMetrics, IntelNews, IntelAlert, IntelBriefingCache
@@ -37,6 +37,32 @@ BRIEFING_CACHE_TTL = 30  # minutes
 BRIEFING_NEWS_DAYS = 14   # 简报与新闻列表「近期」统一口径
 # 活跃预警：与 profile / intel stats 一致，含 linked，仅排除 closed
 _ACTIVE_ALERT_STATUS = IntelAlert.status != "closed"
+
+# M6：外网默认隐藏 seed 时代演示情报（不删库 · INTEL_HIDE_DEMO=false 可恢复）
+_DEMO_INTEL_MARKERS = ("美的", "九阳", "苏泊尔", "小熊", "摩飞", "厨小")
+
+
+def _demo_text_filter(model, *columns):
+    """排除标题/摘要/描述中含旧演示品牌关键词的行。"""
+    if not INTEL_HIDE_DEMO:
+        return None
+    parts = []
+    for col in columns:
+        for marker in _DEMO_INTEL_MARKERS:
+            parts.append(col.like(f"%{marker}%"))
+    return not_(or_(*parts))
+
+
+def _apply_demo_news_filter(q):
+    clause = _demo_text_filter(IntelNews, IntelNews.title, IntelNews.summary)
+    return q.filter(clause) if clause is not None else q
+
+
+def _apply_demo_alert_filter(q):
+    clause = _demo_text_filter(
+        IntelAlert, IntelAlert.title, IntelAlert.description, IntelAlert.suggestion
+    )
+    return q.filter(clause) if clause is not None else q
 
 
 # ================================================================
@@ -282,6 +308,7 @@ def list_news(
         q = q.filter(IntelNews.sentiment == sentiment)
     if category:
         q = q.filter(IntelNews.category == category)
+    q = _apply_demo_news_filter(q)
     rows = q.order_by(desc(IntelNews.published_at)).offset(offset).limit(limit).all()
     return [_fmt_news(r) for r in rows]
 
@@ -625,6 +652,7 @@ def list_alerts(
         q = q.filter(IntelAlert.category == category)
     if status:
         q = q.filter(IntelAlert.status == status)
+    q = _apply_demo_alert_filter(q)
     rows = q.order_by(
         case((IntelAlert.status == "closed", 1), else_=0),
         case((IntelAlert.priority == "P0", 0), (IntelAlert.priority == "P1", 1), else_=2),
@@ -723,10 +751,14 @@ def create_visit_from_alert(
 def weekly_summary(db: Session = Depends(get_db)):
     """规则版周报摘要：本周新增情报N条（P0×a/P1×b），主要涉及{品牌}，最高优先级：{标题}"""
     one_week_ago = datetime.now() - timedelta(days=7)
-    new_alerts = db.query(IntelAlert).filter(IntelAlert.created_at >= one_week_ago).order_by(
+    new_alerts = _apply_demo_alert_filter(
+        db.query(IntelAlert).filter(IntelAlert.created_at >= one_week_ago)
+    ).order_by(
         case((IntelAlert.priority == "P0", 0), (IntelAlert.priority == "P1", 1), else_=2)
     ).all()
-    new_news = db.query(IntelNews).filter(IntelNews.created_at >= one_week_ago).all()
+    new_news = _apply_demo_news_filter(
+        db.query(IntelNews).filter(IntelNews.created_at >= one_week_ago)
+    ).all()
 
     total = len(new_alerts) + len(new_news)
     p0 = sum(1 for a in new_alerts if a.priority == "P0")
@@ -802,14 +834,18 @@ async def get_brand_briefing(
         db.rollback()
 
     two_weeks_ago = datetime.now() - timedelta(days=BRIEFING_NEWS_DAYS)
-    news = db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(
-        IntelNews.brand_id == brand.id,
-        IntelNews.published_at >= two_weeks_ago,
+    news = _apply_demo_news_filter(
+        db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(
+            IntelNews.brand_id == brand.id,
+            IntelNews.published_at >= two_weeks_ago,
+        )
     ).order_by(desc(IntelNews.published_at)).limit(10).all()
 
-    alerts = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(
-        IntelAlert.brand_id == brand.id,
-        _ACTIVE_ALERT_STATUS,
+    alerts = _apply_demo_alert_filter(
+        db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(
+            IntelAlert.brand_id == brand.id,
+            _ACTIVE_ALERT_STATUS,
+        )
     ).order_by(case((IntelAlert.priority == "P0", 0), (IntelAlert.priority == "P1", 1), else_=2)).all()
 
     latest_w = _weekly_metrics_query(db).filter(
@@ -897,13 +933,17 @@ async def ai_refresh_briefing(
         raise HTTPException(404, "品牌不存在")
 
     two_weeks_ago = datetime.now() - timedelta(days=BRIEFING_NEWS_DAYS)
-    news = db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(
-        IntelNews.brand_id == brand.id,
-        IntelNews.published_at >= two_weeks_ago,
+    news = _apply_demo_news_filter(
+        db.query(IntelNews).options(joinedload(IntelNews.brand)).filter(
+            IntelNews.brand_id == brand.id,
+            IntelNews.published_at >= two_weeks_ago,
+        )
     ).order_by(desc(IntelNews.published_at)).limit(10).all()
-    alerts = db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(
-        IntelAlert.brand_id == brand.id,
-        _ACTIVE_ALERT_STATUS,
+    alerts = _apply_demo_alert_filter(
+        db.query(IntelAlert).options(joinedload(IntelAlert.brand)).filter(
+            IntelAlert.brand_id == brand.id,
+            _ACTIVE_ALERT_STATUS,
+        )
     ).all()
     latest_w = _weekly_metrics_query(db).filter(
         BrandMetrics.brand_id == brand.id
@@ -954,9 +994,11 @@ async def ai_briefing_summary(
     brand = db.query(Brand).filter(Brand.name_key == brand_key).first()
     if not brand:
         raise HTTPException(404, "品牌不存在")
-    alerts = db.query(IntelAlert).filter(
-        IntelAlert.brand_id == brand.id,
-        _ACTIVE_ALERT_STATUS,
+    alerts = _apply_demo_alert_filter(
+        db.query(IntelAlert).filter(
+            IntelAlert.brand_id == brand.id,
+            _ACTIVE_ALERT_STATUS,
+        )
     ).all()
     p0 = [a for a in alerts if a.priority == "P0"]
     fallback = f"【{brand.name}】当前 {len(alerts)} 条活跃预警"
@@ -1023,8 +1065,10 @@ def intel_stats(
     user: Optional[AuthUser] = Depends(get_current_user_optional),
 ):
     one_week_ago = datetime.now() - timedelta(days=7)
-    news_q = db.query(func.count(IntelNews.id)).filter(IntelNews.created_at >= one_week_ago)
-    alert_q = db.query(IntelAlert).filter(IntelAlert.status != "closed")
+    news_q = _apply_demo_news_filter(
+        db.query(func.count(IntelNews.id)).filter(IntelNews.created_at >= one_week_ago)
+    )
+    alert_q = _apply_demo_alert_filter(db.query(IntelAlert).filter(IntelAlert.status != "closed"))
     if user and not user.is_admin:
         if not user.brand_ids:
             return IntelStatsOut(total_news_week=0, total_alerts=0, p0_count=0, p1_count=0, p2_count=0, p3_count=0)

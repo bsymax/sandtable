@@ -1,5 +1,5 @@
 #!/bin/bash
-# 热修 · LLM 日配额：全站 2000 / 用户 60
+# 热修 · LLM 日配额：全站 5000 / 用户 200（M6 试点）
 set -euo pipefail
 
 IP="${1:-117.72.211.51}"
@@ -14,9 +14,9 @@ grep -v -E '^(LLM_DAILY_CAP|LLM_USER_DAILY_CAP)=' "$ENV" > "${ENV}.tmp" || true
 mv "${ENV}.tmp" "$ENV"
 cat >> "$ENV" <<'EOF'
 
-# M4-B LLM 配额
-LLM_DAILY_CAP=2000
-LLM_USER_DAILY_CAP=60
+# M4-B LLM 配额（M6 试点调高）
+LLM_DAILY_CAP=5000
+LLM_USER_DAILY_CAP=200
 EOF
 chmod 600 "$ENV"
 systemctl restart sandtable
@@ -26,4 +26,4 @@ curl -s http://127.0.0.1:8000/api/llm/status
 echo ""
 REMOTE
 
-echo "✅ 外网验证: curl http://${IP}/api/llm/status  → daily_cap=2000 user_daily_cap=60"
+echo "✅ 外网验证: curl http://${IP}/api/llm/status  → daily_cap=5000 user_daily_cap=200"

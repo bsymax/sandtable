@@ -17,7 +17,11 @@
   var MODULE_PAGES = {
     'profile.html': '品牌档案',
     'visit.html': '智能拜访助手',
-    'intel.html': '品牌情报流'
+    'intel.html': '品牌情报流',
+    'talking-points.html': '谈参',
+    'brand-report.html': '品牌报告',
+    'toolkit/talking-points.html': '谈参',
+    'toolkit/brand-report.html': '品牌报告',
   };
 
   var NAV = [
@@ -28,6 +32,10 @@
       { href: 'profile.html', icon: '\uD83C\uDFE2', label: '品牌档案', badge: null },
       { href: 'visit.html',   icon: '\uD83C\uDFAF', label: '智能拜访助手', badge: null },
       { href: 'intel.html',   icon: '\uD83D\uDD0D', label: '品牌情报流', badge: null },
+    ]},
+    { section: '工具包', items: [
+      { href: 'toolkit/talking-points.html', icon: '\uD83D\uDCC4', label: '谈参', badge: null },
+      { href: 'toolkit/brand-report.html', icon: '\uD83D\uDCCA', label: '品牌报告', badge: null },
     ]},
   ];
 
@@ -61,12 +69,27 @@
   ].join('');
 
   function currentPage() {
-    return window.location.pathname.split('/').pop() || 'index.html';
+    var parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts.length >= 2 && parts[parts.length - 2] === 'toolkit') {
+      return 'toolkit/' + parts[parts.length - 1];
+    }
+    return parts.pop() || 'index.html';
+  }
+
+  function webRootPrefix() {
+    return currentPage().indexOf('toolkit/') === 0 ? '../' : '';
+  }
+
+  function navHref(href) {
+    var root = webRootPrefix();
+    if (!root) return href;
+    if (href.indexOf('toolkit/') === 0) return href.slice('toolkit/'.length);
+    return root + href;
   }
 
   function breadcrumbHtml(moduleName) {
     var sep = '<span style="margin:0 6px;color:#c1c9d2;">›</span>';
-    return '<a href="index.html">← 工作台</a> ' + sep + ' 品牌沙盘 ' + sep +
+    return '<a href="' + webRootPrefix() + 'index.html">← 工作台</a> ' + sep + ' 品牌沙盘 ' + sep +
       ' <span class="current">' + moduleName + '</span>';
   }
 
@@ -126,13 +149,13 @@
 
     var html = '<div class="m1s-header">' +
       '<div class="m1s-name">品牌沙盘</div>' +
-      '<div class="m1s-sub">Brand Sandtable · 厨小事业部</div>' +
+      '<div class="m1s-sub">Brand Sandtable · 建材业务部</div>' +
       '</div><div class="m1s-nav">';
     NAV.forEach(function (sec) {
       html += '<div class="m1s-sec-title">' + sec.section + '</div>';
       sec.items.forEach(function (it) {
         var active = (it.href === cur) ? ' active' : '';
-        html += '<a class="m1s-item' + active + '" href="' + it.href + '">' +
+        html += '<a class="m1s-item' + active + '" href="' + navHref(it.href) + '">' +
           '<span class="m1s-icon">' + it.icon + '</span>' +
           '<span class="m1s-label">' + it.label + '</span>' +
           (it.badge ? '<span class="m1s-badge">' + it.badge + '</span>' : '') +

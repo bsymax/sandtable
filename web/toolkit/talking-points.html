@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>谈参 · 品牌沙盘</title>
+<style>
+:root {
+  --cr:#8B0000; --cr-dark:#6B0000; --cr-mid:#A31621; --cr-light:#FDF2F2;
+  --cr-border:#E8C4C4; --white:#fff; --text:#1a1a1a; --muted:#666;
+  --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font); background:#f5f5f5; color:var(--text); min-height:100vh; }
+.topbar { height:56px; background:var(--white); border-bottom:1px solid #e8e8e8; display:flex; align-items:center; padding:0 28px; }
+.content { max-width:1100px; margin:0 auto; padding:24px 28px 48px; }
+
+.tp-hero {
+  background:linear-gradient(135deg,var(--cr-dark) 0%,var(--cr) 45%,var(--cr-mid) 100%);
+  color:var(--white); border-radius:12px; padding:28px 32px; margin-bottom:24px;
+  box-shadow:0 8px 24px rgba(139,0,0,.25);
+}
+.tp-hero h1 { font-size:22px; font-weight:700; letter-spacing:.5px; margin-bottom:8px; }
+.tp-hero p { font-size:13px; opacity:.92; line-height:1.65; max-width:720px; }
+
+.tp-step-bar { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+.tp-step-pill {
+  font-size:12px; padding:6px 14px; border-radius:20px; background:var(--white);
+  border:1px solid var(--cr-border); color:var(--muted);
+}
+.tp-step-pill.active { background:var(--cr); color:var(--white); border-color:var(--cr); font-weight:600; }
+.tp-step-pill.done { background:var(--cr-light); color:var(--cr-dark); border-color:var(--cr-border); }
+
+.tp-panel { background:var(--white); border:1px solid #e8e8e8; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.04); }
+.tp-panel-head {
+  padding:14px 20px; background:var(--cr); color:var(--white);
+  font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:space-between;
+}
+.tp-panel-head .hint { font-size:11px; font-weight:400; opacity:.85; }
+.tp-panel-body { padding:20px; }
+
+.brand-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; }
+.brand-card {
+  border:2px solid #eee; border-radius:10px; padding:16px 12px; text-align:center; cursor:pointer;
+  transition:all .15s; background:var(--white);
+}
+.brand-card:hover { border-color:var(--cr-mid); box-shadow:0 4px 12px rgba(139,0,0,.12); }
+.brand-card.selected { border-color:var(--cr); background:var(--cr-light); }
+.brand-card .name { font-size:15px; font-weight:700; color:var(--cr-dark); }
+.brand-card .meta { font-size:11px; color:var(--muted); margin-top:6px; }
+.level-tag { display:inline-block; font-size:10px; padding:1px 6px; border-radius:3px; margin-top:4px; font-weight:700; }
+.level-S { background:#fef3c7; color:#92400e; }
+.level-A { background:#fee2e2; color:#991b1b; }
+.level-B { background:#f3f4f6; color:#374151; }
+
+.tp-layout { display:grid; grid-template-columns:200px 1fr; gap:16px; min-height:520px; }
+@media (max-width:800px) { .tp-layout { grid-template-columns:1fr; } }
+.tp-nav { background:var(--white); border:1px solid #e8e8e8; border-radius:10px; padding:8px 0; align-self:start; position:sticky; top:72px; }
+.tp-nav-item {
+  display:block; width:100%; text-align:left; padding:11px 16px; border:none; background:none;
+  font-size:12px; color:var(--muted); cursor:pointer; border-left:3px solid transparent; font-family:inherit;
+}
+.tp-nav-item:hover { background:var(--cr-light); color:var(--cr-dark); }
+.tp-nav-item.active { background:var(--cr-light); color:var(--cr); border-left-color:var(--cr); font-weight:600; }
+.tp-nav-item.done::after { content:' ✓'; color:var(--cr); font-weight:700; }
+
+.mod-block { display:none; }
+.mod-block.active { display:block; }
+.mod-label { font-size:13px; font-weight:700; color:var(--cr-dark); margin-bottom:10px; }
+.mod-hint { font-size:11px; color:var(--muted); margin-bottom:12px; line-height:1.5; }
+
+.auto-box {
+  background:var(--cr-light); border:1px solid var(--cr-border); border-radius:8px;
+  padding:14px 16px; font-size:12px; line-height:1.75; color:#333; margin-bottom:14px;
+  white-space:pre-wrap;
+}
+.auto-box .tag { display:inline-block; background:var(--cr); color:#fff; font-size:10px; padding:2px 8px; border-radius:4px; margin-bottom:8px; font-weight:600; }
+
+.profit-row { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+.profit-row label { font-size:12px; font-weight:600; color:var(--cr-dark); white-space:nowrap; }
+.profit-row input {
+  flex:1; min-width:200px; padding:8px 12px; border:1px solid var(--cr-border); border-radius:6px;
+  font-size:12px; font-family:inherit;
+}
+.profit-row input:focus { outline:none; border-color:var(--cr); box-shadow:0 0 0 2px rgba(139,0,0,.12); }
+
+.tp-textarea {
+  width:100%; min-height:160px; padding:12px 14px; border:1px solid #ddd; border-radius:8px;
+  font-size:13px; line-height:1.7; font-family:inherit; resize:vertical;
+}
+.tp-textarea:focus { outline:none; border-color:var(--cr); box-shadow:0 0 0 2px rgba(139,0,0,.1); }
+
+.tp-actions { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
+.btn {
+  padding:10px 20px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+  border:none; font-family:inherit; transition:all .15s;
+}
+.btn-primary { background:var(--cr); color:var(--white); }
+.btn-primary:hover { background:var(--cr-dark); }
+.btn-outline { background:var(--white); color:var(--cr); border:1px solid var(--cr); }
+.btn-outline:hover { background:var(--cr-light); }
+.btn-ghost { background:#f5f5f5; color:#555; border:1px solid #ddd; }
+.btn-ghost:hover { background:#eee; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+
+#step-edit, #step-preview { display:none; }
+.tp-toolbar {
+  display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;
+  padding:12px 16px; background:var(--white); border:1px solid #e8e8e8; border-radius:10px;
+}
+.tp-toolbar .brand-title { font-size:16px; font-weight:700; color:var(--cr-dark); }
+.tp-toolbar .spacer { flex:1; }
+
+/* —— 报告预览 / PDF —— */
+.report-wrap { background:#eee; padding:24px; border-radius:10px; }
+#tp-report-doc {
+  background:var(--white); max-width:720px; margin:0 auto; padding:0;
+  box-shadow:0 4px 20px rgba(0,0,0,.12); font-size:11.5px; line-height:1.65; color:#222;
+}
+.rpt-header {
+  background:linear-gradient(135deg,var(--cr-dark),var(--cr));
+  color:var(--white); padding:22px 28px 18px;
+}
+.rpt-header .rpt-tag { font-size:10px; letter-spacing:2px; opacity:.85; margin-bottom:6px; }
+.rpt-header h2 { font-size:20px; font-weight:700; margin-bottom:4px; }
+.rpt-header .sub { font-size:11px; opacity:.9; }
+.rpt-body { padding:20px 28px 28px; }
+.rpt-sec { margin-bottom:16px; page-break-inside:avoid; }
+.rpt-sec-title {
+  font-size:12px; font-weight:700; color:var(--cr); border-bottom:2px solid var(--cr);
+  padding-bottom:4px; margin-bottom:8px;
+}
+.rpt-sec-body { font-size:11.5px; line-height:1.7; white-space:pre-wrap; color:#333; }
+.rpt-auto { background:#fafafa; border-left:3px solid var(--cr); padding:10px 12px; margin-top:4px; }
+.rpt-footer {
+  border-top:1px solid #eee; padding:10px 28px; font-size:10px; color:#999; text-align:center;
+}
+
+#loading { text-align:center; padding:40px; color:var(--muted); font-size:13px; }
+.hidden { display:none !important; }
+
+@media print {
+  body * { visibility:hidden; }
+  #tp-report-doc, #tp-report-doc * { visibility:visible; }
+  #tp-report-doc { position:absolute; left:0; top:0; width:100%; box-shadow:none; }
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="breadcrumb"><span class="current">谈参工具包</span></div>
+</div>
+
+<div class="content">
+  <div class="tp-hero">
+    <h1>高管谈参 · 快速生成</h1>
+    <p>面向品牌高层会谈的背景材料。先选择品牌，逐步完善各模块内容；「公司情况」中的经营数据自动从品牌档案导入（2026 年至今成交、渠道市占与增速），利润项由采销补充。完成后可预览并导出 PDF。</p>
+  </div>
+
+  <div class="tp-step-bar" id="step-bar">
+    <span class="tp-step-pill active" data-step="brand">① 选择品牌</span>
+    <span class="tp-step-pill" data-step="edit">② 编辑模块</span>
+    <span class="tp-step-pill" data-step="preview">③ 预览 &amp; 导出</span>
+  </div>
+
+  <!-- Step 1 -->
+  <div id="step-brand">
+    <div class="tp-panel">
+      <div class="tp-panel-head">选择要生成谈参的品牌<span class="hint">共 11 品牌 · 点击卡片进入编辑</span></div>
+      <div class="tp-panel-body">
+        <div id="loading">正在加载品牌列表…</div>
+        <div class="brand-grid hidden" id="brand-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div id="step-edit">
+    <div class="tp-toolbar">
+      <span class="brand-title" id="edit-brand-title">—</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-ghost" id="btn-change-brand">更换品牌</button>
+      <button type="button" class="btn btn-outline" id="btn-to-preview">预览报告</button>
+    </div>
+    <div class="tp-layout">
+      <nav class="tp-nav" id="mod-nav"></nav>
+      <div class="tp-panel">
+        <div class="tp-panel-body" id="mod-panels"></div>
+        <div class="tp-panel-body" style="border-top:1px solid #eee;padding-top:16px;">
+          <div class="tp-actions">
+            <button type="button" class="btn btn-ghost" id="btn-prev-mod">上一模块</button>
+            <button type="button" class="btn btn-primary" id="btn-next-mod">下一模块</button>
+            <button type="button" class="btn btn-outline" id="btn-preview2">生成并预览</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div id="step-preview">
+    <div class="tp-toolbar">
+      <span class="brand-title" id="preview-brand-title">—</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-ghost" id="btn-back-edit">返回编辑</button>
+      <button type="button" class="btn btn-primary" id="btn-download-pdf">下载 PDF</button>
+    </div>
+    <div class="report-wrap">
+      <div id="tp-report-doc"></div>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api-base.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
+<script>
+(function () {
+  'use strict';
+
+  var MODULES = [
+    { id: 'company', title: '1 · 公司情况', short: '公司情况' },
+    { id: 'ceo', title: '2 · CEO 介绍', short: 'CEO' },
+    { id: 'coop', title: '3 · 潜在合作', short: '合作探索' },
+    { id: 'ask', title: '4 · 期望输出', short: '期望输出' },
+    { id: 'news', title: '5 · 最新动向', short: '最新动向' },
+    { id: 'appendix', title: '6 · 附录', short: '附录' }
+  ];
+
+  var state = {
+    brands: [],
+    brand: null,
+    profile: null,
+    metrics: [],
+    autoMetricsText: '',
+    profit: '',
+    fields: {},
+    currentMod: 0,
+    visited: {}
+  };
+
+  function api(path) {
+    var base = window.M1_API_BASE || '';
+    return fetch(base + path).then(function (r) {
+      if (!r.ok) throw new Error(r.status + ' ' + path);
+      return r.json();
+    });
+  }
+
+  function monthLabel(period) {
+    var p = (period || '').split('-');
+    return p.length >= 2 ? (parseInt(p[1], 10) + '月') : period;
+  }
+
+  function fmtGmv(v) {
+    if (v == null || v === '') return '—';
+    return Number(v).toFixed(2) + ' 万元';
+  }
+
+  function fmtPct(v) {
+    if (v == null || v === '') return '—';
+    var n = Number(v);
+    return (n > 0 ? '+' : '') + n.toFixed(1) + '%';
+  }
+
+  function fmtShare(v) {
+    if (v == null || v === '') return '—';
+    return Number(v).toFixed(1) + '%';
+  }
+
+  function parseOrgRoot(raw) {
+    if (!raw) return '';
+    try {
+      var o = JSON.parse(raw);
+      if (o.root) {
+        var s = o.root;
+        if (o.lead) s += ' · ' + o.lead;
+        return s;
+      }
+    } catch (e) { /* ignore */ }
+    return '';
+  }
+
+  function buildAutoMetrics(profile, metrics, brand) {
+    var rows = (metrics || []).filter(function (m) {
+      return (m.period_value || '').indexOf('2026-') === 0;
+    }).sort(function (a, b) {
+      return String(a.period_value).localeCompare(String(b.period_value));
+    });
+
+    var lines = [];
+    var p = profile || {};
+    var orgLine = parseOrgRoot(p.org_structure);
+    lines.push('【沿革与架构】');
+    lines.push((brand.name || '该品牌') + '，成立 ' + (p.founded_year || '—') + '，总部 ' + (p.hq || '—') + '。');
+    if (orgLine) lines.push('组织：' + orgLine);
+    if (p.positioning) lines.push('定位：' + p.positioning);
+    lines.push('');
+    lines.push('【2026 年至今经营数据】（品牌档案 · JD 渠道口径 · 自动导入）');
+
+    if (!rows.length) {
+      lines.push('暂无 2026 年月度指标，请先在品牌档案确认数仓已接入。');
+    } else {
+      var ytd = 0;
+      rows.forEach(function (m) {
+        ytd += Number(m.gmv) || 0;
+      });
+      lines.push('成交累计：' + fmtGmv(ytd) + '（' + monthLabel(rows[0].period_value) + '—' + monthLabel(rows[rows.length - 1].period_value) + '）');
+      var latest = rows[rows.length - 1];
+      lines.push('');
+      lines.push('【最新月渠道结构】（' + latest.period_value + '）');
+      lines.push('京东 ' + fmtShare(latest.jd_share) + ' · 天猫 ' + fmtShare(latest.tmall_share) +
+        ' · 抖音 ' + fmtShare(latest.douyin_share) + ' · 淘宝 ' + fmtShare(latest.taobao_share));
+      lines.push('');
+      lines.push('【渠道增速（同比）】');
+      lines.push('京东 ' + fmtPct(latest.channel_growth_jd) + ' · 天猫 ' + fmtPct(latest.channel_growth_tmall) +
+        ' · 抖音 ' + fmtPct(latest.channel_growth_douyin) + ' · 淘宝 ' + fmtPct(latest.channel_growth_taobao));
+      if (latest.gmv_yoy != null) lines.push('成交同比：' + fmtPct(latest.gmv_yoy));
+      if (latest.sales_volume != null) lines.push('最新月销量：' + latest.sales_volume + ' 件（同比 ' + fmtPct(latest.sales_volume_yoy) + '）');
+    }
+    return lines.join('\n');
+  }
+
+  function sampleFields(brandName) {
+    var bn = brandName || '该品牌';
+    return {
+      company_extra: '【历史沿革与子母公司】\n' + bn + ' 历经多轮业务整合，核心上市/运营主体与京东对接口径以集团披露为准。会谈前建议核对：① 主体营业执照与开票主体；② 与母公司在供应链、品牌授权上的边界；③ 近三年重大股权或融资事件（如有）。\n\n【补充说明】\n（可在此补充会谈前需强调的公司背景要点。）',
+      ceo: '【CEO / 一把手概况 · 示例】\n姓名：（请填写）\n现任职务：董事长兼 CEO\n\n【个人经历 · 示例结构】\n· 行业背景：深耕 ' + bn + ' 所在赛道 XX 年，历任 XX 职务\n· 关键履历：曾主导 XX 品类全国化、XX 渠道从 0 到 1\n· 管理风格：偏 XX（如：结果导向 / 产品驱动 / 组织变革型）\n· 对外公开观点：（最近一次公开演讲或访谈要点，1～2 句）\n\n【会谈切入点】\n可从其近期关注的「增长、利润、数字化、组织效率」中选 1～2 个话题破冰。',
+      coop: '【京东能力与 ' + bn + ' 的结合 · 示例】\n\n1. 用户与流量\n   · 京东家居/建材品类流量与搜索资源，支持新品类测试与爆款孵化\n   · 大促节点（618/11.11/年货节）联合营销，品牌+平台联合出资\n\n2. 供应链与履约\n   · 京东物流与仓配能力，缩短履约时效，提升 NPS\n   · 区域仓/前置仓模式探讨（视品类货值与周转而定）\n\n3. 数据与营销\n   · 京准通、用户洞察、竞品对标报告（脱敏）\n   · C2M / 反向定制、新品众筹等创新合作形式\n\n4. 金融与会员\n   · 白条分期降低客单门槛\n   · 品牌会员体系与京东 PLUS 权益联动\n\n【建议会谈姿态】\n先听品牌年度优先级，再匹配 1～2 个「可快速落地、可量化」的试点方案。',
+      ask: '【希望品牌方提供的输出 · 给老板的问题清单 · 示例】\n\n请品牌方在会谈中或会后书面反馈：\n\n1. 2026 年京东渠道 GMV 目标与底线分别是多少？同比预期增速？\n2. 利润诉求：更倾向「规模优先」还是「费率/毛利优先」？可接受的投入区间？\n3. 新品类/新 SKU 在京东的首发计划与时间窗口？\n4. 竞品在京东的主要动作，品牌希望平台侧提供哪些支持？\n5. 组织对接：决策链路与紧急事项升级路径（姓名+职务+联系方式）。\n6. 下一季度可联合对外发声的 1 个标志性项目（如有）。',
+      news: '【公司最新动向 · 示例】\n\n· 近期动态：（如：新品发布、渠道调整、组织架构变动、融资/战略投资）\n· 行业舆情：（正面/中性/需关注的风险点，各 1 条）\n· 与京东相关：（是否已在其他事业部合作、历史大促表现、待解决问题）\n· 下一步 30 天关键节点：（如：财报、发布会、招商会）\n\n（请替换为真实信息，删除示例括号内容。）',
+      appendix: '【附录 · 示例结构】\n\n一、规模概览\n· 年营收区间：（请填写，或注明「未披露」）\n· 员工规模：约 XX 人 · 核心基地：XX\n· 京东合作年限：XX 年 · 当前合作级别：XX\n\n二、股权结构（会谈级摘要）\n· 控股股东 / 实际控制人：（请填写）\n· 主要子公司：（与京东签约/开票相关主体列表）\n· 注：详细股权以企查查/年报为准，会谈材料仅作背景参考\n\n三、核心品类与渠道矩阵\n· 主力品类 TOP3：\n· 线下 / 线上 / 京东 大致占比：（估算即可）\n\n四、附件清单（如有）\n· 品牌简介 PPT · 最新产品目录 · 年度合作规划（草稿）'
+    };
+  }
+
+  function storageKey(key) {
+    return 'tp_draft_v1_' + key;
+  }
+
+  function saveDraft() {
+    if (!state.brand) return;
+    var payload = {
+      profit: state.profit,
+      fields: state.fields,
+      visited: state.visited
+    };
+    try { localStorage.setItem(storageKey(state.brand.name_key), JSON.stringify(payload)); } catch (e) { /* ignore */ }
+  }
+
+  function loadDraft(key) {
+    try {
+      var raw = localStorage.getItem(storageKey(key));
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function setStep(step) {
+    document.getElementById('step-brand').style.display = step === 'brand' ? 'block' : 'none';
+    document.getElementById('step-edit').style.display = step === 'edit' ? 'block' : 'none';
+    document.getElementById('step-preview').style.display = step === 'preview' ? 'block' : 'none';
+    document.querySelectorAll('.tp-step-pill').forEach(function (el) {
+      var s = el.getAttribute('data-step');
+      el.classList.remove('active', 'done');
+      if (s === step) el.classList.add('active');
+      else if (s === 'brand' && step !== 'brand') el.classList.add('done');
+      else if (s === 'edit' && step === 'preview') el.classList.add('done');
+    });
+  }
+
+  function renderBrandGrid() {
+    var grid = document.getElementById('brand-grid');
+    grid.innerHTML = state.brands.map(function (b) {
+      var lv = 'level-' + (b.level || 'B');
+      return '<div class="brand-card" data-key="' + b.name_key + '">' +
+        '<div class="name">' + b.name + '</div>' +
+        '<div class="meta">' + b.name_key + '</div>' +
+        '<span class="level-tag ' + lv + '">' + (b.level || 'B') + ' 级</span></div>';
+    }).join('');
+    grid.classList.remove('hidden');
+    document.getElementById('loading').classList.add('hidden');
+    grid.querySelectorAll('.brand-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        selectBrand(card.getAttribute('data-key'));
+      });
+    });
+  }
+
+  function buildModPanels() {
+    var nav = document.getElementById('mod-nav');
+    var panels = document.getElementById('mod-panels');
+    nav.innerHTML = MODULES.map(function (m, i) {
+      return '<button type="button" class="tp-nav-item' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '">' + m.title + '</button>';
+    }).join('');
+
+    panels.innerHTML = MODULES.map(function (m, i) {
+      if (m.id === 'company') {
+        return '<div class="mod-block' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '">' +
+          '<div class="mod-label">' + m.title + '</div>' +
+          '<div class="mod-hint">经营数据已从品牌档案自动导入（只读）。请补充利润情况，并编辑下方「沿革与子母公司」等内容。</div>' +
+          '<div class="auto-box"><span class="tag">自动导入 · 品牌档案</span><div id="auto-metrics-text"></div></div>' +
+          '<div class="profit-row"><label for="field-profit">利润情况（采销填写）</label>' +
+          '<input type="text" id="field-profit" placeholder="如：2026Q1 京东渠道毛利率约 XX%；净利率待品牌披露…"></div>' +
+          '<div class="mod-label" style="margin-top:8px;">沿革 · 子母公司 · 补充说明</div>' +
+          '<textarea class="tp-textarea" id="field-company_extra" rows="8"></textarea></div>';
+      }
+      return '<div class="mod-block' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '">' +
+        '<div class="mod-label">' + m.title + '</div>' +
+        '<div class="mod-hint">以下为示例内容，请按实际会谈对象修改。支持多行自由编辑。</div>' +
+        '<textarea class="tp-textarea" id="field-' + m.id + '" rows="14"></textarea></div>';
+    }).join('');
+
+    nav.querySelectorAll('.tp-nav-item').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        goMod(parseInt(btn.getAttribute('data-idx'), 10));
+      });
+    });
+
+    document.getElementById('field-profit').addEventListener('input', function (e) {
+      state.profit = e.target.value;
+      saveDraft();
+    });
+    MODULES.forEach(function (m) {
+      var id = m.id === 'company' ? 'company_extra' : m.id;
+      var el = document.getElementById('field-' + id);
+      if (el) {
+        el.addEventListener('input', function () {
+          state.fields[id] = el.value;
+          saveDraft();
+        });
+      }
+    });
+  }
+
+  function syncFieldsToDom() {
+    document.getElementById('auto-metrics-text').textContent = state.autoMetricsText;
+    document.getElementById('field-profit').value = state.profit || '';
+    ['company_extra', 'ceo', 'coop', 'ask', 'news', 'appendix'].forEach(function (k) {
+      var el = document.getElementById('field-' + k);
+      if (el) el.value = state.fields[k] || '';
+    });
+    updateNavDone();
+  }
+
+  function readFieldsFromDom() {
+    state.profit = document.getElementById('field-profit').value;
+    ['company_extra', 'ceo', 'coop', 'ask', 'news', 'appendix'].forEach(function (k) {
+      var el = document.getElementById('field-' + k);
+      if (el) state.fields[k] = el.value;
+    });
+    saveDraft();
+  }
+
+  function goMod(idx) {
+    state.currentMod = idx;
+    state.visited[idx] = true;
+    document.querySelectorAll('.tp-nav-item').forEach(function (el, i) {
+      el.classList.toggle('active', i === idx);
+    });
+    document.querySelectorAll('.mod-block').forEach(function (el, i) {
+      el.classList.toggle('active', i === idx);
+    });
+    updateNavDone();
+    saveDraft();
+  }
+
+  function updateNavDone() {
+    document.querySelectorAll('.tp-nav-item').forEach(function (el, i) {
+      el.classList.toggle('done', !!state.visited[i]);
+    });
+  }
+
+  function selectBrand(nameKey) {
+    var brand = state.brands.find(function (b) { return b.name_key === nameKey; });
+    if (!brand) return;
+
+    Promise.all([
+      api('/api/brands/profile/' + nameKey),
+      api('/api/brands/metrics/' + nameKey + '?limit=24')
+    ]).then(function (res) {
+      state.brand = brand;
+      state.profile = res[0].profile;
+      state.metrics = res[1] || [];
+      state.autoMetricsText = buildAutoMetrics(state.profile, state.metrics, brand);
+
+      var draft = loadDraft(nameKey);
+      var samples = sampleFields(brand.name);
+      state.fields = draft && draft.fields ? Object.assign({}, samples, draft.fields) : samples;
+      state.profit = (draft && draft.profit) || '';
+      state.visited = (draft && draft.visited) || {};
+      state.currentMod = 0;
+
+      document.getElementById('edit-brand-title').textContent = brand.name + ' · 谈参编辑';
+      document.getElementById('preview-brand-title').textContent = brand.name + ' · 高管谈参';
+
+      if (!document.getElementById('mod-nav').innerHTML) buildModPanels();
+      syncFieldsToDom();
+      goMod(0);
+      setStep('edit');
+    }).catch(function (err) {
+      alert('加载品牌数据失败：' + err.message);
+    });
+  }
+
+  function buildReportHtml() {
+    readFieldsFromDom();
+    var b = state.brand;
+    var now = new Date();
+    var dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    var profitBlock = state.profit
+      ? '【利润情况（采销补充）】\n' + state.profit
+      : '【利润情况】（待采销补充）';
+
+    function sec(title, body, isAuto) {
+      return '<div class="rpt-sec"><div class="rpt-sec-title">' + title + '</div>' +
+        '<div class="rpt-sec-body' + (isAuto ? ' rpt-auto' : '') + '">' + escapeHtml(body) + '</div></div>';
+    }
+
+    var companyBody = state.autoMetricsText + '\n\n' + profitBlock + '\n\n' + (state.fields.company_extra || '');
+
+    return '<div class="rpt-header">' +
+      '<div class="rpt-tag">CONFIDENTIAL · 内部谈参</div>' +
+      '<h2>' + escapeHtml(b.name) + ' · 高管会谈背景材料</h2>' +
+      '<div class="sub">京东 · 建材业务部 · 生成日期 ' + dateStr + ' · 数据来源：品牌档案 + 采销编辑</div>' +
+      '</div>' +
+      '<div class="rpt-body">' +
+      sec('一、公司情况', companyBody, true) +
+      sec('二、CEO / 一把手介绍', state.fields.ceo || '') +
+      sec('三、潜在合作探索（京东能力结合）', state.fields.coop || '') +
+      sec('四、期望品牌方提供的输出', state.fields.ask || '') +
+      sec('五、公司最新动向', state.fields.news || '') +
+      sec('六、附录', state.fields.appendix || '') +
+      '</div>' +
+      '<div class="rpt-footer">本材料仅供内部高层会谈使用 · 经营数据以品牌档案数仓为准 · 请勿对外扩散</div>';
+  }
+
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function showPreview() {
+    readFieldsFromDom();
+    document.getElementById('tp-report-doc').innerHTML = buildReportHtml();
+    setStep('preview');
+    window.scrollTo(0, 0);
+  }
+
+  function downloadPdf() {
+    var el = document.getElementById('tp-report-doc');
+    if (!el.innerHTML) showPreview();
+    var btn = document.getElementById('btn-download-pdf');
+    btn.disabled = true;
+    btn.textContent = '正在生成…';
+    var fname = (state.brand ? state.brand.name : '谈参') + '-高管谈参.pdf';
+    html2pdf().set({
+      margin: [8, 10, 10, 10],
+      filename: fname,
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    }).from(el).save().then(function () {
+      btn.disabled = false;
+      btn.textContent = '下载 PDF';
+    }).catch(function () {
+      btn.disabled = false;
+      btn.textContent = '下载 PDF';
+      alert('PDF 生成失败，请尝试浏览器打印为 PDF');
+    });
+  }
+
+  document.getElementById('btn-change-brand').addEventListener('click', function () {
+    if (confirm('更换品牌将切换至品牌选择页，当前品牌草稿已自动保存。继续？')) {
+      setStep('brand');
+    }
+  });
+  document.getElementById('btn-to-preview').addEventListener('click', showPreview);
+  document.getElementById('btn-preview2').addEventListener('click', showPreview);
+  document.getElementById('btn-back-edit').addEventListener('click', function () { setStep('edit'); });
+  document.getElementById('btn-download-pdf').addEventListener('click', downloadPdf);
+  document.getElementById('btn-prev-mod').addEventListener('click', function () {
+    if (state.currentMod > 0) goMod(state.currentMod - 1);
+  });
+  document.getElementById('btn-next-mod').addEventListener('click', function () {
+    if (state.currentMod < MODULES.length - 1) goMod(state.currentMod + 1);
+    else showPreview();
+  });
+
+  api('/api/brands').then(function (list) {
+    state.brands = list || [];
+    renderBrandGrid();
+    var urlBrand = new URLSearchParams(window.location.search).get('brand');
+    if (urlBrand) {
+      selectBrand(urlBrand);
+    }
+  }).catch(function (err) {
+    document.getElementById('loading').textContent = '加载失败：' + err.message + '（请确认后端已启动）';
+  });
+})();
+</script>
+<script src="../js/shell.js"></script>
+</body>
+</html>

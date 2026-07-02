@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import re
 import sys
 from collections import defaultdict
@@ -67,10 +68,41 @@ BRAND_META = [
     ("hegii", "恒洁", "A", "陈采销"),
     ("submarine", "潜水艇", "B", "李采销"),
     ("micoe", "四季沐歌", "B", "王采销"),
+    ("nippon", "立邦", "B", "待定"),
+    ("skshu", "三棵树", "B", "待定"),
+    ("dulux", "多乐士", "B", "待定"),
+    ("wacker", "瓦克", "B", "待定"),
+    ("yuhong", "雨虹防水", "B", "待定"),
+    ("carpoly", "嘉宝莉", "B", "待定"),
 ]
+
+MASTER_JSON = ROOT.parent / "brands_master.json"
+
+
+def load_placeholder_map() -> dict[str, str]:
+    if not MASTER_JSON.exists():
+        return {}
+    data = json.loads(MASTER_JSON.read_text(encoding="utf-8"))
+    return {k: v for k, v in (data.get("placeholder_to_name_key") or {}).items()}
+
+
+PLACEHOLDER_MAP = load_placeholder_map()
 
 BRAND_KEYS = {k for k, _, _, _ in BRAND_META}
 CATEGORY_SHEET = "类目数据源"
+
+
+def resolve_brand_key(raw_key: str | None, name_key_col: str | None = None) -> str | None:
+    """Excel 行 → 标准 name_key（支持 jc_* 占位与 name_key 列）"""
+    if name_key_col:
+        nk = name_key_col.strip().lower()
+        if nk in BRAND_KEYS:
+            return nk
+    if not raw_key:
+        return None
+    key = str(raw_key).strip().lower()
+    key = PLACEHOLDER_MAP.get(key, key)
+    return key if key in BRAND_KEYS else None
 
 
 def parse_period(v) -> str | None:
@@ -145,11 +177,9 @@ def rollup_brand_metrics_from_category(xlsx_path: Path, existing: set[tuple[str,
     )
 
     for r in ws.iter_rows(min_row=2, values_only=True):
-        key = r[idx["brand"]]
+        nk_col = r[idx["name_key"]] if "name_key" in idx else None
+        key = resolve_brand_key(r[idx["brand"]], str(nk_col) if nk_col else None)
         if not key:
-            continue
-        key = str(key).strip().lower()
-        if key not in BRAND_KEYS:
             continue
         period = parse_period(r[idx["时间"]])
         if not period or (key, period) in existing:
@@ -236,11 +266,11 @@ def transform(xlsx_path: Path):
     brand_names = {}
 
     for r in rows[1:]:
-        key = r[idx[key_col]]
+        nk_col = r[idx["name_key"]] if "name_key" in idx else None
+        key = resolve_brand_key(r[idx[key_col]], str(nk_col) if nk_col else None)
         if not key:
             continue
-        key = str(key).strip().lower()
-        brand_names[key] = r[idx["标准品牌"]]
+        brand_names[key] = r[idx["标准品牌"]] if "标准品牌" in idx else key
         t = r[idx["时间"]]
         period = t.strftime("%Y-%m") if isinstance(t, datetime) else str(t)[:7]
         ch = r[idx["渠道"]]

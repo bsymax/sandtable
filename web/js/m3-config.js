@@ -18,7 +18,7 @@
     MOCK_USER: {
       id: 1,
       name: '周采销',
-      dept: '厨小事业部 · 采销二组',
+      dept: '建材业务部-KA卫浴组',
       avatar: '周',
       responsible_brands: ['jomoo'],
     },

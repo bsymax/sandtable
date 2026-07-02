@@ -35,7 +35,33 @@ CHANNELS = {
     "A-TB(非国际)": "tb",
     "N-DY(非国际)": "dy",
 }
-BRAND_KEYS = {"jomoo", "arrow", "hegii", "submarine", "micoe"}
+BRAND_KEYS = {
+    "jomoo", "arrow", "hegii", "submarine", "micoe",
+    "nippon", "skshu", "dulux", "wacker", "yuhong", "carpoly",
+}
+MASTER_JSON = ROOT.parent / "brands_master.json"
+
+
+def load_placeholder_map() -> dict[str, str]:
+    if not MASTER_JSON.exists():
+        return {}
+    data = json.loads(MASTER_JSON.read_text(encoding="utf-8"))
+    return {k: v for k, v in (data.get("placeholder_to_name_key") or {}).items()}
+
+
+PLACEHOLDER_MAP = load_placeholder_map()
+
+
+def resolve_brand_key(raw_key: str | None, name_key_col: str | None = None) -> str | None:
+    if name_key_col:
+        nk = name_key_col.strip().lower()
+        if nk in BRAND_KEYS:
+            return nk
+    if not raw_key:
+        return None
+    key = str(raw_key).strip().lower()
+    key = PLACEHOLDER_MAP.get(key, key)
+    return key if key in BRAND_KEYS else None
 
 CSV_FIELDS = ["name_key", "period_value", "category_distribution", "category_share"]
 
@@ -109,11 +135,9 @@ def transform(xlsx_path: Path):
     )
 
     for r in rows:
-        key = r[idx["brand"]]
+        nk_col = r[idx["name_key"]] if "name_key" in idx else None
+        key = resolve_brand_key(r[idx["brand"]], str(nk_col) if nk_col else None)
         if not key:
-            continue
-        key = str(key).strip().lower()
-        if key not in BRAND_KEYS:
             continue
         period = parse_period(r[idx["时间"]])
         if not period:

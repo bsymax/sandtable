@@ -79,11 +79,29 @@ def main():
     for col, ddl in (
         ("sales_volume_yoy", "DECIMAL(6,2) DEFAULT NULL COMMENT '销量同比%'"),
         ("taobao_share", "DECIMAL(5,2) DEFAULT NULL COMMENT '淘宝市占%'"),
-        ("channel_growth_taobao", "DECIMAL(5,2) DEFAULT NULL COMMENT '淘宝渠道增速%'"),
+        ("channel_growth_taobao", "DECIMAL(8,2) DEFAULT NULL COMMENT '淘宝渠道增速%'"),
     ):
         if not _has_column(cur, "brand_metrics", col):
             cur.execute(f"ALTER TABLE brand_metrics ADD COLUMN {col} {ddl}")
             print(f"OK: brand_metrics.{col}")
+
+    for cg_col, cg_comment in (
+        ("channel_growth_jd", None),
+        ("channel_growth_tmall", None),
+        ("channel_growth_douyin", None),
+        ("channel_growth_taobao", "淘宝渠道增速%"),
+    ):
+        if not _has_column(cur, "brand_metrics", cg_col):
+            continue
+        cur.execute(f"SHOW COLUMNS FROM brand_metrics LIKE %s", (cg_col,))
+        row = cur.fetchone()
+        col_type = (row[1] if row else "").upper()
+        if "DECIMAL(5" in col_type:
+            comment = f" COMMENT '{cg_comment}'" if cg_comment else ""
+            cur.execute(
+                f"ALTER TABLE brand_metrics MODIFY COLUMN {cg_col} DECIMAL(8,2) DEFAULT NULL{comment}"
+            )
+            print(f"OK: brand_metrics.{cg_col} → DECIMAL(8,2)")
 
     try:
         cur.execute(
